@@ -5,7 +5,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v llmw >/dev/null 2>&1 || { command -v uv >/dev/null 2>&1 && uv tool install -q \"git+https://github.com/duddudcns/llm-wiki-cli.git\" || pip install -q --user \"git+https://github.com/duddudcns/llm-wiki-cli.git\"; }"
+            "command": "command -v llmw >/dev/null 2>&1 || { command -v uv >/dev/null 2>&1 && uv tool install -q \"git+https://github.com/duddudcns/llm-wiki-cli.git\" || pip install -q --user \"git+https://github.com/duddudcns/llm-wiki-cli.git\"; }; llmw hook session-start 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "payload=$(cat); case \"$payload\" in *wiki*|*raw*) printf '%s' \"$payload\" | llmw hook pretooluse 2>/dev/null || true ;; esac"
           }
         ]
       }

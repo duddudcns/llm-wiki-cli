@@ -7,7 +7,16 @@ from llmw.frontmatter import InvalidFrontmatterError
 from llmw.indexer import rebuild
 from llmw.patching import PatchApplyError, apply_unified_diff
 from llmw.safety import PathNotAllowedError, ReasonRequiredError
-from llmw.writer import FileExistsConflictError, FileNotFoundForPatchError, patch_page, write_page
+from llmw.search import search
+from llmw.writer import (
+    FileExistsConflictError,
+    FileNotFoundForPatchError,
+    OldStringNotFoundError,
+    OldStringNotUniqueError,
+    edit_page,
+    patch_page,
+    write_page,
+)
 
 
 def test_write_requires_reason(tmp_path: Path):
@@ -143,6 +152,75 @@ def test_patch_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_p
 
     content = (paths.root / "wiki/concepts/a.md").read_text(encoding="utf-8")
     assert content == "---\ntitle: A\n---\nbody line\n"
+    assert not list(paths.backups_dir.rglob("a.md"))
+
+
+def test_edit_replaces_unique_occurrence_and_logs(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nold text here\n", reason="seed")
+    rebuild(paths)
+
+    edit_page(paths, "wiki/concepts/a.md", "old text", "new text", reason="fix wording")
+
+    content = (paths.root / "wiki/concepts/a.md").read_text(encoding="utf-8")
+    assert content == "---\ntitle: A\n---\nnew text here\n"
+    assert "fix wording" in paths.wiki_log.read_text(encoding="utf-8")
+    assert list(paths.backups_dir.rglob("a.md"))
+    assert search(paths, "new text").results
+
+
+def test_edit_old_string_not_found_leaves_file_untouched(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
+
+    with pytest.raises(OldStringNotFoundError):
+        edit_page(paths, "wiki/concepts/a.md", "nonexistent", "x", reason="attempt")
+
+    content = (paths.root / "wiki/concepts/a.md").read_text(encoding="utf-8")
+    assert content == "---\ntitle: A\n---\nbody\n"
+    assert not list(paths.backups_dir.rglob("a.md"))
+
+
+def test_edit_ambiguous_old_string_requires_all(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nfoo foo foo\n", reason="seed")
+
+    with pytest.raises(OldStringNotUniqueError):
+        edit_page(paths, "wiki/concepts/a.md", "foo", "bar", reason="attempt")
+
+    edit_page(paths, "wiki/concepts/a.md", "foo", "bar", reason="replace all", replace_all=True)
+    content = (paths.root / "wiki/concepts/a.md").read_text(encoding="utf-8")
+    assert content == "---\ntitle: A\n---\nbar bar bar\n"
+
+
+def test_edit_refuses_raw_path(tmp_path: Path):
+    paths = init_project(tmp_path)
+    with pytest.raises(PathNotAllowedError):
+        edit_page(paths, "raw/README.md", "a", "b", reason="bad")
+
+
+def test_edit_requires_reason(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
+    with pytest.raises(ReasonRequiredError):
+        edit_page(paths, "wiki/concepts/a.md", "body", "new body", reason="")
+
+
+def test_edit_requires_existing_file(tmp_path: Path):
+    paths = init_project(tmp_path)
+    with pytest.raises(FileNotFoundForPatchError):
+        edit_page(paths, "wiki/concepts/nope.md", "a", "b", reason="attempt")
+
+
+def test_edit_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
+
+    with pytest.raises(InvalidFrontmatterError):
+        edit_page(paths, "wiki/concepts/a.md", "title: A", 'title: "unterminated', reason="break it")
+
+    content = (paths.root / "wiki/concepts/a.md").read_text(encoding="utf-8")
+    assert content == "---\ntitle: A\n---\nbody\n"
     assert not list(paths.backups_dir.rglob("a.md"))
 
 
