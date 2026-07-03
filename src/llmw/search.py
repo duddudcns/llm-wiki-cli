@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from llmw.paths import ProjectPaths
 from llmw.queries import IndexNotBuiltError, open_ro, outgoing_links, page_tags
 
-_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+_TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
 __all__ = ["IndexNotBuiltError", "SearchResult", "build_match_query", "search"]
 

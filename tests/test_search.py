@@ -4,7 +4,7 @@ import pytest
 
 from llmw.bootstrap import init_project
 from llmw.indexer import rebuild
-from llmw.search import IndexNotBuiltError, search
+from llmw.search import IndexNotBuiltError, build_match_query, search
 
 
 def _write(root: Path, rel: str, content: str) -> None:
@@ -65,3 +65,25 @@ def test_search_no_tokens_returns_empty(tmp_path: Path):
     paths = init_project(tmp_path)
     rebuild(paths)
     assert search(paths, "???") == []
+
+
+def test_build_match_query_extracts_non_ascii_tokens():
+    assert build_match_query("미니맵") == "미니맵*"
+    assert build_match_query("미니맵 레이아웃 에디터") == "미니맵* 레이아웃* 에디터*"
+
+
+def test_search_finds_korean_query(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/components/미니맵 레이아웃 에디터.md",
+        "---\ntitle: 미니맵 레이아웃 에디터\n---\n"
+        "스탯창 미니맵 위젯의 좌표와 크기를 조정하는 에디터 도구.\n",
+    )
+    rebuild(paths)
+
+    results = search(paths, "미니맵")
+    assert any(r.path == "wiki/components/미니맵 레이아웃 에디터.md" for r in results)
+
+    results_multi = search(paths, "미니맵 레이아웃 에디터")
+    assert any(r.path == "wiki/components/미니맵 레이아웃 에디터.md" for r in results_multi)
