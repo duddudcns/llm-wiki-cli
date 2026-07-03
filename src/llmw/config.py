@@ -21,8 +21,6 @@ DEFAULT_LINT_REQUIRED_FRONTMATTER = ["type", "status", "created", "updated"]
 class Config:
     schema_version: int = SCHEMA_VERSION
     created: str = ""
-    raw_dir: str = "raw"
-    wiki_dir: str = "wiki"
     default_search_limit: int = 5
     default_related_limit: int = 10
     archive_tombstone: bool = True
@@ -44,8 +42,6 @@ class Config:
             f'created = "{self.created}"\n'
             "\n"
             "[paths]\n"
-            f'raw = "{self.raw_dir}"\n'
-            f'wiki = "{self.wiki_dir}"\n'
             f"extra_root_pages = {_toml_string_array(self.extra_root_pages)}\n"
             "\n"
             "[defaults]\n"
@@ -72,8 +68,6 @@ def load_config(config_path: Path) -> Config:
     return Config(
         schema_version=llmw.get("schema_version", SCHEMA_VERSION),
         created=llmw.get("created", ""),
-        raw_dir=paths.get("raw", "raw"),
-        wiki_dir=paths.get("wiki", "wiki"),
         extra_root_pages=list(paths.get("extra_root_pages", [])),
         default_search_limit=defaults.get("search_limit", 5),
         default_related_limit=defaults.get("related_limit", 10),

@@ -188,15 +188,39 @@ def extract_markdown_links(masked_body: str) -> tuple[list[LinkRef], list[Extern
 
 # --- `related:` frontmatter — some wikis treat this list as the
 # authoritative cross-reference instead of (or alongside) inline
-# wikilinks. Resolved the same way wikilinks are, just tagged distinctly. ---
+# wikilinks. Resolved the same way wikilinks are, just tagged distinctly.
+#
+# Obsidian's own Properties panel writes list-of-links entries as the
+# literal wikilink text (e.g. `related: ["[[Note]]"]`) when you pick a
+# link through its UI, rather than a bare path/title — so a `related:`
+# entry may be either form and both must resolve. ---
+
+_BARE_WIKILINK_RE = re.compile(
+    r"^!?\[\[(?P<target>[^\]|#]*)(?:#(?P<heading>[^\]|]*))?(?:\|(?P<alias>[^\]]*))?\]\]$"
+)
 
 
 def extract_related_links(frontmatter: dict) -> list[LinkRef]:
-    return [
-        LinkRef(target_raw=raw.strip(), kind="related")
-        for raw in _normalize_str_list(frontmatter.get("related"))
-        if raw.strip()
-    ]
+    links = []
+    for raw in _normalize_str_list(frontmatter.get("related")):
+        raw = raw.strip()
+        if not raw:
+            continue
+        m = _BARE_WIKILINK_RE.match(raw)
+        if m is None:
+            links.append(LinkRef(target_raw=raw, kind="related"))
+            continue
+        heading = m.group("heading")
+        alias = m.group("alias")
+        links.append(
+            LinkRef(
+                target_raw=(m.group("target") or "").strip(),
+                kind="related",
+                target_heading=heading.strip() if heading else None,
+                link_text=alias.strip() if alias else None,
+            )
+        )
+    return links
 
 
 # --- frontmatter field normalization ---

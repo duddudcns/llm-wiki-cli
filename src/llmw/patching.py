@@ -33,12 +33,13 @@ def _parse_hunks(diff_text: str) -> list[dict]:
             i += 1
             continue
         old_start = int(match.group("old_start"))
+        old_len = int(match.group("old_len")) if match.group("old_len") is not None else 1
         body: list[str] = []
         i += 1
         while i < len(lines) and not lines[i].startswith("@@") and not lines[i].startswith("--- "):
             body.append(lines[i])
             i += 1
-        hunks.append({"old_start": old_start, "body": body})
+        hunks.append({"old_start": old_start, "old_len": old_len, "body": body})
 
     if not hunks:
         raise PatchApplyError("No valid unified-diff hunks found.")
@@ -54,7 +55,16 @@ def apply_unified_diff(original: str, diff_text: str) -> str:
     cursor = 0
 
     for hunk in hunks:
-        old_start_idx = hunk["old_start"] - 1
+        # A hunk with old_len == 0 is a pure insertion with nothing from
+        # the old file in its body; per unified-diff convention its
+        # `old_start` is already the 0-based insertion point (the line
+        # count *before* which new lines go), not a 1-based line
+        # reference — `@@ -0,0 +1 @@` means "insert at the very start".
+        # Every other hunk uses a normal 1-based first-line reference.
+        if hunk["old_len"] == 0:
+            old_start_idx = hunk["old_start"]
+        else:
+            old_start_idx = hunk["old_start"] - 1
         if old_start_idx < cursor:
             raise PatchApplyError("Hunks overlap or are out of order.")
         if old_start_idx > len(src_lines):

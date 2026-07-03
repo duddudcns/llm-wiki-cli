@@ -47,8 +47,31 @@ app = typer.Typer(
     help="Headless Obsidian-like LLM Wiki CLI for AI agents.",
     no_args_is_help=True,
 )
-console = Console()
-err_console = Console(stderr=True)
+# markup=False/highlight=False everywhere: wiki content (titles, summaries,
+# link targets, error messages) is arbitrary user text and must never be
+# parsed as rich markup — a page containing e.g. "[LEA-3004]" next to
+# anything bracket-slash-shaped can otherwise raise rich.errors.MarkupError
+# and crash the whole command, or silently swallow "[bold]...[/bold]"-shaped
+# substrings. See git log for the bug this fixed.
+console = Console(markup=False, highlight=False)
+err_console = Console(stderr=True, markup=False, highlight=False)
+
+
+def _err(message: object) -> None:
+    err_console.print(f"ERROR: {message}", style="bold red")
+
+
+def _warn(message: object) -> None:
+    err_console.print(f"WARN: {message}", style="yellow")
+
+
+def _print_json(payload) -> None:
+    # Deliberately bypass rich here, not just its markup parsing: Console
+    # also soft-wraps long lines at terminal width by default, which would
+    # inject a hard newline into the middle of a JSON string value and
+    # break `json.loads` on the other end. Plain stdlib print has neither
+    # failure mode.
+    print(jsonlib.dumps(payload, indent=2))
 
 
 def _version_callback(value: bool) -> None:
@@ -61,7 +84,7 @@ def _require_paths():
     try:
         return resolve_paths()
     except ProjectNotFoundError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
 
 
@@ -83,9 +106,9 @@ def init(
     try:
         paths = init_project(path, force=force)
     except ProjectAlreadyExistsError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
-    console.print(f"Initialized llmw project at [bold]{paths.root}[/bold]")
+    console.print(f"Initialized llmw project at {paths.root}", style="bold")
 
 
 @app.command()
@@ -98,7 +121,7 @@ def status(
     report = build_status(paths)
 
     if json:
-        console.print(jsonlib.dumps(report.as_dict(), indent=2))
+        _print_json(report.as_dict())
         return
 
     console.print(f"wiki pages:     {report.wiki_page_count}")
@@ -132,7 +155,7 @@ def _report_sync(label: str, stats, json: bool) -> None:
         f"removed {stats.pages_removed}"
     )
     for path, message in stats.errors:
-        err_console.print(f"[yellow]WARN:[/yellow] {path}: {message}")
+        _warn(f"{path}: {message}")
 
 
 @app.command()
@@ -146,7 +169,7 @@ def rebuild(json: bool = typer.Option(False, "--json")) -> None:
 @app.command()
 def index(
     changed: bool = typer.Option(
-        True, "--changed/--all", help="Only reindex files whose mtime changed."
+        True, "--changed/--all", help="Only reindex files whose mtime and hash changed."
     ),
     json: bool = typer.Option(False, "--json"),
 ) -> None:
@@ -168,11 +191,11 @@ def search(
     try:
         results = search_pages(paths, query, limit=limit, type_filter=type)
     except IndexNotBuiltError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
 
     if json:
-        console.print(jsonlib.dumps([r.as_dict() for r in results], indent=2))
+        _print_json([r.as_dict() for r in results])
         return
 
     if not results:
@@ -198,11 +221,11 @@ def read(
     try:
         result = read_page(paths, target, full=full)
     except PageNotFoundError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
 
     if json:
-        console.print(jsonlib.dumps(result.as_dict(), indent=2))
+        _print_json(result.as_dict())
         return
 
     if full:
@@ -241,11 +264,11 @@ def related(
     try:
         results = related_pages(paths, target, limit=limit, by=categories)
     except (IndexNotBuiltError, PageNotIndexedError) as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
 
     if json:
-        console.print(jsonlib.dumps([r.as_dict() for r in results], indent=2))
+        _print_json([r.as_dict() for r in results])
         return
 
     if not results:
@@ -260,10 +283,7 @@ def related(
 def _resolve_or_exit(conn, target: str):
     row = find_page_row(conn, target)
     if row is None:
-        err_console.print(
-            f'[red]ERROR:[/red] Page not found: "{target}"\n'
-            f'Hint: Run `llmw search "{target}" --limit 5`.'
-        )
+        _err(f'Page not found: "{target}"\nHint: Run `llmw search "{target}" --limit 5`.')
         raise typer.Exit(code=1)
     return row
 
@@ -274,7 +294,7 @@ def links(target: str = typer.Argument(...), json: bool = typer.Option(False, "-
     paths = _require_paths()
     conn = open_ro(paths)
     if conn is None:
-        err_console.print("[red]ERROR:[/red] Index not built yet. Run `llmw rebuild` first.")
+        _err("Index not built yet. Run `llmw rebuild` first.")
         raise typer.Exit(code=1)
     try:
         row = _resolve_or_exit(conn, target)
@@ -291,7 +311,7 @@ def links(target: str = typer.Argument(...), json: bool = typer.Option(False, "-
         conn.close()
 
     if json:
-        console.print(jsonlib.dumps(items, indent=2))
+        _print_json(items)
         return
     if not items:
         console.print("No outgoing links.")
@@ -309,7 +329,7 @@ def backlinks(
     paths = _require_paths()
     conn = open_ro(paths)
     if conn is None:
-        err_console.print("[red]ERROR:[/red] Index not built yet. Run `llmw rebuild` first.")
+        _err("Index not built yet. Run `llmw rebuild` first.")
         raise typer.Exit(code=1)
     try:
         row = _resolve_or_exit(conn, target)
@@ -319,7 +339,7 @@ def backlinks(
         conn.close()
 
     if json:
-        console.print(jsonlib.dumps(items, indent=2))
+        _print_json(items)
         return
     if not items:
         console.print("No backlinks.")
@@ -339,11 +359,11 @@ def lint(
     try:
         report = run_lint(paths)
     except IndexNotBuiltError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
 
     if json:
-        console.print(jsonlib.dumps(report.as_dict(), indent=2))
+        _print_json(report.as_dict())
         raise typer.Exit(code=0 if report.is_clean() else 1)
 
     counts = report.counts()
@@ -355,7 +375,7 @@ def lint(
     for name, count in counts.items():
         if count == 0:
             continue
-        console.print(f"[bold]{name}[/bold] ({count})")
+        console.print(f"{name} ({count})", style="bold")
         items = getattr(report, name)
         entries = items.items() if isinstance(items, dict) else enumerate(items)
         for _, value in list(entries)[:10]:
@@ -393,10 +413,10 @@ def graph_build(json: bool = typer.Option(False, "--json")) -> None:
     try:
         graph = write_graph_json(paths)
     except IndexNotBuiltError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
     if json:
-        console.print(jsonlib.dumps(graph, indent=2))
+        _print_json(graph)
     else:
         console.print(
             f"graph: {len(graph['nodes'])} nodes, {len(graph['edges'])} edges "
@@ -413,7 +433,7 @@ def graph_export(
     try:
         graph = build_graph(paths)
     except IndexNotBuiltError as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
 
     if format in ("json", "both"):
@@ -423,13 +443,13 @@ def graph_export(
         write_graph_html(paths, graph)
         console.print(f"wrote {paths.graph_html}")
     if format not in ("json", "html", "both"):
-        err_console.print(f"[red]ERROR:[/red] unknown --format {format!r}")
+        _err(f"unknown --format {format!r}")
         raise typer.Exit(code=1)
 
 
 def _read_stdin_content(stdin: bool) -> str:
     if not stdin:
-        err_console.print("[red]ERROR:[/red] Provide content via `--stdin` (pipe it in).")
+        _err("Provide content via `--stdin` (pipe it in).")
         raise typer.Exit(code=1)
     return sys.stdin.read()
 
@@ -452,7 +472,7 @@ def write(
         FileExistsConflictError,
         LockedError,
     ) as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
     console.print(f"wrote {paths.rel(fs_path)}")
 
@@ -476,7 +496,7 @@ def patch(
         PatchApplyError,
         LockedError,
     ) as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
     console.print(f"patched {paths.rel(fs_path)}")
 
@@ -499,7 +519,7 @@ def archive(
         PageNotFoundForArchiveError,
         LockedError,
     ) as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
     console.print(f"archived to {paths.rel(dest)}")
 
@@ -516,7 +536,7 @@ def ingest(source: str = typer.Argument(..., help="Path under raw/ to register."
         UnsupportedSourceTypeError,
         SourceAlreadyIngestedError,
     ) as exc:
-        err_console.print(f"[red]ERROR:[/red] {exc}")
+        _err(exc)
         raise typer.Exit(code=1) from exc
     console.print(f"ingested -> {paths.rel(dest)}")
 
