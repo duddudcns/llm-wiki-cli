@@ -141,6 +141,24 @@ def test_extract_summary_prefers_frontmatter_then_section():
     assert none_present.summary is None
 
 
+def test_extract_summary_recognizes_agent_summary_heading_from_ingest_template():
+    filled = parse_page(
+        "# Source\n\n## Agent summary\n\nThe real summary content.\n\n## Related pages\n\nx\n",
+        "p.md",
+    )
+    assert filled.summary == "The real summary content."
+
+
+def test_extract_summary_ignores_unfilled_ingest_todo_placeholder():
+    unfilled = parse_page(
+        "# Source\n\n## Agent summary\n\n"
+        "TODO: The agent should read the source and summarize it.\n\n"
+        "## Related pages\n\nx\n",
+        "p.md",
+    )
+    assert unfilled.summary is None
+
+
 def test_extract_key_points():
     body = "# P\n\n## Key points\n\n- point one\n- point two\n\n## Related\n\nx\n"
     masked = mask_non_prose(body)
