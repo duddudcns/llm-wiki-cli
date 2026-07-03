@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+
+# Derived, rebuildable llmw data (see `llmw rebuild`) — never source of truth.
+**/.llmw/

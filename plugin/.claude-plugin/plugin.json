@@ -1,0 +1,11 @@
+{
+  "name": "llm-wiki",
+  "displayName": "LLM Wiki",
+  "version": "0.1.0",
+  "description": "Headless Obsidian-like LLM Wiki CLI (llmw) and its Claude Code skill",
+  "author": {
+    "name": "local"
+  },
+  "license": "MIT",
+  "keywords": ["wiki", "knowledge-base", "obsidian", "markdown", "cli"]
+}

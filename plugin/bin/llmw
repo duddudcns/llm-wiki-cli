@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Thin dispatcher so the `llmw` CLI is reachable from Claude Code's Bash tool
+# while this plugin is enabled. Assumes the `llmw` Python package is already
+# installed (pip/uv/pipx) into the active Python environment — this script
+# does not bundle a Python distribution itself.
+set -euo pipefail
+
+if command -v llmw >/dev/null 2>&1; then
+  exec llmw "$@"
+fi
+
+for py in python3 python; do
+  if command -v "$py" >/dev/null 2>&1; then
+    exec "$py" -m llmw.cli "$@"
+  fi
+done
+
+echo "llmw: no 'llmw' executable and no python3/python on PATH." >&2
+echo "Install it first: pip install llmw   (or: uv tool install llmw)" >&2
+exit 1
