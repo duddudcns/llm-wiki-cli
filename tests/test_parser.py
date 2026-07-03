@@ -37,6 +37,94 @@ def test_split_frontmatter_non_mapping_raises():
         split_frontmatter(text)
 
 
+def test_split_frontmatter_repairs_unquoted_colon_in_scalar_value():
+    text = (
+        "---\n"
+        "title: GlobalUIScale\n"
+        "summary: idle=Cursor: 0.0, button: 1.0 to 1.1 depending on state\n"
+        "---\n"
+        "body\n"
+    )
+    fm, body = split_frontmatter(text)
+    assert fm["title"] == "GlobalUIScale"
+    assert fm["summary"] == "idle=Cursor: 0.0, button: 1.0 to 1.1 depending on state"
+    assert body == "body\n"
+
+
+def test_split_frontmatter_repairs_multiple_broken_values_in_one_pass():
+    text = (
+        "---\n"
+        "summary: first: broken value\n"
+        "note: second: also broken, more: colons\n"
+        "clean: untouched\n"
+        "---\n"
+        "body\n"
+    )
+    fm, _ = split_frontmatter(text)
+    assert fm["summary"] == "first: broken value"
+    assert fm["note"] == "second: also broken, more: colons"
+    assert fm["clean"] == "untouched"
+
+
+def test_split_frontmatter_unrepairable_yaml_still_raises():
+    with pytest.raises(InvalidFrontmatterError):
+        split_frontmatter("---\ntitle: [unterminated\n---\nbody\n")
+    with pytest.raises(InvalidFrontmatterError):
+        split_frontmatter("---\nfoo: bar\n\tbaz: qux\n---\nbody\n")
+
+
+def test_split_frontmatter_repair_failure_reports_original_error():
+    text = (
+        "---\n"
+        "summary: has: embedded colon\n"
+        "broken: [unterminated\n"
+        "---\n"
+        "body\n"
+    )
+    with pytest.raises(InvalidFrontmatterError) as excinfo:
+        split_frontmatter(text)
+    assert "line 1" in str(excinfo.value) or "mapping values" in str(excinfo.value)
+
+
+def test_split_frontmatter_valid_yaml_does_not_invoke_repair(monkeypatch):
+    import llmw.frontmatter as frontmatter_module
+
+    def _fail(_raw):
+        raise AssertionError("repair path must not run for valid YAML")
+
+    monkeypatch.setattr(
+        frontmatter_module, "_repair_unquoted_colon_values", _fail
+    )
+    text = (
+        "---\n"
+        "title: T\n"
+        "tags:\n"
+        "  - a\n"
+        "  - b\n"
+        "aliases:\n"
+        "  - A1\n"
+        "related:\n"
+        "  - wiki/concepts/foo\n"
+        "nested:\n"
+        "  x: 1\n"
+        "multi: >\n"
+        "  line one\n"
+        "  line two\n"
+        "---\n"
+        "body\n"
+    )
+    fm, body = split_frontmatter(text)
+    assert fm == {
+        "title": "T",
+        "tags": ["a", "b"],
+        "aliases": ["A1"],
+        "related": ["wiki/concepts/foo"],
+        "nested": {"x": 1},
+        "multi": "line one line two",
+    }
+    assert body == "body\n"
+
+
 WIKILINK_FIXTURE = """\
 # A
 
