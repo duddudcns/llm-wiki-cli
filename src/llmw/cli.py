@@ -195,24 +195,35 @@ def search(
     query: str = typer.Argument(...),
     limit: int = typer.Option(5, "--limit"),
     type: Optional[str] = typer.Option(None, "--type"),
+    strict: bool = typer.Option(False, "--strict", help="Disable relaxed/any fallback tiers."),
     json: bool = typer.Option(False, "--json"),
 ) -> None:
-    """Full-text search over wiki page title/summary/body."""
+    """Full-text search over wiki page title/summary/body.
+
+    Runs strict AND matching first; if that finds nothing, relaxes to drop
+    query terms that can't match any page, then finally falls back to OR
+    matching across all terms. Pass --strict to disable the fallback tiers.
+    """
     paths = _require_paths()
     try:
-        results = search_pages(paths, query, limit=limit, type_filter=type)
+        response = search_pages(paths, query, limit=limit, type_filter=type, strict=strict)
     except IndexNotBuiltError as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
 
     if json:
-        _print_json([r.as_dict() for r in results])
+        _print_json(response.as_dict())
         return
 
-    if not results:
+    if not response.results:
         console.print(f'No results for "{query}".')
         return
-    for i, r in enumerate(results, start=1):
+    if response.mode != "strict":
+        note = f"note: no exact match — {response.mode} search"
+        if response.dropped_tokens:
+            note += f" (ignored: {', '.join(response.dropped_tokens)})"
+        console.print(note, style="dim")
+    for i, r in enumerate(response.results, start=1):
         console.print(f"{i}. {r.path}")
         console.print(f"   score: {r.score}")
         if r.summary:

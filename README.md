@@ -153,7 +153,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 | `llmw status [--brief\|--json]` | Page counts, broken links, orphans, last indexed time, dirty pages |
 | `llmw rebuild` | Full re-index of `wiki/**/*.md` from scratch |
 | `llmw index [--changed\|--all]` | Incremental (default) or full re-index |
-| `llmw search "<query>" [--limit N] [--type T]` | SQLite FTS5 search over title/summary/body |
+| `llmw search "<query>" [--limit N] [--type T] [--strict]` | SQLite FTS5 search over title/summary/body — see [Search semantics](#search-semantics) |
 | `llmw read <path\|title\|alias> [--full\|--brief]` | Look up a page; brief shows title/type/summary/key points/links/backlink count |
 | `llmw links <target>` | Outgoing links, with broken status |
 | `llmw backlinks <target>` | Incoming links |
@@ -165,6 +165,33 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 | `llmw lint [--brief\|--json]` | Broken links, orphans, duplicate titles/aliases, missing/invalid frontmatter, dangling raw refs, archived-page links — reports only, never auto-fixes |
 | `llmw health [--brief]` | System checks: config, index db, schema version, directories, locks |
 | `llmw graph build` / `llmw graph export --format json\|html` | Regenerate/export the link graph |
+
+## Search semantics
+
+`llmw search` never requires keyword-only phrasing — a full natural-
+language query is fine. It tries up to three tiers, only moving to the
+next when the previous one finds nothing, so a full match can never be
+outranked by a partial one:
+
+1. **strict** — every query term required (AND).
+2. **relaxed** — terms that can't match any indexed page at all (typos,
+   verb conjugations) are dropped; the rest are still required.
+3. **any** — every term becomes optional (OR), ranked by relevance.
+
+`--json` output reports which tier answered the query:
+`{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
+Pass `--strict` to disable the fallback tiers and only ever run tier 1.
+
+Query terms that are a single Hangul word with a trailing particle (a
+조사 — e.g. `스탯창을`, `포탈에서`) are stemmed to the bare noun (`스탯창`,
+`포탈`) before matching, since SQLite FTS5's prefix search only matches a
+query that is a prefix of the indexed word, not the other way around, so
+an inflected query would otherwise miss a bare-noun page. This is a small
+curated suffix list, not a full morphological analyzer — it won't stem verb
+conjugations (that's what the relaxed tier is for) and will occasionally
+strip a coincidental non-particle ending (e.g. `도로` → `도`); this is
+always recall-safe (the stem is a prefix of the original word) at worst
+adding minor ranking noise, never a missed page.
 
 ## Safety rules
 

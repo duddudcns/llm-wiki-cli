@@ -12,8 +12,14 @@ commands default to a brief, context-cheap output; pass `--full` or
   last indexed time, dirty pages.
 - `llmw rebuild` — full re-index of `wiki/**/*.md` from scratch.
 - `llmw index --changed` — incremental re-index (hash/mtime based).
-- `llmw search "<query>" [--limit N] [--type TYPE] [--json]` — SQLite
-  FTS5 search over title/summary/body. Default limit 5.
+- `llmw search "<query>" [--limit N] [--type TYPE] [--strict] [--json]` —
+  SQLite FTS5 search over title/summary/body. Default limit 5. Natural-
+  language queries are fine: search tries strict AND-of-terms first, then
+  relaxes to drop terms that can't match anything, then falls back to
+  OR-of-all-terms — it never needs keyword-only phrasing. Korean particle
+  suffixes (e.g. `스탯창을`) are stemmed to the bare noun before matching.
+  `--json` output is `{"mode": "strict"|"relaxed"|"any", "dropped_tokens":
+  [...], "results": [...]}`. Pass `--strict` to disable the fallback tiers.
 - `llmw read <path-or-title> [--brief|--full] [--json]` — look up a page
   by path, title, or alias. `--brief` (default) shows title, type,
   summary, key points, links, backlink count.

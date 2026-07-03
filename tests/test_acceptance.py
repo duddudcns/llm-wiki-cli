@@ -94,8 +94,9 @@ def test_14_5_search(tmp_path: Path):
 
     result = run(tmp_path, "search", "context overhead", "--json")
     assert result.returncode == 0, result.stderr
-    results = json.loads(result.stdout)
-    assert any(r["path"] == "wiki/concepts/a.md" for r in results)
+    report = json.loads(result.stdout)
+    assert report["mode"] == "strict"
+    assert any(r["path"] == "wiki/concepts/a.md" for r in report["results"])
 
 
 def test_14_6_archive(tmp_path: Path):

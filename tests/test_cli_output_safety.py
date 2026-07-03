@@ -66,7 +66,7 @@ def test_long_json_value_is_not_line_wrapped(tmp_path: Path):
     result = run(tmp_path, "search", "long", "--json")
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)  # would raise if the value got split by a hard newline
-    assert any(r["summary"] == long_value for r in payload)
+    assert any(r["summary"] == long_value for r in payload["results"])
 
 
 def test_lint_json_output_is_valid_even_with_bracket_content(tmp_path: Path):
