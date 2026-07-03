@@ -125,9 +125,14 @@ Link resolution specifically handles real-world Obsidian export quirks:
 
 - `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading|Alias]]`, `[[#Heading]]`,
   `![[Embed]]` — full wikilink grammar.
-- `related:` frontmatter (a list of page paths/titles) is treated as a
-  first-class link source, same as inline wikilinks — some wikis use it as
-  the authoritative cross-reference instead of (or alongside) `[[...]]`.
+- Path-like wikilink targets (`[[concepts/foo]]`) resolve relative to the
+  **vault root** (`wiki/`), matching how Obsidian resolves them when you
+  actually open `wiki/` as a vault — not just relative to the linking
+  page's own folder.
+- `related:` frontmatter is a first-class link source, same as inline
+  wikilinks — both a plain path/title (`related: [wiki/concepts/foo]`, the
+  convention some wikis used before adopting `llmw`) and Obsidian's own
+  Properties-panel format (`related: ["[[Note]]"]`) resolve correctly.
 - Markdown links with URL-encoded targets (`[Profile](Project%20Profile.md)`,
   common when a filename has spaces) are decoded before matching against
   on-disk pages.
@@ -135,6 +140,15 @@ Link resolution specifically handles real-world Obsidian export quirks:
   checked against the real filesystem — they're only reported as broken by
   `llmw lint` if the target genuinely doesn't exist anywhere in the
   project, not merely because they aren't an indexed wiki page.
+
+**Where the graph deliberately diverges from Obsidian's own**: `related:`
+edges and llmw's title-based wikilink resolution (`[[Exact Page
+Title]]` resolving even when it doesn't match the filename) are both
+llmw extensions with no Obsidian equivalent — Obsidian's own graph view
+won't show those edges. Two pages with the same filename stem in
+different folders also resolve ambiguously (first match wins) in both
+tools. Opening `wiki/` in Obsidian gets you a real, useful graph on the
+same files, not a pixel-identical one.
 
 ## Adapting llmw to an existing wiki
 

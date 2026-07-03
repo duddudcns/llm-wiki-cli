@@ -65,6 +65,38 @@ def test_index_changed_skips_unmodified_files(tmp_path: Path):
     assert before_id == after_id
 
 
+def test_index_changed_skips_reparse_when_mtime_moves_but_content_is_identical(
+    tmp_path: Path,
+):
+    # Simulates `git checkout`/clone, which bumps mtimes without changing
+    # content — should not be treated as a real content change, just a
+    # cheap mtime-refresh so future runs can short-circuit on mtime alone.
+    paths = init_project(tmp_path)
+    fs_path = _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n")
+    rebuild(paths)
+
+    conn = sqlite3.connect(paths.index_db)
+    before_id, before_hash = conn.execute(
+        "SELECT id, hash FROM pages WHERE path = 'wiki/concepts/a.md'"
+    ).fetchone()
+    conn.close()
+
+    time.sleep(0.05)
+    fs_path.write_text("---\ntitle: A\n---\nbody\n", encoding="utf-8")  # identical content
+
+    stats = index_changed(paths)
+    assert stats.pages_indexed == 0
+
+    conn = sqlite3.connect(paths.index_db)
+    after_id, after_hash, after_mtime = conn.execute(
+        "SELECT id, hash, mtime FROM pages WHERE path = 'wiki/concepts/a.md'"
+    ).fetchone()
+    conn.close()
+    assert after_id == before_id  # not deleted/reinserted
+    assert after_hash == before_hash
+    assert after_mtime == fs_path.stat().st_mtime  # mtime was refreshed in place
+
+
 def test_index_changed_reindexes_modified_file(tmp_path: Path):
     paths = init_project(tmp_path)
     fs_path = _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\n---\nold body\n")
@@ -159,6 +191,39 @@ def test_markdown_link_with_url_encoded_space_resolves(tmp_path: Path):
         conn.close()
 
 
+def test_wikilink_resolves_relative_to_vault_root_not_just_source_dir(tmp_path: Path):
+    # Obsidian resolves a path-like wikilink relative to the vault root
+    # (`wiki/`, since that's what a user would open in Obsidian) when it
+    # doesn't match a known page/title/alias and isn't relative to the
+    # source file's own directory either.
+    paths = init_project(tmp_path)
+    _write(tmp_path, "wiki/concepts/alpha.md", "---\ntitle: Alpha\n---\nSee [[concepts/beta]].\n")
+    _write(tmp_path, "wiki/concepts/beta.md", "---\ntitle: Beta\n---\nbody\n")
+    _write(
+        tmp_path,
+        "wiki/notes/gamma.md",
+        "---\ntitle: Gamma\nrelated:\n  - concepts/alpha\n---\nSee [[concepts/alpha]].\n",
+    )
+
+    rebuild(paths)
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        rows = conn.execute(
+            "SELECT target_raw, exists_flag, target_page_id FROM links "
+            "WHERE target_raw = 'concepts/beta'"
+        ).fetchall()
+        assert rows and all(r[1] == 1 and r[2] is not None for r in rows)
+
+        rows = conn.execute(
+            "SELECT target_raw, exists_flag, target_page_id FROM links "
+            "WHERE target_raw = 'concepts/alpha'"
+        ).fetchall()
+        assert len(rows) == 2  # one wikilink + one related entry
+        assert all(r[1] == 1 and r[2] is not None for r in rows)
+    finally:
+        conn.close()
+
+
 def test_relative_wikilink_to_file_outside_wiki_is_not_broken(tmp_path: Path):
     paths = init_project(tmp_path)
     (tmp_path / "docs").mkdir()
@@ -210,6 +275,29 @@ def test_without_extra_root_pages_config_root_files_are_ignored(tmp_path: Path):
     try:
         row = conn.execute("SELECT id FROM pages WHERE path = 'index.md'").fetchone()
         assert row is None
+    finally:
+        conn.close()
+
+
+def test_rebuild_preserves_log_entries_history(tmp_path: Path):
+    paths = init_project(tmp_path)
+    rebuild(paths)
+
+    conn = sqlite3.connect(paths.index_db)
+    conn.execute(
+        "INSERT INTO log_entries(ts, action, path, reason, detail) VALUES (?, ?, ?, ?, ?)",
+        ("2026-07-01T00:00:00", "write", "wiki/concepts/a.md", "seed", ""),
+    )
+    conn.commit()
+    conn.close()
+
+    _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n")
+    rebuild(paths)
+
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        count = conn.execute("SELECT COUNT(*) FROM log_entries").fetchone()[0]
+        assert count == 1
     finally:
         conn.close()
 

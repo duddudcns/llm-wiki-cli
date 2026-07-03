@@ -185,6 +185,18 @@ def test_extract_related_links_absent_is_empty():
     assert extract_related_links({}) == []
 
 
+def test_extract_related_links_unwraps_obsidian_property_wikilink_syntax():
+    fm = {"related": ["[[Note]]", "[[Note|Alias]]", "[[Note#Heading]]", "wiki/plain/path"]}
+    links = extract_related_links(fm)
+    assert [(link.target_raw, link.target_heading, link.link_text) for link in links] == [
+        ("Note", None, None),
+        ("Note", None, "Alias"),
+        ("Note", "Heading", None),
+        ("wiki/plain/path", None, None),
+    ]
+    assert all(link.kind == "related" for link in links)
+
+
 def test_parse_page_includes_related_links_alongside_wikilinks():
     text = (
         "---\n"

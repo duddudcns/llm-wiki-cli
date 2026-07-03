@@ -96,6 +96,20 @@ def test_apply_unified_diff_insert_lines():
     assert apply_unified_diff(original, diff) == "a\nb\nc\n"
 
 
+def test_apply_unified_diff_pure_insertion_hunk_mid_file():
+    # `git diff -U0` / `difflib.unified_diff(n=0)` style: old_len == 0
+    # means "insert after old line 2", not "insert before old line 2".
+    original = "line1\nline2\nline3\n"
+    diff = "@@ -2,0 +3 @@\n+NEW\n"
+    assert apply_unified_diff(original, diff) == "line1\nline2\nNEW\nline3\n"
+
+
+def test_apply_unified_diff_pure_insertion_hunk_at_start():
+    original = "line1\nline2\n"
+    diff = "@@ -0,0 +1 @@\n+NEW\n"
+    assert apply_unified_diff(original, diff) == "NEW\nline1\nline2\n"
+
+
 def test_write_and_patch_never_introduce_crlf(tmp_path: Path):
     paths = init_project(tmp_path)
     write_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
