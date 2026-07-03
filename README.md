@@ -160,6 +160,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | Deterministic related-page candidates (no model calls) |
 | `llmw ingest <raw/...>` | Register a `.md`/`.txt` source as a `wiki/sources/<slug>.md` draft |
 | `llmw write <path> --reason "..." --stdin [--force]` | Create a new wiki page from stdin |
+| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Exact-string replace in an existing page (same semantics as a native Edit tool) |
 | `llmw patch <path> --reason "..." --stdin` | Apply a unified diff to an existing page (backs up first, rolls back on failure) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Move a page to `wiki/archived/YYYY/MM/`, stamp archive frontmatter, log the change |
 | `llmw lint [--brief\|--json]` | Broken links, orphans, duplicate titles/aliases, missing/invalid frontmatter, dangling raw refs, archived-page links — reports only, never auto-fixes |
@@ -205,6 +206,48 @@ adding minor ranking noise, never a missed page.
   mismatch).
 - A simple advisory lock (`.llmw/locks/write.lock`) guards against two
   `llmw` processes mutating the wiki at the same time.
+
+## How the plugin keeps agents honest
+
+Nothing stops an agent from ignoring the skill and editing `wiki/*.md` or
+`raw/**` directly with its own file-edit tools instead of `llmw` — that
+skips the `--reason` audit log, frontmatter validation, and automatic
+backup, and it happens in practice whenever a *different*, competing set
+of instructions is in effect and never mentions `llmw`.
+
+When installed as a Claude Code plugin (not a bare `llmw init` project
+skill), a `PreToolUse` hook closes that gap at the harness level: a native
+`Edit`/`Write`/`NotebookEdit` call targeting `wiki/*.md` or `raw/**` is
+denied (or, per config, turned into a confirmation prompt), and the
+denial message names the exact `llmw` command to run instead — so the
+agent's very next action is a one-line rewrite, not a dead end. A
+`SessionStart` hook also drops a short "this project has an llmw wiki"
+note into context, so a blank environment with no project `CLAUDE.md`
+still discovers `llmw` on turn one.
+
+The guard only ever looks at `Edit`/`Write`/`NotebookEdit` calls whose
+target resolves (by walking up from the file, the same way `llmw` finds
+its own project root) to a real llmw project's `wiki/*.md` or `raw/**` —
+everything else, including plain `Read`, passes through untouched, and it
+never inspects `Bash` commands (shell-string policing is its own
+false-positive minefield, so the audit trail in `wiki/log.md` plus `llmw
+lint` remain the detection layer for that gap instead of a hook trying
+to block it).
+
+Configure or disable it per project in `.llmw/config.toml`:
+
+```toml
+[hooks]
+wiki_guard = "deny"  # default: block, with a message naming the llmw fix
+# wiki_guard = "ask"   # prompt for confirmation instead of blocking
+# wiki_guard = "off"   # disable the guard for this project
+```
+
+Both hooks require Git Bash on Windows (Claude Code falls back to
+PowerShell when Git Bash isn't installed, which these shell-form hooks
+don't support) — everywhere else, `llmw`'s own safety gate (reason
+required, path confined, frontmatter validated, backup before write)
+still holds regardless of whether the hook ran.
 
 ## Claude Code skill
 

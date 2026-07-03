@@ -15,6 +15,8 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 
 DEFAULT_LINT_REQUIRED_FRONTMATTER = ["type", "status", "created", "updated"]
+DEFAULT_WIKI_GUARD = "deny"
+_VALID_WIKI_GUARD_VALUES = {"deny", "ask", "off"}
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,12 @@ class Config:
     # index alongside `wiki/**/*.md` — for wikis that keep top-level files
     # like `index.md`/`log.md`/`schema.md` outside the `wiki/` directory.
     extra_root_pages: list[str] = field(default_factory=list)
+    # Controls the PreToolUse guard that redirects native Edit/Write/
+    # NotebookEdit calls targeting wiki/*.md or raw/** back to llmw's own
+    # write/edit/patch/archive commands: "deny" blocks with a message
+    # naming the llmw equivalent, "ask" prompts the user instead, "off"
+    # disables the guard for this project entirely.
+    hooks_wiki_guard: str = DEFAULT_WIKI_GUARD
 
     def to_toml(self) -> str:
         return (
@@ -51,6 +59,9 @@ class Config:
             "\n"
             "[lint]\n"
             f"required_frontmatter = {_toml_string_array(self.lint_required_frontmatter)}\n"
+            "\n"
+            "[hooks]\n"
+            f'wiki_guard = "{self.hooks_wiki_guard}"\n'
         )
 
 
@@ -65,6 +76,10 @@ def load_config(config_path: Path) -> Config:
     paths = data.get("paths", {})
     defaults = data.get("defaults", {})
     lint = data.get("lint", {})
+    hooks = data.get("hooks", {})
+    wiki_guard = hooks.get("wiki_guard", DEFAULT_WIKI_GUARD)
+    if wiki_guard not in _VALID_WIKI_GUARD_VALUES:
+        wiki_guard = DEFAULT_WIKI_GUARD
     return Config(
         schema_version=llmw.get("schema_version", SCHEMA_VERSION),
         created=llmw.get("created", ""),
@@ -75,6 +90,7 @@ def load_config(config_path: Path) -> Config:
         lint_required_frontmatter=list(
             lint.get("required_frontmatter", DEFAULT_LINT_REQUIRED_FRONTMATTER)
         ),
+        hooks_wiki_guard=wiki_guard,
     )
 
 

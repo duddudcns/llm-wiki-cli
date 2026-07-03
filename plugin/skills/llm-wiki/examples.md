@@ -57,6 +57,17 @@ Session tokens move out of the auth middleware for compliance reasons.
 EOF
 ```
 
+## Fixing a small mistake with llmw edit
+
+```bash
+# A native Edit/Write on this file would be denied by the PreToolUse guard —
+# use llmw edit instead of hand-writing a diff for a one-line fix.
+llmw edit wiki/decisions/auth-redesign.md \
+  --old "Session tokens move out of the auth middleware for compliance reasons." \
+  --new "Session tokens move out of the auth middleware for compliance reasons (see policy v2)." \
+  --reason "add policy version reference"
+```
+
 ## Cleaning up after a merge
 
 ```bash

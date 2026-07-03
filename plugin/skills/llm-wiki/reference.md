@@ -33,9 +33,14 @@ commands default to a brief, context-cheap output; pass `--full` or
   leaves a placeholder for the agent to fill in.
 - `llmw write <path> --reason "<reason>" --stdin [--force]` — create a
   new wiki page from stdin. Fails if the file exists unless `--force`.
+- `llmw edit <path> --old "<text>" --new "<text>" --reason "<reason>"
+  [--all]` — exact-string replace in an existing page, the same old/new
+  semantics as a native Edit tool. Fails if `--old` isn't found, or
+  matches more than once without `--all`. Prefer this over `patch` for a
+  small, exact change — no diff/context-line bookkeeping required.
 - `llmw patch <path> --reason "<reason>" --stdin` — apply a unified diff
   to an existing wiki page. Creates a backup first; rolls back on
-  failure.
+  failure. Use for structural, multi-line changes.
 - `llmw archive <path> --reason "<reason>"` — move a page to
   `wiki/archived/YYYY/MM/`, stamp archive frontmatter, leave a tombstone
   stub at the original path (default), and log the change.
@@ -70,3 +75,17 @@ commands default to a brief, context-cheap output; pass `--full` or
   `.llmw/config.toml` for `extra_root_pages` / `[lint] required_frontmatter`
   overrides before assuming those files are being ignored or that lint
   findings are real gaps.
+
+## Native Edit/Write are guarded
+
+When installed as a Claude Code plugin, a `PreToolUse` hook denies (or
+asks, per config) native `Edit`/`Write`/`NotebookEdit` calls targeting
+`wiki/*.md` or `raw/**` — the denial message names the exact `llmw`
+command to run instead. This is enforced by the harness, not just this
+skill's advice, so it applies even if another skill's instructions never
+mention `llmw`. A project can change or disable it via `.llmw/config.toml`:
+
+```toml
+[hooks]
+wiki_guard = "deny"  # default. Also: "ask" (prompt instead), "off" (disable)
+```

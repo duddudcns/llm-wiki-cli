@@ -1,6 +1,6 @@
 ---
 name: llm-wiki
-description: Use the local LLM Wiki CLI (`llmw`) when project history, prior decisions, source documents, wiki search, backlinks, graph relationships, or persistent knowledge are needed.
+description: Search, read, and maintain this project's llmw wiki (raw/ + wiki/ + .llmw/). Use when the task involves project history, prior decisions, source documents, backlinks, or persistent knowledge — and before answering anything the wiki may already answer. All wiki/*.md changes MUST go through llmw write/edit/patch (never native file-edit tools); raw/ is immutable.
 ---
 
 # LLM Wiki Skill
@@ -21,11 +21,15 @@ Use this skill when:
 ## Core workflow
 
 1. Run `llmw status --brief`.
-2. Search first: `llmw search "<query>" --limit 5`.
+2. Search first: `llmw search "<query>" --limit 5`. Natural-language queries
+   are fine — search tries strict match first, then relaxes automatically;
+   `mode`/`dropped_tokens` in `--json` output say which tier answered it.
 3. Read only relevant pages: `llmw read <path> --brief`.
 4. Use `--full` only when brief output is insufficient.
 5. Update wiki pages when stable knowledge changes.
-6. Prefer `llmw patch` over rewriting a full page.
+6. Prefer `llmw edit` for a small, exact-text change; `llmw patch` for a
+   structural (multi-line/context) diff; `llmw write --force` to replace a
+   whole page.
 7. Prefer `llmw archive` over deleting a page.
 8. Run `llmw lint --brief` after major wiki changes.
 
@@ -36,6 +40,10 @@ Keep CLI outputs brief. Do not dump the full wiki into context. Use
 
 ## Important
 
+- ⛔ Never use your built-in Edit/Write/NotebookEdit tools on `wiki/*.md`
+  or anything under `raw/` — a PreToolUse guard denies it (unless the
+  project opted out via `.llmw/config.toml`). Use `llmw edit`/`write`/
+  `patch`/`archive` instead; the denial message names the exact command.
 - Do not modify files under `raw/` — `llmw write`/`patch`/`archive` will
   refuse and so should you.
 - The `wiki/` layer is agent-maintained; you are expected to write to it.

@@ -17,6 +17,7 @@ from llmw.bootstrap import ProjectAlreadyExistsError, init_project
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
+from llmw.hook import evaluate_pretooluse, evaluate_sessionstart
 from llmw.indexer import index_changed, rebuild as rebuild_index
 from llmw.ingest import (
     SourceAlreadyIngestedError,
@@ -39,6 +40,9 @@ from llmw.status import build_status
 from llmw.writer import (
     FileExistsConflictError,
     FileNotFoundForPatchError,
+    OldStringNotFoundError,
+    OldStringNotUniqueError,
+    edit_page as do_edit,
     patch_page as do_patch,
     write_page as do_write,
 )
@@ -526,6 +530,36 @@ def patch(
 
 
 @app.command()
+def edit(
+    path: str = typer.Argument(...),
+    old: str = typer.Option(..., "--old", help="Exact existing text to replace."),
+    new: str = typer.Option(..., "--new", help="Replacement text."),
+    reason: str = typer.Option(..., "--reason"),
+    all: bool = typer.Option(
+        False, "--all", help="Replace every occurrence instead of requiring a unique match."
+    ),
+) -> None:
+    """Exact-string replace in an existing wiki page — the same old/new
+    semantics as a native Edit tool, but through llmw's safety gate
+    (reason log, frontmatter validation, backup)."""
+    paths = _require_paths()
+    try:
+        fs_path = do_edit(paths, path, old, new, reason=reason, replace_all=all)
+    except (
+        ReasonRequiredError,
+        PathNotAllowedError,
+        FileNotFoundForPatchError,
+        OldStringNotFoundError,
+        OldStringNotUniqueError,
+        InvalidFrontmatterError,
+        LockedError,
+    ) as exc:
+        _err(exc)
+        raise typer.Exit(code=1) from exc
+    console.print(f"edited {paths.rel(fs_path)}")
+
+
+@app.command()
 def archive(
     path: str = typer.Argument(...),
     reason: str = typer.Option(..., "--reason"),
@@ -563,6 +597,39 @@ def ingest(source: str = typer.Argument(..., help="Path under raw/ to register."
         _err(exc)
         raise typer.Exit(code=1) from exc
     console.print(f"ingested -> {paths.rel(dest)}")
+
+
+hook_app = typer.Typer(help="Internal hook entry points wired into plugin/hooks/hooks.json.")
+app.add_typer(hook_app, name="hook", hidden=True)
+
+
+@hook_app.command("pretooluse")
+def hook_pretooluse() -> None:
+    """PreToolUse hook: reads a tool-call payload from stdin, prints a
+    hookSpecificOutput deny/ask decision to stdout if llmw has an opinion,
+    otherwise prints nothing. Always exits 0 — a hook must never crash or
+    block a tool call outside a real llmw project's wiki/raw."""
+    try:
+        payload = jsonlib.loads(sys.stdin.read() or "{}")
+        result = evaluate_pretooluse(payload)
+    except Exception:  # noqa: BLE001 - a hook must never crash a tool call
+        return
+    if result is not None:
+        print(jsonlib.dumps(result))
+
+
+@hook_app.command("session-start")
+def hook_session_start() -> None:
+    """SessionStart hook: reads the session payload from stdin, prints a
+    short plain-text note (added as context) when cwd is inside an llmw
+    project, otherwise prints nothing."""
+    try:
+        payload = jsonlib.loads(sys.stdin.read() or "{}")
+        context = evaluate_sessionstart(payload.get("cwd") or ".")
+    except Exception:  # noqa: BLE001 - a hook must never crash session start
+        return
+    if context:
+        print(context)
 
 
 if __name__ == "__main__":
