@@ -189,12 +189,27 @@ full detail so the always-loaded `SKILL.md` stays short.
 
 ## Distributing `llmw` as an installable Claude Code plugin
 
-The `plugin/` directory in this repo is a separate, standard Claude Code
-plugin package (`plugin/.claude-plugin/plugin.json` + `plugin/skills/llm-wiki/`
-+ `plugin/bin/llmw`), for sharing this tool via a marketplace or
-`--plugin-dir` rather than per-project `llmw init`. `plugin/bin/llmw` is a
-thin dispatcher; it still expects the `llmw` Python package to be
-installed in the active environment.
+This repo doubles as its own Claude Code plugin **marketplace** — no
+separate `pip`/`uv`/`pipx` step needed:
+
+```
+/plugin marketplace add duddudcns/llm-wiki-cli
+/plugin install llm-wiki@llm-wiki-cli
+```
+
+(non-interactive equivalents: `claude plugin marketplace add duddudcns/llm-wiki-cli`
+and `claude plugin install llm-wiki@llm-wiki-cli`)
+
+This installs the `.claude-plugin/marketplace.json` → `plugin/` package
+(`plugin/.claude-plugin/plugin.json` + `plugin/skills/llm-wiki/` +
+`plugin/bin/llmw` + `plugin/hooks/hooks.json`). `plugin/bin/llmw` is a
+thin dispatcher, not a bundled Python distribution — so a
+`SessionStart` hook (`plugin/hooks/hooks.json`) checks for `llmw` on
+`PATH` each session and installs it via `uv tool install` (falling back
+to `pip install --user`) the first time it's missing. The check is a
+single `command -v` (no-op, ~10ms) on every session after that. If you'd
+rather manage the CLI install yourself, see [Installation](#installation)
+above and skip the plugin, or install both — they don't conflict.
 
 ## Obsidian compatibility
 
