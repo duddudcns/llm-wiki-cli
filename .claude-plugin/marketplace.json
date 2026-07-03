@@ -1,0 +1,15 @@
+{
+  "name": "llm-wiki-cli",
+  "owner": {
+    "name": "duddudcns"
+  },
+  "description": "Marketplace for the llm-wiki plugin: the llmw CLI's Claude Code skill (search/read/write/patch/archive/lint a Karpathy-style LLM wiki)",
+  "plugins": [
+    {
+      "name": "llm-wiki",
+      "source": "./plugin",
+      "description": "Skill that teaches Claude Code when and how to use the llmw CLI for this project's wiki",
+      "keywords": ["wiki", "knowledge-base", "obsidian", "markdown", "cli"]
+    }
+  ]
+}
