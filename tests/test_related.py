@@ -66,6 +66,30 @@ def test_related_title_mention(tmp_path: Path):
     assert "title-mention" in notes_result.reasons
 
 
+def test_related_term_overlap_with_korean_particle_in_title(tmp_path: Path):
+    # The title carries a trailing particle ("을"); without stemming the
+    # generated FTS query the AND-of-title-terms match would require the
+    # 4-char literal "스탯창을*" as a prefix, which the other page's bare
+    # 3-char "스탯창" token can't satisfy — term-overlap would silently
+    # never fire. This asserts stemming reaches related() unchanged.
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/decisions/stat-window-adjust.md",
+        "---\ntitle: 스탯창을 조정\n---\n스탯창 크기 조정에 대한 결정.\n",
+    )
+    _write(
+        tmp_path,
+        "wiki/concepts/other.md",
+        "---\ntitle: Other\n---\n스탯창 위치를 조정한다.\n",
+    )
+    rebuild(paths)
+
+    results = related(paths, "스탯창을 조정", by=("terms",))
+    other_result = next(r for r in results if r.path == "wiki/concepts/other.md")
+    assert "term-overlap" in other_result.reasons
+
+
 def test_related_respects_limit(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\ntags:\n  - infra\n---\nbody\n")
