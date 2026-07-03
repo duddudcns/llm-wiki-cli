@@ -121,11 +121,22 @@ def extract_key_points(
     return points
 
 
+_SUMMARY_HEADING_NAMES = ("summary", "agent summary")
+
+
 def extract_summary(frontmatter: dict, original_body: str, masked_body: str) -> str | None:
     fm_summary = frontmatter.get("summary")
     if isinstance(fm_summary, str) and fm_summary.strip():
         return fm_summary.strip()
-    return extract_section_text(original_body, masked_body, "summary")
+    for heading_name in _SUMMARY_HEADING_NAMES:
+        section = extract_section_text(original_body, masked_body, heading_name)
+        # `llmw ingest` leaves a "TODO: ..." placeholder under "## Agent
+        # summary" — that's explicitly *not* a summary yet, and lint's
+        # pages_without_summary check should keep flagging it until the
+        # agent replaces it with real content.
+        if section and not section.lower().startswith("todo"):
+            return section
+    return None
 
 
 # --- wikilinks: [[Page]], [[Page|Alias]], [[Page#Heading]],
