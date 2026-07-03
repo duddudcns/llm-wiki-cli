@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from llmw.bootstrap import init_project
+from llmw.config import Config, save_config
 from llmw.indexer import rebuild
 from llmw.lint import run_lint
 from llmw.queries import IndexNotBuiltError
@@ -118,3 +119,35 @@ def test_lint_counts_and_is_clean(tmp_path: Path):
     counts = report.counts()
     assert counts["broken_links"] == 0
     assert report.is_clean() is True
+
+
+def test_lint_accepts_last_updated_as_updated_synonym(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/concepts/a.md",
+        "---\ntitle: A\ntype: concept\nstatus: active\ncreated: 2026-07-01\n"
+        "last_updated: 2026-07-01\n---\nbody\n",
+    )
+    rebuild(paths)
+
+    report = run_lint(paths)
+    assert not any(m["path"] == "wiki/concepts/a.md" for m in report.missing_frontmatter)
+
+
+def test_lint_required_frontmatter_is_configurable(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/concepts/a.md",
+        "---\ntitle: A\ntype: concept\nstatus: active\nimportance: high\n"
+        "last_updated: 2026-07-01\n---\nbody\n",
+    )
+    save_config(
+        paths.config_path,
+        Config(lint_required_frontmatter=["type", "status"]),
+    )
+    rebuild(paths)
+
+    report = run_lint(paths)
+    assert not any(m["path"] == "wiki/concepts/a.md" for m in report.missing_frontmatter)

@@ -7,12 +7,23 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from llmw.config import Config
 from llmw.frontmatter import InvalidFrontmatterError, split_frontmatter
-from llmw.indexer import iter_wiki_files
+from llmw.indexer import iter_wiki_files, load_project_config
 from llmw.paths import ProjectPaths
 from llmw.queries import IndexNotBuiltError, open_ro
 
-REQUIRED_FRONTMATTER_FIELDS = ("type", "status", "created", "updated")
+# A project can override which frontmatter keys are required via
+# `.llmw/config.toml`'s `[lint] required_frontmatter` (see config.py).
+# "updated" is additionally satisfied by a `last_updated` key, a common
+# synonym in wikis that don't track created/updated separately.
+_FIELD_SYNONYMS = {"updated": ("last_updated",)}
+
+
+def _has_field(frontmatter: dict, field_name: str) -> bool:
+    if frontmatter.get(field_name):
+        return True
+    return any(frontmatter.get(syn) for syn in _FIELD_SYNONYMS.get(field_name, ()))
 
 
 @dataclass
@@ -75,13 +86,13 @@ def _iter_raw_path_strings(value, out: list[str]) -> None:
             _iter_raw_path_strings(v, out)
 
 
-def _lint_frontmatter(paths: ProjectPaths, report: LintReport) -> None:
+def _lint_frontmatter(paths: ProjectPaths, config: Config, report: LintReport) -> None:
     """Fresh on-disk pass: YAML validity, required fields, dangling raw refs.
 
     Independent of the SQLite index so it stays correct even for files that
     failed to index at all (invalid frontmatter).
     """
-    for fs_path in iter_wiki_files(paths):
+    for fs_path in iter_wiki_files(paths, config):
         rel_path = paths.rel(fs_path)
         text = fs_path.read_text(encoding="utf-8")
         try:
@@ -90,7 +101,9 @@ def _lint_frontmatter(paths: ProjectPaths, report: LintReport) -> None:
             report.invalid_frontmatter.append({"path": rel_path, "error": str(exc)})
             continue
 
-        missing = [f for f in REQUIRED_FRONTMATTER_FIELDS if not frontmatter.get(f)]
+        missing = [
+            f for f in config.lint_required_frontmatter if not _has_field(frontmatter, f)
+        ]
         if missing:
             report.missing_frontmatter.append({"path": rel_path, "missing": missing})
 
@@ -103,7 +116,8 @@ def _lint_frontmatter(paths: ProjectPaths, report: LintReport) -> None:
 
 def run_lint(paths: ProjectPaths) -> LintReport:
     report = LintReport()
-    _lint_frontmatter(paths, report)
+    config = load_project_config(paths)
+    _lint_frontmatter(paths, config, report)
 
     conn = open_ro(paths)
     if conn is None:

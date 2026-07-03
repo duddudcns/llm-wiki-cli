@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 from llmw.bootstrap import init_project
+from llmw.config import Config, save_config
 from llmw.indexer import index_changed, rebuild
 
 
@@ -112,6 +113,103 @@ def test_mdlink_resolves_relative_to_source_directory(tmp_path: Path):
             "SELECT exists_flag FROM links WHERE target_raw = 'other.md'"
         ).fetchone()
         assert row[0] == 1
+    finally:
+        conn.close()
+
+
+def test_related_frontmatter_resolves_without_md_suffix(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/decisions/a.md",
+        "---\ntitle: A\nrelated:\n  - wiki/concepts/foo\n---\nbody\n",
+    )
+    _write(tmp_path, "wiki/concepts/foo.md", "---\ntitle: Foo\n---\nbody\n")
+
+    rebuild(paths)
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        row = conn.execute(
+            "SELECT exists_flag, target_page_id FROM links "
+            "WHERE target_raw = 'wiki/concepts/foo' AND kind = 'related'"
+        ).fetchone()
+        assert row[0] == 1
+        assert row[1] is not None
+    finally:
+        conn.close()
+
+
+def test_markdown_link_with_url_encoded_space_resolves(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/overview/index_page.md",
+        "[Project Profile](Project%20Profile.md)\n",
+    )
+    _write(tmp_path, "wiki/overview/Project Profile.md", "---\ntitle: Project Profile\n---\nbody\n")
+
+    rebuild(paths)
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        row = conn.execute(
+            "SELECT exists_flag FROM links WHERE target_raw LIKE '%Project Profile.md'"
+        ).fetchone()
+        assert row[0] == 1
+    finally:
+        conn.close()
+
+
+def test_relative_wikilink_to_file_outside_wiki_is_not_broken(tmp_path: Path):
+    paths = init_project(tmp_path)
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "authoring.md").write_text("outside content\n", encoding="utf-8")
+    _write(tmp_path, "wiki/concepts/a.md", "See [[../../docs/authoring]].\n")
+
+    rebuild(paths)
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        row = conn.execute(
+            "SELECT exists_flag, target_page_id FROM links WHERE target_raw = '../../docs/authoring'"
+        ).fetchone()
+        assert row[0] == 1
+        assert row[1] is None  # not an indexed wiki page, just not "broken" either
+    finally:
+        conn.close()
+
+
+def test_extra_root_pages_are_indexed(tmp_path: Path):
+    paths = init_project(tmp_path)
+    (tmp_path / "index.md").write_text(
+        "---\ntitle: Root Index\n---\nSee [[Foo]].\n", encoding="utf-8"
+    )
+    _write(tmp_path, "wiki/concepts/foo.md", "---\ntitle: Foo\n---\nbody\n")
+    save_config(paths.config_path, Config(extra_root_pages=["index.md"]))
+
+    stats = rebuild(paths)
+    assert stats.errors == []
+
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        row = conn.execute("SELECT id FROM pages WHERE path = 'index.md'").fetchone()
+        assert row is not None
+        link_row = conn.execute(
+            "SELECT exists_flag FROM links WHERE source_page_id = ? AND target_raw = 'Foo'",
+            (row[0],),
+        ).fetchone()
+        assert link_row[0] == 1
+    finally:
+        conn.close()
+
+
+def test_without_extra_root_pages_config_root_files_are_ignored(tmp_path: Path):
+    paths = init_project(tmp_path)
+    (tmp_path / "index.md").write_text("---\ntitle: Root Index\n---\nbody\n", encoding="utf-8")
+
+    rebuild(paths)
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        row = conn.execute("SELECT id FROM pages WHERE path = 'index.md'").fetchone()
+        assert row is None
     finally:
         conn.close()
 
