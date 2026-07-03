@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from llmw.bootstrap import init_project
+from llmw.frontmatter import InvalidFrontmatterError
 from llmw.indexer import rebuild
 from llmw.patching import PatchApplyError, apply_unified_diff
 from llmw.safety import PathNotAllowedError, ReasonRequiredError
@@ -108,6 +109,41 @@ def test_apply_unified_diff_pure_insertion_hunk_at_start():
     original = "line1\nline2\n"
     diff = "@@ -0,0 +1 @@\n+NEW\n"
     assert apply_unified_diff(original, diff) == "NEW\nline1\nline2\n"
+
+
+def test_write_rejects_invalid_frontmatter_and_creates_no_file(tmp_path: Path):
+    paths = init_project(tmp_path)
+    broken = '---\ntitle: Broken\nsummary: "unterminated and: bad\n---\nbody\n'
+
+    with pytest.raises(InvalidFrontmatterError):
+        write_page(paths, "wiki/concepts/broken.md", broken, reason="bad frontmatter")
+
+    assert not (paths.root / "wiki/concepts/broken.md").exists()
+
+
+def test_patch_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(
+        paths,
+        "wiki/concepts/a.md",
+        "---\ntitle: A\n---\nbody line\n",
+        reason="seed",
+    )
+
+    # Patch replaces the frontmatter with something that isn't valid YAML.
+    diff = (
+        "@@ -1,3 +1,3 @@\n"
+        " ---\n"
+        '-title: A\n'
+        '+title: "unterminated\n'
+        " ---\n"
+    )
+    with pytest.raises(InvalidFrontmatterError):
+        patch_page(paths, "wiki/concepts/a.md", diff, reason="break it")
+
+    content = (paths.root / "wiki/concepts/a.md").read_text(encoding="utf-8")
+    assert content == "---\ntitle: A\n---\nbody line\n"
+    assert not list(paths.backups_dir.rglob("a.md"))
 
 
 def test_write_and_patch_never_introduce_crlf(tmp_path: Path):

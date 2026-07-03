@@ -22,7 +22,15 @@ def _render(template_name: str, **subs: str) -> str:
     return string.Template(text).substitute(**subs)
 
 
-def init_project(root: Path, force: bool = False) -> ProjectPaths:
+def init_project(root: Path, force: bool = False, claude_plugin: bool = True) -> ProjectPaths:
+    """Scaffold a new llmw project.
+
+    `claude_plugin=False` skips creating the project-local
+    `.claude/skills/llm-wiki/` and `.claude-plugin/plugin.json` copies —
+    use this when the llm-wiki Claude Code plugin is already installed
+    from the marketplace, so a project doesn't end up with two competing
+    copies of the same skill.
+    """
     paths = ProjectPaths(root=root.resolve())
 
     if paths.llmw_dir.exists() and not force:
@@ -32,7 +40,7 @@ def init_project(root: Path, force: bool = False) -> ProjectPaths:
 
     today = datetime.date.today().isoformat()
 
-    for d in [
+    dirs = [
         paths.raw,
         paths.raw_inbox,
         paths.raw_processed,
@@ -49,9 +57,10 @@ def init_project(root: Path, force: bool = False) -> ProjectPaths:
         paths.cache_dir,
         paths.backups_dir,
         paths.locks_dir,
-        paths.claude_skill_dir,
-        paths.claude_plugin_dir,
-    ]:
+    ]
+    if claude_plugin:
+        dirs += [paths.claude_skill_dir, paths.claude_plugin_dir]
+    for d in dirs:
         d.mkdir(parents=True, exist_ok=True)
 
     raw_readme = paths.raw / "README.md"
@@ -82,27 +91,28 @@ def init_project(root: Path, force: bool = False) -> ProjectPaths:
     if not paths.config_path.exists() or force:
         save_config(paths.config_path, Config(created=today))
 
-    skill_dir = paths.claude_skill_dir
-    (skill_dir / "SKILL.md").write_text(
-        (TEMPLATES / "skill_SKILL.md").read_text(encoding="utf-8"),
-        encoding="utf-8",
-        newline="\n",
-    )
-    (skill_dir / "reference.md").write_text(
-        (TEMPLATES / "skill_reference.md").read_text(encoding="utf-8"),
-        encoding="utf-8",
-        newline="\n",
-    )
-    (skill_dir / "examples.md").write_text(
-        (TEMPLATES / "skill_examples.md").read_text(encoding="utf-8"),
-        encoding="utf-8",
-        newline="\n",
-    )
+    if claude_plugin:
+        skill_dir = paths.claude_skill_dir
+        (skill_dir / "SKILL.md").write_text(
+            (TEMPLATES / "skill_SKILL.md").read_text(encoding="utf-8"),
+            encoding="utf-8",
+            newline="\n",
+        )
+        (skill_dir / "reference.md").write_text(
+            (TEMPLATES / "skill_reference.md").read_text(encoding="utf-8"),
+            encoding="utf-8",
+            newline="\n",
+        )
+        (skill_dir / "examples.md").write_text(
+            (TEMPLATES / "skill_examples.md").read_text(encoding="utf-8"),
+            encoding="utf-8",
+            newline="\n",
+        )
 
-    (paths.claude_plugin_dir / "plugin.json").write_text(
-        (TEMPLATES / "plugin.json").read_text(encoding="utf-8"),
-        encoding="utf-8",
-        newline="\n",
-    )
+        (paths.claude_plugin_dir / "plugin.json").write_text(
+            (TEMPLATES / "plugin.json").read_text(encoding="utf-8"),
+            encoding="utf-8",
+            newline="\n",
+        )
 
     return paths

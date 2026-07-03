@@ -14,6 +14,7 @@ import sys
 from llmw import __version__
 from llmw.archive import PageNotFoundForArchiveError, archive_page as do_archive
 from llmw.bootstrap import ProjectAlreadyExistsError, init_project
+from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
 from llmw.indexer import index_changed, rebuild as rebuild_index
@@ -101,10 +102,20 @@ def main(
 def init(
     path: Path = typer.Argument(Path("."), help="Project root to initialize."),
     force: bool = typer.Option(False, "--force", help="Reinitialize an existing project."),
+    claude_plugin: bool = typer.Option(
+        True,
+        "--claude-plugin/--no-claude-plugin",
+        help=(
+            "Scaffold a project-local .claude/skills/llm-wiki/ and "
+            ".claude-plugin/plugin.json. Use --no-claude-plugin if the "
+            "llm-wiki Claude Code plugin is already installed from the "
+            "marketplace, to avoid a redundant local copy of the same skill."
+        ),
+    ),
 ) -> None:
-    """Scaffold raw/, wiki/, .llmw/, and the Claude Code skill/plugin."""
+    """Scaffold raw/, wiki/, .llmw/, and (by default) the Claude Code skill/plugin."""
     try:
-        paths = init_project(path, force=force)
+        paths = init_project(path, force=force, claude_plugin=claude_plugin)
     except ProjectAlreadyExistsError as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
@@ -470,6 +481,7 @@ def write(
         ReasonRequiredError,
         PathNotAllowedError,
         FileExistsConflictError,
+        InvalidFrontmatterError,
         LockedError,
     ) as exc:
         _err(exc)
@@ -494,6 +506,7 @@ def patch(
         PathNotAllowedError,
         FileNotFoundForPatchError,
         PatchApplyError,
+        InvalidFrontmatterError,
         LockedError,
     ) as exc:
         _err(exc)
