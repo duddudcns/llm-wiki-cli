@@ -27,13 +27,94 @@ indexes, searches, and validates.
   deterministic, rule-based, and model-free. Summarizing sources, writing
   pages, and deciding what to archive is the agent's job.
 
+## Installation
+
+### Prerequisites
+
+`llmw` needs **Python 3.11 or later**. Check what you have:
+
+```bash
+python3 --version   # macOS/Linux
+python --version    # Windows
+```
+
+Don't have 3.11+ yet?
+
+| Platform | Command |
+|---|---|
+| macOS (Homebrew) | `brew install python@3.12` |
+| Windows (winget) | `winget install Python.Python.3.12` |
+| Windows (installer) | download from [python.org/downloads](https://www.python.org/downloads/) |
+| Ubuntu/Debian | `sudo apt install python3.12 python3.12-venv` |
+| Fedora | `sudo dnf install python3.12` |
+
+`llmw` is not on PyPI yet, so it installs straight from this repo rather
+than a package index. **This repo is currently private** — installing it
+(any method below) needs your own authenticated `git` (e.g. already
+logged in via `gh auth login`, or an SSH key on your GitHub account);
+anyone without repo access will get a fetch error, not a partial install.
+
+### Install `llmw`
+
+Pick one. All of these give you a global `llmw` command without touching
+any other Python project's dependencies.
+
+**[uv](https://docs.astral.sh/uv/) (recommended — fast, no separate pipx install needed):**
+
+```bash
+uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
+```
+
+**[pipx](https://pipx.pypa.io/):**
+
+```bash
+pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
+```
+
+**plain pip** (installs into whatever Python environment is currently active — use a venv unless you know you want it global):
+
+```bash
+pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
+```
+
+**Local clone, editable install (for contributing to `llmw` itself):**
+
+```bash
+git clone https://github.com/duddudcns/llm-wiki-cli.git
+cd llm-wiki-cli
+python3 -m venv .venv
+source .venv/bin/activate      # Windows PowerShell: .venv\Scripts\Activate.ps1
+                                # Windows git-bash:   source .venv/Scripts/activate
+pip install -e ".[dev]"
+pytest                         # should show all tests passing
+```
+
+### Verify
+
+```bash
+llmw --version
+llmw --help
+```
+
+### Updating
+
+```bash
+uv tool upgrade llmw           # if installed via uv
+pipx upgrade llmw              # if installed via pipx
+pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # plain pip
+```
+
+### Uninstalling
+
+```bash
+uv tool uninstall llmw
+pipx uninstall llmw
+pip uninstall llmw
+```
+
 ## Quickstart
 
 ```bash
-# from a clone of this repo
-pip install -e .
-# (a PyPI release / `uv tool install llmw` will work the same way once published)
-
 mkdir my-project && cd my-project
 llmw init
 llmw status --brief
@@ -174,10 +255,8 @@ on the next run.
 
 ## Development
 
-```bash
-pip install -e ".[dev]"
-pytest
-```
+See [Installation](#installation)'s "Local clone, editable install" above
+to set up a dev environment; `pytest` runs the test suite from there.
 
 MVP scope deliberately excludes: an MCP server, daemon/watch mode,
 embedding/vector search, direct PDF/DOCX parsing, an Obsidian plugin, a
