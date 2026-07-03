@@ -75,8 +75,10 @@ def build_status(paths: ProjectPaths) -> StatusReport:
         orphan_pages_count = conn.execute(
             """
             SELECT COUNT(*) FROM pages p
-            WHERE NOT EXISTS (SELECT 1 FROM links l WHERE l.target_page_id = p.id)
-              AND NOT EXISTS (SELECT 1 FROM links l WHERE l.source_page_id = p.id)
+            WHERE NOT EXISTS (
+                SELECT 1 FROM links l
+                WHERE l.target_page_id = p.id AND l.source_page_id != p.id
+            )
             """
         ).fetchone()[0]
         last_indexed_row = conn.execute(
