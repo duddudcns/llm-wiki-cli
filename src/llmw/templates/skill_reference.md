@@ -54,3 +54,13 @@ commands default to a brief, context-cheap output; pass `--full` or
   regenerates them from `wiki/*.md`, the source of truth.
 - CLI output is brief by default to save context; do not assume `--full`
   or `--json` output unless you asked for it.
+- A page's `related:` frontmatter (list of paths/titles) counts as links,
+  same as inline `[[wikilinks]]`. If this wiki already used `related:` as
+  its cross-reference convention before `llmw`, you don't need to also add
+  inline wikilinks.
+- If this project keeps `index.md`/`log.md`/schema-style files outside
+  `wiki/`, or uses different required frontmatter fields (e.g.
+  `last_updated` instead of `created`/`updated`), check
+  `.llmw/config.toml` for `extra_root_pages` / `[lint] required_frontmatter`
+  overrides before assuming those files are being ignored or that lint
+  findings are real gaps.

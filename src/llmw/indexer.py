@@ -16,6 +16,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from llmw.config import Config, load_config
 from llmw.models import Page
 from llmw.parser import parse_page
 from llmw.paths import ProjectPaths
@@ -125,10 +126,28 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def iter_wiki_files(paths: ProjectPaths) -> list[Path]:
-    if not paths.wiki.exists():
-        return []
-    return sorted(paths.wiki.rglob("*.md"))
+def iter_wiki_files(paths: ProjectPaths, config: Config | None = None) -> list[Path]:
+    files: set[Path] = set()
+    if paths.wiki.exists():
+        files.update(paths.wiki.rglob("*.md"))
+
+    root_resolved = paths.root.resolve()
+    for rel in (config.extra_root_pages if config else []):
+        candidate = (paths.root / rel).resolve()
+        try:
+            candidate.relative_to(root_resolved)
+        except ValueError:
+            continue  # config tried to point outside the project root
+        if candidate.is_file():
+            files.add(candidate)
+
+    return sorted(files)
+
+
+def load_project_config(paths: ProjectPaths) -> Config:
+    if paths.config_path.exists():
+        return load_config(paths.config_path)
+    return Config()
 
 
 def _delete_page(conn: sqlite3.Connection, page_id: int) -> None:
@@ -205,14 +224,79 @@ def _parse_file(fs_path: Path, rel_path: str) -> Page:
     return page
 
 
-def _resolve_links(conn: sqlite3.Connection) -> None:
+def _candidate_path_variants(target: str) -> list[str]:
+    variants = [target]
+    if not target.lower().endswith(".md"):
+        variants.append(f"{target}.md")
+    return variants
+
+
+def _resolve_via_known_pages(
+    target_raw: str,
+    kind: str,
+    source_path: str,
+    by_path: dict[str, int],
+    by_title: dict[str, int],
+    by_alias: dict[str, int],
+) -> int | None:
+    lk = target_raw.lower()
+    source_dir = posixpath.dirname(source_path) if source_path else ""
+
+    if kind == "mdlink":
+        candidate = posixpath.normpath(posixpath.join(source_dir, target_raw))
+        return by_path.get(candidate.lower()) or by_path.get(lk)
+
+    # wikilink / embed / related — title/alias/bare-path lookup first...
+    if lk in by_path:
+        return by_path[lk]
+    if lk in by_title:
+        return by_title[lk]
+    if lk in by_alias:
+        return by_alias[lk]
+    # ...then, for path-like targets (e.g. `related:` entries written as
+    # full project-relative paths), try resolving relative to the source
+    # page's own directory too.
+    if "/" in target_raw:
+        candidate = posixpath.normpath(posixpath.join(source_dir, target_raw))
+        if candidate.lower() in by_path:
+            return by_path[candidate.lower()]
+    return None
+
+
+def _resolve_via_filesystem(paths: ProjectPaths, source_path: str, target_raw: str) -> bool:
+    """Fallback for path-like references (relative wikilinks such as
+    `[[../authoring]]`, or `related:` entries) that don't resolve to an
+    indexed wiki page but do point at a real file elsewhere in the
+    project — these should not be reported as broken links."""
+    if "/" not in target_raw and "\\" not in target_raw:
+        return False
+
+    source_dir = posixpath.dirname(source_path) if source_path else ""
+    root_resolved = paths.root.resolve()
+    for variant in _candidate_path_variants(target_raw):
+        candidate = posixpath.normpath(posixpath.join(source_dir, variant))
+        fs_candidate = (paths.root / candidate).resolve()
+        try:
+            fs_candidate.relative_to(root_resolved)
+        except ValueError:
+            continue  # escapes the project root — don't stat arbitrary paths
+        if fs_candidate.is_file():
+            return True
+    return False
+
+
+def _resolve_links(conn: sqlite3.Connection, paths: ProjectPaths) -> None:
     by_path: dict[str, int] = {}
     by_title: dict[str, int] = {}
     by_alias: dict[str, int] = {}
+    id_to_path: dict[int, str] = {}
 
     for row in conn.execute("SELECT id, path, title FROM pages"):
+        id_to_path[row["id"]] = row["path"]
         path_key = row["path"].lower()
         by_path.setdefault(path_key, row["id"])
+        if path_key.endswith(".md"):
+            by_path.setdefault(path_key[:-3], row["id"])
         stem_key = Path(row["path"]).stem.lower()
         by_path.setdefault(stem_key, row["id"])
         by_title.setdefault(row["title"].lower(), row["id"])
@@ -223,23 +307,22 @@ def _resolve_links(conn: sqlite3.Connection) -> None:
     for row in conn.execute("SELECT id, source_page_id, target_raw, kind FROM links"):
         target_raw = row["target_raw"].strip()
         kind = row["kind"]
+        source_path = id_to_path.get(row["source_page_id"], "")
 
         if target_raw == "":
             target_id = row["source_page_id"]
-        elif kind == "mdlink":
-            src_row = conn.execute(
-                "SELECT path FROM pages WHERE id = ?", (row["source_page_id"],)
-            ).fetchone()
-            source_dir = posixpath.dirname(src_row["path"]) if src_row else ""
-            candidate = posixpath.normpath(posixpath.join(source_dir, target_raw))
-            target_id = by_path.get(candidate.lower()) or by_path.get(target_raw.lower())
         else:
-            lk = target_raw.lower()
-            target_id = by_path.get(lk) or by_title.get(lk) or by_alias.get(lk)
+            target_id = _resolve_via_known_pages(
+                target_raw, kind, source_path, by_path, by_title, by_alias
+            )
+
+        exists = target_id is not None
+        if not exists and target_raw:
+            exists = _resolve_via_filesystem(paths, source_path, target_raw)
 
         conn.execute(
             "UPDATE links SET target_page_id = ?, exists_flag = ? WHERE id = ?",
-            (target_id, 1 if target_id is not None else 0, row["id"]),
+            (target_id, 1 if exists else 0, row["id"]),
         )
 
 
@@ -251,9 +334,9 @@ def _set_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
     )
 
 
-def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool) -> SyncStats:
+def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Config) -> SyncStats:
     stats = SyncStats()
-    files = iter_wiki_files(paths)
+    files = iter_wiki_files(paths, config)
     seen_paths: set[str] = set()
 
     existing = {
@@ -287,7 +370,7 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool) -> SyncSta
             _delete_page(conn, page_id)
             stats.pages_removed += 1
 
-    _resolve_links(conn)
+    _resolve_links(conn, paths)
     _set_meta(conn, "last_indexed", datetime.datetime.now().isoformat(timespec="seconds"))
     conn.commit()
     return stats
@@ -297,15 +380,17 @@ def rebuild(paths: ProjectPaths) -> SyncStats:
     if paths.index_db.exists():
         paths.index_db.unlink()
     conn = connect(paths)
+    config = load_project_config(paths)
     try:
-        return _sync(conn, paths, force=True)
+        return _sync(conn, paths, force=True, config=config)
     finally:
         conn.close()
 
 
 def index_changed(paths: ProjectPaths) -> SyncStats:
     conn = connect(paths)
+    config = load_project_config(paths)
     try:
-        return _sync(conn, paths, force=False)
+        return _sync(conn, paths, force=False, config=config)
     finally:
         conn.close()

@@ -15,7 +15,7 @@ class Heading:
 @dataclass(frozen=True)
 class LinkRef:
     target_raw: str
-    kind: str  # "wikilink" | "embed" | "mdlink"
+    kind: str  # "wikilink" | "embed" | "mdlink" | "related"
     target_heading: str | None = None
     link_text: str | None = None
 

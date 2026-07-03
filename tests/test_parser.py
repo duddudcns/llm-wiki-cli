@@ -4,6 +4,7 @@ from llmw.frontmatter import InvalidFrontmatterError, split_frontmatter
 from llmw.parser import (
     extract_key_points,
     extract_markdown_links,
+    extract_related_links,
     extract_summary,
     extract_wikilinks,
     mask_non_prose,
@@ -168,3 +169,44 @@ def test_content_hash_changes_with_content():
     a = parse_page("body a\n", "p.md")
     b = parse_page("body b\n", "p.md")
     assert a.content_hash != b.content_hash
+
+
+def test_extract_related_links_from_frontmatter_list():
+    fm = {"related": ["wiki/concepts/foo", "wiki/decisions/bar"]}
+    links = extract_related_links(fm)
+    assert [link.target_raw for link in links] == [
+        "wiki/concepts/foo",
+        "wiki/decisions/bar",
+    ]
+    assert all(link.kind == "related" for link in links)
+
+
+def test_extract_related_links_absent_is_empty():
+    assert extract_related_links({}) == []
+
+
+def test_parse_page_includes_related_links_alongside_wikilinks():
+    text = (
+        "---\n"
+        "title: A\n"
+        "related:\n"
+        "  - wiki/concepts/foo\n"
+        "---\n"
+        "See [[B]].\n"
+    )
+    page = parse_page(text, "wiki/decisions/a.md")
+    kinds = {link.kind for link in page.links}
+    assert kinds == {"wikilink", "related"}
+
+
+def test_parse_page_accepts_last_updated_synonym():
+    text = "---\ntitle: A\nlast_updated: 2026-07-01\n---\nbody\n"
+    page = parse_page(text, "p.md")
+    assert page.updated == "2026-07-01"
+
+
+def test_markdown_link_url_decodes_spaces_and_unicode():
+    text = "[Project Profile](wiki/overview/Project%20Profile.md)\n"
+    masked = mask_non_prose(text)
+    md_links, _ = extract_markdown_links(masked)
+    assert md_links[0].target_raw == "wiki/overview/Project Profile.md"

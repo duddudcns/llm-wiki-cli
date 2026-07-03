@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import re
+import urllib.parse
 from pathlib import Path
 
 from llmw.frontmatter import split_frontmatter
@@ -168,6 +169,11 @@ def extract_markdown_links(masked_body: str) -> tuple[list[LinkRef], list[Extern
             continue
         path_part, _, heading_part = url.partition("#")
         path_part = path_part.split("?", 1)[0]
+        # Obsidian/GitHub-style exporters URL-encode spaces and unicode in
+        # relative links (e.g. "Project%20Profile.md") — decode before we
+        # try to match it against an on-disk page path.
+        path_part = urllib.parse.unquote(path_part)
+        heading_part = urllib.parse.unquote(heading_part) if heading_part else heading_part
         if path_part.endswith(".md"):
             md_links.append(
                 LinkRef(
@@ -178,6 +184,19 @@ def extract_markdown_links(masked_body: str) -> tuple[list[LinkRef], list[Extern
                 )
             )
     return md_links, external_links
+
+
+# --- `related:` frontmatter — some wikis treat this list as the
+# authoritative cross-reference instead of (or alongside) inline
+# wikilinks. Resolved the same way wikilinks are, just tagged distinctly. ---
+
+
+def extract_related_links(frontmatter: dict) -> list[LinkRef]:
+    return [
+        LinkRef(target_raw=raw.strip(), kind="related")
+        for raw in _normalize_str_list(frontmatter.get("related"))
+        if raw.strip()
+    ]
 
 
 # --- frontmatter field normalization ---
@@ -214,6 +233,7 @@ def parse_page(text: str, path: str) -> Page:
     headings = extract_headings(masked)
     wikilinks = extract_wikilinks(masked)
     md_links, external_links = extract_markdown_links(masked)
+    related_links = extract_related_links(frontmatter)
 
     title = frontmatter.get("title")
     if not title:
@@ -233,10 +253,10 @@ def parse_page(text: str, path: str) -> Page:
         status=_to_str(frontmatter.get("status")),
         summary=extract_summary(frontmatter, body, masked),
         created=_to_str(frontmatter.get("created")),
-        updated=_to_str(frontmatter.get("updated")),
+        updated=_to_str(frontmatter.get("updated") or frontmatter.get("last_updated")),
         aliases=_normalize_str_list(frontmatter.get("aliases")),
         tags=_normalize_str_list(frontmatter.get("tags")),
         headings=headings,
-        links=[*wikilinks, *md_links],
+        links=[*wikilinks, *md_links, *related_links],
         external_links=external_links,
     )

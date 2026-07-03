@@ -121,6 +121,43 @@ installed in the active environment.
 it directly as an Obsidian vault to get graph view, backlinks, and search
 in a GUI, without giving up any of the CLI-driven agent workflow.
 
+Link resolution specifically handles real-world Obsidian export quirks:
+
+- `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading|Alias]]`, `[[#Heading]]`,
+  `![[Embed]]` — full wikilink grammar.
+- `related:` frontmatter (a list of page paths/titles) is treated as a
+  first-class link source, same as inline wikilinks — some wikis use it as
+  the authoritative cross-reference instead of (or alongside) `[[...]]`.
+- Markdown links with URL-encoded targets (`[Profile](Project%20Profile.md)`,
+  common when a filename has spaces) are decoded before matching against
+  on-disk pages.
+- Relative wikilinks that point outside `wiki/` (e.g. `[[../notes/x]]`) are
+  checked against the real filesystem — they're only reported as broken by
+  `llmw lint` if the target genuinely doesn't exist anywhere in the
+  project, not merely because they aren't an indexed wiki page.
+
+## Adapting llmw to an existing wiki
+
+If a wiki already has its own conventions (different frontmatter fields,
+top-level files living outside `wiki/`), point `llmw init` at its root and
+adjust `.llmw/config.toml` rather than reorganizing the wiki's files:
+
+```toml
+[paths]
+# Extra individual Markdown files (relative to the project root) to index
+# alongside wiki/**/*.md — e.g. a schema/index/log file kept outside wiki/.
+extra_root_pages = ["index.md", "log.md", "schema.md"]
+
+[lint]
+# Override which frontmatter keys `llmw lint` requires. Default is
+# ["type", "status", "created", "updated"]; "updated" also accepts a
+# `last_updated` key.
+required_frontmatter = ["type", "status", "last_updated"]
+```
+
+No existing page needs to change — `llmw rebuild` picks up the new config
+on the next run.
+
 ## Development
 
 ```bash
