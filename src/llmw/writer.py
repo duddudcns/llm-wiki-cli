@@ -10,6 +10,7 @@ import datetime
 import shutil
 from pathlib import Path
 
+from llmw.frontmatter import split_frontmatter
 from llmw.indexer import index_changed
 from llmw.locks import acquire_lock
 from llmw.log import append_log
@@ -41,6 +42,7 @@ def write_page(
 ) -> Path:
     require_reason(reason)
     fs_path = resolve_wiki_target(paths, rel_path)
+    split_frontmatter(content)  # raises InvalidFrontmatterError before touching disk
 
     with acquire_lock(paths, "write"):
         if fs_path.exists() and not force:
@@ -69,9 +71,10 @@ def patch_page(paths: ProjectPaths, rel_path: str, diff_text: str, reason: str) 
             )
 
         original = fs_path.read_text(encoding="utf-8")
-        _backup(paths, fs_path)
         new_content = apply_unified_diff(original, diff_text)
+        split_frontmatter(new_content)  # raises InvalidFrontmatterError; original stays untouched
 
+        _backup(paths, fs_path)
         fs_path.write_text(new_content, encoding="utf-8", newline="\n")
         append_log(paths, "patch", paths.rel(fs_path), reason)
         index_changed(paths)

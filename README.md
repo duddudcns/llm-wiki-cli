@@ -149,7 +149,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 
 | Command | Purpose |
 |---|---|
-| `llmw init [--force]` | Scaffold `raw/`, `wiki/`, `.llmw/`, and the Claude Code skill/plugin |
+| `llmw init [--force] [--no-claude-plugin]` | Scaffold `raw/`, `wiki/`, `.llmw/`, and (by default) the Claude Code skill/plugin |
 | `llmw status [--brief\|--json]` | Page counts, broken links, orphans, last indexed time, dirty pages |
 | `llmw rebuild` | Full re-index of `wiki/**/*.md` from scratch |
 | `llmw index [--changed\|--all]` | Incremental (default) or full re-index |
@@ -186,6 +186,12 @@ into the project. Claude Code auto-discovers this as a plain skill — no
 install step. It tells the agent when to reach for `llmw`, the core
 search-first workflow, and points to `reference.md`/`examples.md` for
 full detail so the always-loaded `SKILL.md` stays short.
+
+If the llm-wiki Claude Code plugin (below) is already installed from the
+marketplace, pass `--no-claude-plugin` to skip this project-local copy —
+otherwise the project ends up with two copies of the same skill (the
+marketplace plugin's, and this one), which is redundant and can be
+confusing when Claude Code loads both.
 
 ## Distributing `llmw` as an installable Claude Code plugin
 

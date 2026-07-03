@@ -24,6 +24,18 @@ def test_init_creates_expected_structure(tmp_path: Path) -> None:
     assert (paths.claude_plugin_dir / "plugin.json").is_file()
 
 
+def test_init_no_claude_plugin_skips_skill_and_plugin_scaffold(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, claude_plugin=False)
+
+    assert not paths.claude_skill_dir.exists()
+    assert not paths.claude_plugin_dir.exists()
+    # The actual wiki scaffold must still be created.
+    assert paths.raw.is_dir()
+    assert paths.wiki.is_dir()
+    assert paths.llmw_dir.is_dir()
+    assert (paths.wiki / "index.md").is_file()
+
+
 def test_init_twice_without_force_raises(tmp_path: Path) -> None:
     init_project(tmp_path)
     with pytest.raises(ProjectAlreadyExistsError):
