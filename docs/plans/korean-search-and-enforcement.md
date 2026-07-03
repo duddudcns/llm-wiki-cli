@@ -100,10 +100,19 @@ it under a competing skill's instructions.
       config off-switch, PowerShell-only-Windows caveat: hooks need Git
       Bash on Windows).
 - [x] Version bump 0.1.6 → 0.1.7 across all 5 lockstep files.
-- [ ] Deploy: `uv tool upgrade llmw` + `claude plugin marketplace update` +
+- [x] Deploy: `uv tool upgrade llmw` + `claude plugin marketplace update` +
       `claude plugin update`; smoke-test in a scratch project (native Edit
       on a wiki page gets denied with a working `llmw edit` suggestion; a
-      non-llmw project sees zero hook side effects).
+      non-llmw project sees zero hook side effects). Confirmed: standalone
+      `llmw --version` -> 0.1.7; `claude plugin update` reports 0.1.6 ->
+      0.1.7 (restart needed for the new PreToolUse hook to take effect in
+      this session).
+
+## Status: both phases shipped
+
+All three phases are done and pushed to `origin/master` (`60fa30d`,
+`066d137`, `2baa791`). Restart Claude Code to pick up the new
+`PreToolUse` hook and updated `SessionStart` context in this session.
 
 ## Explicitly out of scope (per Fable's plan)
 
