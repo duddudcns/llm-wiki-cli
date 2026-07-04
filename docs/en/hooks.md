@@ -23,12 +23,14 @@ confirmation first), and it's told exactly which `llmw` command to use
 instead — so it can immediately try again the right way instead of
 getting stuck.
 
-This check only ever looks at edits aimed at wiki notes in a project that
-uses this tool — everything else is left alone completely, including
-just reading files.
+This check only ever looks at edits aimed at wiki notes (and at the
+`raw/` folder, the untouched source material notes are built from) in a
+project that uses this tool — everything else is left alone completely,
+including just reading files.
 
 You can turn this off or change how strict it is, per project, in
-`.llmw/config.toml`:
+`.llmw/config.toml` — the same setting controls both the wiki notes and
+the `raw/` folder:
 
 ```toml
 [hooks]

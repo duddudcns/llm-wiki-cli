@@ -23,12 +23,15 @@ sus herramientas normales de edición de archivos, ese cambio se bloquea
 qué comando de `llmw` debería usar en su lugar — así puede intentarlo de
 nuevo enseguida, de la forma correcta, en vez de quedarse trabada.
 
-Este chequeo solo se fija en cambios dirigidos a notas de la wiki dentro
-de un proyecto que usa esta herramienta — todo lo demás se deja
-completamente en paz, incluyendo simplemente leer archivos.
+Este chequeo solo se fija en cambios dirigidos a notas de la wiki (y a la
+carpeta `raw/`, las notas del material original sin tocar a partir de las
+cuales se construyen) dentro de un proyecto que usa esta herramienta —
+todo lo demás se deja completamente en paz, incluyendo simplemente leer
+archivos.
 
 Puedes desactivarlo o cambiar qué tan estricto es, por proyecto, en
-`.llmw/config.toml`:
+`.llmw/config.toml` — el mismo ajuste controla tanto las notas de la wiki
+como la carpeta `raw/`:
 
 ```toml
 [hooks]

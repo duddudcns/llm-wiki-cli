@@ -1,14 +1,16 @@
-"""Logic behind `llmw hook pretooluse` / `llmw hook session-start` — the
-Claude Code plugin's PreToolUse and SessionStart hooks (see
-`plugin/hooks/hooks.json`).
+"""Logic behind `llmw hook pretooluse` / `llmw hook session-start` /
+`llmw hook userpromptsubmit` — the Claude Code plugin's PreToolUse,
+SessionStart, and UserPromptSubmit hooks (see `plugin/hooks/hooks.json`).
 
 Claude Code's native Edit/Write/NotebookEdit tools know nothing about
 `llmw`: they can silently overwrite `raw/` (meant to be immutable) or
 mutate `wiki/*.md` without the `--reason` audit log, frontmatter
 validation, or automatic backup that `llmw write`/`edit`/`patch` provide.
-This module redirects those calls back to the sanctioned commands instead.
+`evaluate_pretooluse` redirects those calls back to the sanctioned
+commands instead; `evaluate_sessionstart` and `evaluate_userpromptsubmit`
+just remind the agent the wiki exists and is worth checking.
 
-Every function here fails open: anything that isn't a mutation of
+`evaluate_pretooluse` fails open: anything that isn't a mutation of
 `wiki/*.md` or `raw/**` inside a real llmw project (including "no `.llmw`
 project found at all") returns `None` ("no opinion") — never a decision.
 The guard can only ever fire for a native edit aimed at a real llmw

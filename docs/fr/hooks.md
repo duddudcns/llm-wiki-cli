@@ -26,11 +26,14 @@ la place — elle peut donc réessayer immédiatement, de la bonne façon,
 sans rester bloquée.
 
 Cette vérification ne s'intéresse qu'aux modifications visant les notes
-du wiki dans un projet qui utilise cet outil — tout le reste est laissé
-complètement tranquille, y compris la simple lecture de fichiers.
+du wiki (et le dossier `raw/`, les notes de matériel source non modifiées
+à partir desquelles le wiki est construit) dans un projet qui utilise cet
+outil — tout le reste est laissé complètement tranquille, y compris la
+simple lecture de fichiers.
 
 Vous pouvez désactiver cette vérification, ou changer son niveau de
-sévérité, projet par projet, dans `.llmw/config.toml` :
+sévérité, projet par projet, dans `.llmw/config.toml` — le même réglage
+contrôle à la fois les notes du wiki et le dossier `raw/` :
 
 ```toml
 [hooks]
