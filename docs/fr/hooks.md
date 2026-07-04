@@ -61,19 +61,19 @@ a un wiki avec N notes » si un wiki existe déjà, ou un indice d'une ligne
 l'existence de cet outil dès le tout premier message, même dans un projet
 tout neuf.
 
-Pour aller plus loin, chaque message que vous envoyez est discrètement
-comparé au wiki en premier lieu. Si quelque chose dans le wiki semble lié
-à ce que vous venez de demander, l'IA voit apparaître les titres des
-notes correspondantes avant même de commencer à travailler — pour qu'une
-décision documentée ou une erreur passée refasse surface juste au bon
-moment, et pas seulement une fois au début de la session. Si rien ne
-correspond, vous recevez simplement un court rappel qu'un wiki existe et
-qu'il vaut la peine d'y chercher.
+Pour aller encore plus loin, chaque message que vous envoyez se voit
+aussi attacher un court rappel : « ce projet a un wiki — cherchez-y
+d'abord ». C'est volontairement simple : ce rappel n'essaie pas de
+deviner si votre message est vraiment lié à quelque chose dans le wiki en
+comparant des mots-clés, parce que ce genre de déduction automatique peut
+facilement passer à côté d'une note formulée différemment de votre
+message. Il se contente plutôt de demander à l'IA d'aller vérifier, à
+chaque fois, et laisse le vrai jugement — et la recherche elle-même — à
+l'IA.
 
-Cette vérification ne fait jamais que lire le wiki — elle ne bloque
-jamais votre demande et ne la ralentit pas non plus, et elle ne peut pas
-empêcher l'IA de continuer de toute façon. C'est un coup de pouce, pas
-une barrière.
+Ce n'est qu'un rappel — il ne bloque jamais votre demande et ne la
+ralentit pas non plus, et il ne peut pas empêcher l'IA de continuer de
+toute façon. C'est un coup de pouce, pas une barrière.
 
 ## Fonctionnalité 3 : garder l'outil en ligne de commande lui-même à jour
 
