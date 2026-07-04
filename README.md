@@ -341,11 +341,17 @@ and `claude plugin install llm-wiki@llm-wiki-cli`)
 This installs the `.claude-plugin/marketplace.json` → `plugin/` package
 (`plugin/.claude-plugin/plugin.json` + `plugin/skills/llm-wiki/` +
 `plugin/bin/llmw` + `plugin/hooks/hooks.json`). `plugin/bin/llmw` is a
-thin dispatcher, not a bundled Python distribution — so a
-`SessionStart` hook (`plugin/hooks/hooks.json`) checks for `llmw` on
-`PATH` each session and installs it via `uv tool install` (falling back
-to `pip install --user`) the first time it's missing. The check is a
-single `command -v` (no-op, ~10ms) on every session after that. If you'd
+thin dispatcher, not a bundled Python distribution — so a `SessionStart`
+hook (`plugin/hooks/session-start.sh`, invoked via
+`plugin/hooks/hooks.json`) compares the installed `llmw --version`
+against the version this plugin bundle declares
+(`plugin/.claude-plugin/plugin.json`) each session. On a mismatch —
+including "not installed at all" — it (re)installs via `uv tool install
+--force` (falling back to `pip install --user --force-reinstall`), pinned
+to the matching `git` tag (`git+...@v<version>`), so a plugin-marketplace
+update also brings the standalone CLI binary in sync without a separate
+manual `uv tool upgrade llmw`. When versions already match, the check is
+just one local `llmw --version` call (no network) each session. If you'd
 rather manage the CLI install yourself, see [Installation](#installation)
 above and skip the plugin, or install both — they don't conflict.
 
