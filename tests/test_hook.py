@@ -270,7 +270,9 @@ def test_hook_cli_session_start_hints_init_outside_project(tmp_path: Path):
 def test_userpromptsubmit_reminds_to_search_inside_project(tmp_path: Path):
     paths = init_project(tmp_path)
 
-    context = evaluate_userpromptsubmit({"prompt": "add retry logic", "cwd": str(tmp_path)})
+    context = evaluate_userpromptsubmit(
+        {"prompt": "please add retry logic to the uploader module", "cwd": str(tmp_path)}
+    )
     assert context is not None
     assert "llmw search" in context
 
@@ -278,12 +280,19 @@ def test_userpromptsubmit_reminds_to_search_inside_project(tmp_path: Path):
 def test_userpromptsubmit_reminds_even_without_index_built(tmp_path: Path):
     paths = init_project(tmp_path)
 
-    context = evaluate_userpromptsubmit({"prompt": "anything", "cwd": str(tmp_path)})
+    context = evaluate_userpromptsubmit(
+        {"prompt": "explain how the indexer works", "cwd": str(tmp_path)}
+    )
     assert context is not None
 
 
 def test_userpromptsubmit_ignores_files_outside_llmw_project(tmp_path: Path):
-    assert evaluate_userpromptsubmit({"prompt": "anything", "cwd": str(tmp_path)}) is None
+    assert (
+        evaluate_userpromptsubmit(
+            {"prompt": "explain how the indexer works", "cwd": str(tmp_path)}
+        )
+        is None
+    )
 
 
 def test_userpromptsubmit_ignores_missing_or_empty_prompt(tmp_path: Path):
@@ -293,10 +302,21 @@ def test_userpromptsubmit_ignores_missing_or_empty_prompt(tmp_path: Path):
     assert evaluate_userpromptsubmit({"prompt": "", "cwd": str(tmp_path)}) is None
 
 
+def test_userpromptsubmit_ignores_trivial_prompts(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    assert evaluate_userpromptsubmit({"prompt": "ok", "cwd": str(tmp_path)}) is None
+    assert evaluate_userpromptsubmit({"prompt": "thanks", "cwd": str(tmp_path)}) is None
+    assert evaluate_userpromptsubmit({"prompt": "yes continue", "cwd": str(tmp_path)}) is None
+    assert evaluate_userpromptsubmit({"prompt": "/compact", "cwd": str(tmp_path)}) is None
+
+
 def test_hook_cli_userpromptsubmit_emits_context(tmp_path: Path):
     paths = init_project(tmp_path)
     rebuild(paths)
-    payload = json.dumps({"prompt": "hello", "cwd": str(tmp_path)})
+    payload = json.dumps(
+        {"prompt": "explain how the indexer works", "cwd": str(tmp_path)}
+    )
 
     result = _run_hook(tmp_path, "userpromptsubmit", stdin=payload)
     assert result.returncode == 0
