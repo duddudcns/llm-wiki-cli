@@ -1,5 +1,7 @@
 # Installation
 
+**English** · [한국어](../ko/installation.md) · [日本語](../ja/installation.md) · [简体中文](../zh-Hans/installation.md) · [Español](../es/installation.md) · [Français](../fr/installation.md)
+
 ## Recommended: Claude Code plugin
 
 If you're using `llmw` from Claude Code, install it as a plugin — this is
