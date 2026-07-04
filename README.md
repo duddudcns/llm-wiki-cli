@@ -174,15 +174,18 @@ wiki that predates `llmw` — use `--adopt` instead of a plain `init`:
 llmw init --adopt                  # or: llmw init --layout ai-wiki --adopt
 ```
 
-`--adopt` still creates `.llmw/` and `config.toml`, but never writes the
-default content files (`raw/README.md`, `wiki/index.md`,
+`--adopt` creates `.llmw/` and `config.toml` on first run, but never
+writes the default content files (`raw/README.md`, `wiki/index.md`,
 `wiki/overview.md`, `wiki/log.md`) or the default taxonomy subfolders
 (`entities/`, `concepts/`, `decisions/`, `syntheses/`, `projects/`,
 `glossary/`, `archived/`, `sources/`) — **not even with `--force`** —
 so pre-existing content at those paths is never touched or overwritten.
-A plain `llmw init` (no `--adopt`) always scaffolds those defaults and
-will overwrite them on `--force`; only use it against an empty (or
-already llmw-managed) directory. Existing schema quirks (e.g. a
+Once `config.toml` exists, `--force` never rewrites it back to defaults
+either, so hand-tuned overrides for the adopted schema (see below) survive
+a re-`init --adopt --force`. A plain `llmw init` (no `--adopt`) always
+scaffolds those defaults, overwrites them on `--force`, and resets
+`config.toml` to defaults on `--force` too; only use it against an empty
+(or already llmw-managed) directory. Existing schema quirks (e.g. a
 `last_updated` field instead of `created`/`updated`, or root-level
 `index.md`/`log.md` files outside `wiki/`) are handled via
 `.llmw/config.toml`'s `lint.required_frontmatter` and
@@ -206,7 +209,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 
 | Command | Purpose |
 |---|---|
-| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | Scaffold `raw/`, `wiki/`, `.llmw/` (nested under `ai-wiki/` with `--layout ai-wiki`), and (by default) the Claude Code skill/plugin. `--adopt` skips default content/taxonomy scaffolding to preserve existing wiki content |
+| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | Scaffold `raw/`, `wiki/`, `.llmw/` (nested under `ai-wiki/` with `--layout ai-wiki`), and (by default) the Claude Code skill/plugin. `--adopt` skips default content/taxonomy scaffolding and protects `config.toml` from `--force`, to preserve existing wiki content and its config overrides |
 | `llmw status [--brief\|--json]` | Page counts, broken links, orphans, last indexed time, dirty pages |
 | `llmw rebuild` | Full re-index of `wiki/**/*.md` from scratch |
 | `llmw index [--changed\|--all]` | Incremental (default) or full re-index |

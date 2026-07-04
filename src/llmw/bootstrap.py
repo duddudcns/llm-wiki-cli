@@ -50,12 +50,17 @@ def init_project(
 
     `adopt=True` is for pointing llmw at a wiki that already has real
     content under its own conventions (e.g. a hand-rolled Karpathy-pattern
-    wiki): it still creates `.llmw/` + config, but never writes the
+    wiki): it still creates `.llmw/` on first run, but never writes the
     default content files (`raw/README.md`, `wiki/index.md`,
     `wiki/overview.md`, `wiki/log.md`) or the default taxonomy
     subfolders (`entities/`, `concepts/`, `decisions/`, `syntheses/`,
     `projects/`, `glossary/`, `archived/`, `sources/`) — not even with
     `--force` — so pre-existing content at those paths is never touched.
+    Once `config.toml` exists, `--force` never rewrites it back to
+    defaults either, so hand-tuned `extra_root_pages`/
+    `lint_required_frontmatter` overrides for the adopted schema survive
+    a re-`init --adopt --force` (they would NOT survive a re-`init
+    --force` without `--adopt`, which still resets config.toml).
     """
     if layout not in LAYOUTS:
         raise UnknownLayoutError(f"Unknown layout {layout!r}; expected one of {LAYOUTS}.")
@@ -123,7 +128,11 @@ def init_project(
                 _render("wiki_log.md", created=today), encoding="utf-8", newline="\n"
             )
 
-    if not paths.config_path.exists() or force:
+    # Under --adopt, config.toml is exactly the kind of pre-existing
+    # customization (extra_root_pages, lint_required_frontmatter, ...) that
+    # --adopt promises never to clobber — so --force never touches it once
+    # it exists, unlike the plain (non-adopt) path below.
+    if not paths.config_path.exists() or (force and not adopt):
         save_config(paths.config_path, Config(created=today))
 
     if claude_plugin:
