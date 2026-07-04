@@ -27,90 +27,23 @@ indexes, searches, and validates.
   deterministic, rule-based, and model-free. Summarizing sources, writing
   pages, and deciding what to archive is the agent's job.
 
-## Installation
+## Install
 
-### Prerequisites
+**Recommended: Claude Code plugin** — no separate `pip`/`uv`/`pipx` step:
 
-`llmw` needs **Python 3.11 or later**. Check what you have:
-
-```bash
-python3 --version   # macOS/Linux
-python --version    # Windows
+```
+/plugin marketplace add duddudcns/llm-wiki-cli
+/plugin install llm-wiki@llm-wiki-cli
 ```
 
-Don't have 3.11+ yet?
+This also installs hooks that keep the CLI itself in sync automatically and
+keep agents from bypassing it — see [docs/hooks.md](docs/hooks.md).
 
-| Platform | Command |
-|---|---|
-| macOS (Homebrew) | `brew install python@3.12` |
-| Windows (winget) | `winget install Python.Python.3.12` |
-| Windows (installer) | download from [python.org/downloads](https://www.python.org/downloads/) |
-| Ubuntu/Debian | `sudo apt install python3.12 python3.12-venv` |
-| Fedora | `sudo dnf install python3.12` |
-
-`llmw` is not on PyPI yet, so it installs straight from this repo rather
-than a package index. **This repo is currently private** — installing it
-(any method below) needs your own authenticated `git` (e.g. already
-logged in via `gh auth login`, or an SSH key on your GitHub account);
-anyone without repo access will get a fetch error, not a partial install.
-
-### Install `llmw`
-
-Pick one. All of these give you a global `llmw` command without touching
-any other Python project's dependencies.
-
-**[uv](https://docs.astral.sh/uv/) (recommended — fast, no separate pipx install needed):**
-
-```bash
-uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
-```
-
-**[pipx](https://pipx.pypa.io/):**
-
-```bash
-pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
-```
-
-**plain pip** (installs into whatever Python environment is currently active — use a venv unless you know you want it global):
-
-```bash
-pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
-```
-
-**Local clone, editable install (for contributing to `llmw` itself):**
-
-```bash
-git clone https://github.com/duddudcns/llm-wiki-cli.git
-cd llm-wiki-cli
-python3 -m venv .venv
-source .venv/bin/activate      # Windows PowerShell: .venv\Scripts\Activate.ps1
-                                # Windows git-bash:   source .venv/Scripts/activate
-pip install -e ".[dev]"
-pytest                         # should show all tests passing
-```
-
-### Verify
-
-```bash
-llmw --version
-llmw --help
-```
-
-### Updating
-
-```bash
-uv tool upgrade llmw           # if installed via uv
-pipx upgrade llmw              # if installed via pipx
-pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # plain pip
-```
-
-### Uninstalling
-
-```bash
-uv tool uninstall llmw
-pipx uninstall llmw
-pip uninstall llmw
-```
+Want the standalone CLI directly instead (scripting, CI, another editor),
+or to manage upgrades yourself? See
+[docs/installation.md](docs/installation.md) for the full uv/pipx/pip/dev
+install matrix, split by Windows/macOS/Linux. The two don't conflict — you
+can install both.
 
 ## Quickstart
 
@@ -132,65 +65,11 @@ wiki/                         # agent-maintained knowledge layer
 .claude-plugin/plugin.json    # optional plugin metadata for this project
 ```
 
-### Project layout: classic vs. `ai-wiki/`
-
-By default (`--layout classic`) `raw/`, `wiki/`, and `.llmw/` sit directly
-in the project root. Pass `--layout ai-wiki` to nest them one level down
-instead, keeping the root uncluttered:
-
-```bash
-llmw init --layout ai-wiki
-```
-
-```text
-ai-wiki/
-  raw/ wiki/ .llmw/            # same contents as the classic layout, nested
-.claude/skills/llm-wiki/       # still scaffolds at the real project root
-.claude-plugin/plugin.json     # still scaffolds at the real project root
-```
-
-Every command auto-detects which layout a project uses — it checks for
-`.llmw/` directly in the project root first, then falls back to
-`ai-wiki/.llmw`. Existing classic-layout projects need no migration.
-
-If a project can't be auto-detected from the current directory (e.g. a
-script running from elsewhere, or a non-standard checkout), point `llmw`
-at it explicitly with `--root <path>` or the `LLMW_ROOT` environment
-variable — either one is checked for both layouts, so a single value is
-enough (no need to specify `raw/`/`wiki/`/`.llmw/` individually):
-
-```bash
-llmw --root /path/to/project status
-LLMW_ROOT=/path/to/project llmw status
-```
-
-### Adopting an existing wiki
-
-If `raw/`/`wiki/` (or an `ai-wiki/`-nested equivalent) already has real
-content under its own conventions — e.g. a hand-rolled Karpathy-pattern
-wiki that predates `llmw` — use `--adopt` instead of a plain `init`:
-
-```bash
-llmw init --adopt                  # or: llmw init --layout ai-wiki --adopt
-```
-
-`--adopt` creates `.llmw/` and `config.toml` on first run, but never
-writes the default content files (`raw/README.md`, `wiki/index.md`,
-`wiki/overview.md`, `wiki/log.md`) or the default taxonomy subfolders
-(`entities/`, `concepts/`, `decisions/`, `syntheses/`, `projects/`,
-`glossary/`, `archived/`, `sources/`) — **not even with `--force`** —
-so pre-existing content at those paths is never touched or overwritten.
-Once `config.toml` exists, `--force` never rewrites it back to defaults
-either, so hand-tuned overrides for the adopted schema (see below) survive
-a re-`init --adopt --force`. A plain `llmw init` (no `--adopt`) always
-scaffolds those defaults, overwrites them on `--force`, and resets
-`config.toml` to defaults on `--force` too; only use it against an empty
-(or already llmw-managed) directory. Existing schema quirks (e.g. a
-`last_updated` field instead of `created`/`updated`, or root-level
-`index.md`/`log.md` files outside `wiki/`) are handled via
-`.llmw/config.toml`'s `lint.required_frontmatter` and
-`paths.extra_root_pages` — see [Adapting llmw to an existing wiki](#adapting-llmw-to-an-existing-wiki).
-```
+Pass `--layout ai-wiki` to nest `raw/`/`wiki/`/`.llmw/` under an `ai-wiki/`
+folder instead (auto-detected by every command afterward), and `--adopt` to
+point `llmw` at a wiki that already has real content under its own
+conventions without scaffolding over it — see
+[docs/project-layout.md](docs/project-layout.md).
 
 ## Agent workflow
 
@@ -213,7 +92,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 | `llmw status [--brief\|--json]` | Page counts, broken links, orphans, last indexed time, dirty pages |
 | `llmw rebuild` | Full re-index of `wiki/**/*.md` from scratch |
 | `llmw index [--changed\|--all]` | Incremental (default) or full re-index |
-| `llmw search "<query>" [--limit N] [--type T] [--strict]` | SQLite FTS5 search over title/summary/body — see [Search semantics](#search-semantics) |
+| `llmw search "<query>" [--limit N] [--type T] [--strict]` | SQLite FTS5 search over title/summary/body — see [docs/commands.md](docs/commands.md) for search semantics |
 | `llmw read <path\|title\|alias> [--full\|--brief]` | Look up a page; brief shows title/type/summary/key points/links/backlink count |
 | `llmw links <target>` | Outgoing links, with broken status |
 | `llmw backlinks <target>` | Incoming links |
@@ -226,33 +105,6 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 | `llmw lint [--brief\|--json]` | Broken links, orphans, duplicate titles/aliases, missing/invalid frontmatter, dangling raw refs, archived-page links — reports only, never auto-fixes |
 | `llmw health [--brief]` | System checks: config, index db, schema version, directories, locks |
 | `llmw graph build` / `llmw graph export --format json\|html` | Regenerate/export the link graph |
-
-## Search semantics
-
-`llmw search` never requires keyword-only phrasing — a full natural-
-language query is fine. It tries up to three tiers, only moving to the
-next when the previous one finds nothing, so a full match can never be
-outranked by a partial one:
-
-1. **strict** — every query term required (AND).
-2. **relaxed** — terms that can't match any indexed page at all (typos,
-   verb conjugations) are dropped; the rest are still required.
-3. **any** — every term becomes optional (OR), ranked by relevance.
-
-`--json` output reports which tier answered the query:
-`{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
-Pass `--strict` to disable the fallback tiers and only ever run tier 1.
-
-Query terms that are a single Hangul word with a trailing particle (a
-조사 — e.g. `스탯창을`, `포탈에서`) are stemmed to the bare noun (`스탯창`,
-`포탈`) before matching, since SQLite FTS5's prefix search only matches a
-query that is a prefix of the indexed word, not the other way around, so
-an inflected query would otherwise miss a bare-noun page. This is a small
-curated suffix list, not a full morphological analyzer — it won't stem verb
-conjugations (that's what the relaxed tier is for) and will occasionally
-strip a coincidental non-particle ending (e.g. `도로` → `도`); this is
-always recall-safe (the stem is a prefix of the original word) at worst
-adding minor ranking noise, never a missed page.
 
 ## Safety rules
 
@@ -267,158 +119,16 @@ adding minor ranking noise, never a missed page.
 - A simple advisory lock (`.llmw/locks/write.lock`) guards against two
   `llmw` processes mutating the wiki at the same time.
 
-## How the plugin keeps agents honest
+## Documentation
 
-Nothing stops an agent from ignoring the skill and editing `wiki/*.md` or
-`raw/**` directly with its own file-edit tools instead of `llmw` — that
-skips the `--reason` audit log, frontmatter validation, and automatic
-backup, and it happens in practice whenever a *different*, competing set
-of instructions is in effect and never mentions `llmw`.
+| Doc | Covers |
+|---|---|
+| [docs/installation.md](docs/installation.md) | Full standalone-CLI install matrix (Windows/macOS/Linux), updating, uninstalling |
+| [docs/hooks.md](docs/hooks.md) | The Claude Code plugin's `PreToolUse` wiki-guard and self-healing `SessionStart` version-sync hook |
+| [docs/commands.md](docs/commands.md) | Search semantics (3-tier fallback, Korean particle stemming) |
+| [docs/project-layout.md](docs/project-layout.md) | Classic vs. `ai-wiki/` layout, `--root`/`LLMW_ROOT`, `--adopt`, adapting `llmw` to an existing wiki's conventions, Obsidian compatibility notes |
+| [docs/development.md](docs/development.md) | Dev setup, the Claude Code skill, MVP scope |
 
-When installed as a Claude Code plugin (not a bare `llmw init` project
-skill), a `PreToolUse` hook closes that gap at the harness level: a native
-`Edit`/`Write`/`NotebookEdit` call targeting `wiki/*.md` or `raw/**` is
-denied (or, per config, turned into a confirmation prompt), and the
-denial message names the exact `llmw` command to run instead — so the
-agent's very next action is a one-line rewrite, not a dead end. A
-`SessionStart` hook also drops a short note into context every session:
-"this project has an llmw wiki" (with page count) when `.llmw` already
-exists, or a one-line "run `llmw init`" hint when it doesn't yet — so a
-blank environment with no project `CLAUDE.md`, and no wiki initialized
-at all, still discovers `llmw` on turn one.
+## License
 
-The guard only ever looks at `Edit`/`Write`/`NotebookEdit` calls whose
-target resolves (by walking up from the file, the same way `llmw` finds
-its own project root) to a real llmw project's `wiki/*.md` or `raw/**` —
-everything else, including plain `Read`, passes through untouched, and it
-never inspects `Bash` commands (shell-string policing is its own
-false-positive minefield, so the audit trail in `wiki/log.md` plus `llmw
-lint` remain the detection layer for that gap instead of a hook trying
-to block it).
-
-Configure or disable it per project in `.llmw/config.toml`:
-
-```toml
-[hooks]
-wiki_guard = "deny"  # default: block, with a message naming the llmw fix
-# wiki_guard = "ask"   # prompt for confirmation instead of blocking
-# wiki_guard = "off"   # disable the guard for this project
-```
-
-Both hooks require Git Bash on Windows (Claude Code falls back to
-PowerShell when Git Bash isn't installed, which these shell-form hooks
-don't support) — everywhere else, `llmw`'s own safety gate (reason
-required, path confined, frontmatter validated, backup before write)
-still holds regardless of whether the hook ran.
-
-## Claude Code skill
-
-`llmw init` writes `.claude/skills/llm-wiki/{SKILL.md,reference.md,examples.md}`
-into the project. Claude Code auto-discovers this as a plain skill — no
-install step. It tells the agent when to reach for `llmw`, the core
-search-first workflow, and points to `reference.md`/`examples.md` for
-full detail so the always-loaded `SKILL.md` stays short.
-
-If the llm-wiki Claude Code plugin (below) is already installed from the
-marketplace, pass `--no-claude-plugin` to skip this project-local copy —
-otherwise the project ends up with two copies of the same skill (the
-marketplace plugin's, and this one), which is redundant and can be
-confusing when Claude Code loads both.
-
-## Distributing `llmw` as an installable Claude Code plugin
-
-This repo doubles as its own Claude Code plugin **marketplace** — no
-separate `pip`/`uv`/`pipx` step needed:
-
-```
-/plugin marketplace add duddudcns/llm-wiki-cli
-/plugin install llm-wiki@llm-wiki-cli
-```
-
-(non-interactive equivalents: `claude plugin marketplace add duddudcns/llm-wiki-cli`
-and `claude plugin install llm-wiki@llm-wiki-cli`)
-
-This installs the `.claude-plugin/marketplace.json` → `plugin/` package
-(`plugin/.claude-plugin/plugin.json` + `plugin/skills/llm-wiki/` +
-`plugin/bin/llmw` + `plugin/hooks/hooks.json`). `plugin/bin/llmw` is a
-thin dispatcher, not a bundled Python distribution — so a `SessionStart`
-hook (`plugin/hooks/session-start.sh`, invoked via
-`plugin/hooks/hooks.json`) compares the installed `llmw --version`
-against the version this plugin bundle declares
-(`plugin/.claude-plugin/plugin.json`) each session. On a mismatch —
-including "not installed at all" — it (re)installs via `uv tool install
---force` (falling back to `pip install --user --force-reinstall`), pinned
-to the matching `git` tag (`git+...@v<version>`), so a plugin-marketplace
-update also brings the standalone CLI binary in sync without a separate
-manual `uv tool upgrade llmw`. When versions already match, the check is
-just one local `llmw --version` call (no network) each session. If you'd
-rather manage the CLI install yourself, see [Installation](#installation)
-above and skip the plugin, or install both — they don't conflict.
-
-## Obsidian compatibility
-
-`wiki/` is plain Markdown with YAML frontmatter and `[[wikilinks]]` — open
-it directly as an Obsidian vault to get graph view, backlinks, and search
-in a GUI, without giving up any of the CLI-driven agent workflow.
-
-Link resolution specifically handles real-world Obsidian export quirks:
-
-- `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading|Alias]]`, `[[#Heading]]`,
-  `![[Embed]]` — full wikilink grammar.
-- Path-like wikilink targets (`[[concepts/foo]]`) resolve relative to the
-  **vault root** (`wiki/`), matching how Obsidian resolves them when you
-  actually open `wiki/` as a vault — not just relative to the linking
-  page's own folder.
-- `related:` frontmatter is a first-class link source, same as inline
-  wikilinks — both a plain path/title (`related: [wiki/concepts/foo]`, the
-  convention some wikis used before adopting `llmw`) and Obsidian's own
-  Properties-panel format (`related: ["[[Note]]"]`) resolve correctly.
-- Markdown links with URL-encoded targets (`[Profile](Project%20Profile.md)`,
-  common when a filename has spaces) are decoded before matching against
-  on-disk pages.
-- Relative wikilinks that point outside `wiki/` (e.g. `[[../notes/x]]`) are
-  checked against the real filesystem — they're only reported as broken by
-  `llmw lint` if the target genuinely doesn't exist anywhere in the
-  project, not merely because they aren't an indexed wiki page.
-
-**Where the graph deliberately diverges from Obsidian's own**: `related:`
-edges and llmw's title-based wikilink resolution (`[[Exact Page
-Title]]` resolving even when it doesn't match the filename) are both
-llmw extensions with no Obsidian equivalent — Obsidian's own graph view
-won't show those edges. Two pages with the same filename stem in
-different folders also resolve ambiguously (first match wins) in both
-tools. Opening `wiki/` in Obsidian gets you a real, useful graph on the
-same files, not a pixel-identical one.
-
-## Adapting llmw to an existing wiki
-
-If a wiki already has its own conventions (different frontmatter fields,
-top-level files living outside `wiki/`), point `llmw init --adopt` at its
-root (see [Adopting an existing wiki](#adopting-an-existing-wiki)) and
-adjust `.llmw/config.toml` rather than reorganizing the wiki's files:
-
-```toml
-[paths]
-# Extra individual Markdown files (relative to the project root) to index
-# alongside wiki/**/*.md — e.g. a schema/index/log file kept outside wiki/.
-extra_root_pages = ["index.md", "log.md", "schema.md"]
-
-[lint]
-# Override which frontmatter keys `llmw lint` requires. Default is
-# ["type", "status", "created", "updated"]; "updated" also accepts a
-# `last_updated` key.
-required_frontmatter = ["type", "status", "last_updated"]
-```
-
-No existing page needs to change — `llmw rebuild` picks up the new config
-on the next run.
-
-## Development
-
-See [Installation](#installation)'s "Local clone, editable install" above
-to set up a dev environment; `pytest` runs the test suite from there.
-
-MVP scope deliberately excludes: an MCP server, daemon/watch mode,
-embedding/vector search, direct PDF/DOCX parsing, an Obsidian plugin, a
-web UI, and any auto-merge/auto-delete/contradiction-detection logic —
-see the project's implementation notes for the full list and rationale.
+MIT — see [LICENSE](LICENSE).
