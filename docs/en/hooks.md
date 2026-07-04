@@ -3,7 +3,7 @@
 **English** · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · [Español](../es/hooks.md) · [Français](../fr/hooks.md)
 
 Installing the Claude Code plugin (see [installation.md](installation.md))
-turns on two automatic safety features. Neither one is required to use
+turns on three automatic safety features. None of them are required to use
 `llmw` — they're just extra convenience on top of a tool that already
 protects itself either way.
 
@@ -42,12 +42,33 @@ missing, the check just won't run — `llmw`'s own built-in safety rules
 (a reason is required for every change, backups before edits, etc.) still
 apply regardless.
 
-There's also a small reminder shown at the start of every session: "this
+## Feature 2: reminding the AI to check the wiki before every request
+
+A wiki full of past decisions and mistakes is only useful if the AI
+actually looks at it before starting new work — and left to its own
+judgment, it won't always remember to. (This is the same problem people
+run into with a hand-kept wiki in a note-taking app: you write things
+down diligently, and the AI still goes and repeats a mistake you already
+wrote down, because nothing reminded it to look.)
+
+There's a small reminder shown at the start of every session too: "this
 project has a wiki with N notes" if one already exists, or a one-line
 "you should run `llmw init`" hint if it doesn't — so the AI knows about
 this tool from the very first message, even in a brand-new project.
 
-## Feature 2: keeping the command-line tool itself up to date
+To help with that, every message you send is quietly checked against the
+wiki first. If anything in the wiki looks related to what you just asked
+for, the AI is shown the matching note titles before it starts working —
+so a documented decision or a past mistake surfaces right when it's
+relevant, not just once at the start of the session. If nothing matches,
+you instead just get a short reminder that a wiki exists and is worth
+searching.
+
+This check only ever reads the wiki — it never blocks or slows down your
+request, and it can't stop the AI from proceeding either way. It's a
+nudge, not a gate.
+
+## Feature 3: keeping the command-line tool itself up to date
 
 The plugin includes a small helper program, but the real work is done by
 a separate copy of `llmw` installed on your computer. Updating the plugin

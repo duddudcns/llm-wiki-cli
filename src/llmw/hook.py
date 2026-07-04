@@ -21,6 +21,7 @@ from pathlib import Path
 
 from llmw.indexer import load_project_config
 from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
+from llmw.search import IndexNotBuiltError, search
 from llmw.status import build_status
 
 _GUARDED_TOOLS = {"Edit", "Write", "NotebookEdit"}
@@ -136,4 +137,45 @@ def evaluate_sessionstart(cwd: str) -> str | None:
         "Search it first (`llmw search`) before answering from memory or "
         "re-reading everything by hand. Mutate wiki pages only via `llmw "
         "write`/`edit`/`patch`/`archive` — never native file-edit tools."
+    )
+
+
+_NO_HITS_REMINDER = (
+    "Reminder: this project has an llmw wiki. If this request touches a "
+    "prior decision, a past mistake, or existing docs, run `llmw search "
+    '"<topic>"` before proceeding.'
+)
+
+
+def evaluate_userpromptsubmit(payload: dict) -> str | None:
+    """UserPromptSubmit hook: on every user message, search the wiki using
+    the prompt text itself and surface any hits — a task-specific nudge
+    instead of a one-time, content-free "a wiki exists" reminder that gets
+    forgotten a dozen turns later. Fails open (returns None) outside a real
+    llmw project or once the index isn't built yet.
+    """
+    prompt = payload.get("prompt")
+    if not prompt or not isinstance(prompt, str):
+        return None
+
+    try:
+        root = find_project_root(Path(payload.get("cwd") or "."))
+    except ProjectNotFoundError:
+        return None
+
+    paths = ProjectPaths.for_project_root(root)
+    try:
+        response = search(paths, prompt, limit=3)
+    except IndexNotBuiltError:
+        return None
+
+    if not response.results:
+        return _NO_HITS_REMINDER
+
+    hits = ", ".join(f"{r.title} ({r.path})" for r in response.results)
+    return (
+        f"This project's llmw wiki has notes that may be related to this "
+        f"request: {hits}. Consider `llmw read <path> --brief` on the "
+        "relevant one(s) before proceeding, so you don't redo work or "
+        "repeat a documented past mistake."
     )

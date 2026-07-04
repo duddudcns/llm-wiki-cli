@@ -3,7 +3,7 @@
 [English](../en/hooks.md) · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · **Español** · [Français](../fr/hooks.md)
 
 Instalar el plugin de Claude Code (mira [installation.md](installation.md))
-activa dos funciones de seguridad automáticas. Ninguna de las dos es
+activa tres funciones de seguridad automáticas. Ninguna de las tres es
 obligatoria para usar `llmw` — son solo comodidades extra sobre una
 herramienta que ya se protege sola de todas formas.
 
@@ -43,13 +43,36 @@ reglas de seguridad propias de `llmw` (una razón obligatoria para cada
 cambio, copias de seguridad antes de editar, etc.) se siguen aplicando
 igual.
 
-También aparece un pequeño recordatorio al comienzo de cada sesión: "este
-proyecto tiene una wiki con N notas" si ya existe una, o una pista de una
-sola línea que dice "deberías correr `llmw init`" si todavía no existe —
-así la IA se entera de esta herramienta desde el primer mensaje, incluso
-en un proyecto completamente nuevo.
+## Función 2: recordarle a la IA que revise la wiki antes de cada solicitud
 
-## Función 2: mantener actualizada la herramienta de línea de comandos
+Una wiki llena de decisiones y errores pasados solo sirve si la IA de
+verdad la consulta antes de empezar un trabajo nuevo — y si se la deja a
+su propio criterio, no siempre se va a acordar de hacerlo. (Es el mismo
+problema que tiene la gente con una wiki llevada a mano en una app de
+notas: escribes las cosas con toda dedicación, y la IA de todos modos
+repite un error que ya habías anotado, porque nada le recordó que debía
+mirar.)
+
+También se muestra un pequeño recordatorio al comienzo de cada sesión:
+"este proyecto tiene una wiki con N notas" si ya existe una, o una pista
+de una sola línea que dice "deberías correr `llmw init`" si todavía no
+existe — así la IA se entera de esta herramienta desde el primer mensaje,
+incluso en un proyecto completamente nuevo.
+
+Para ayudar con eso, cada mensaje que envías se compara silenciosamente
+con la wiki antes de nada. Si algo en la wiki parece relacionado con lo
+que acabas de pedir, se le muestran a la IA los títulos de las notas
+coincidentes antes de que empiece a trabajar — así una decisión
+documentada o un error pasado aparece justo cuando es relevante, no solo
+una vez al comienzo de la sesión. Si no hay coincidencias, en cambio
+simplemente recibes un recordatorio breve de que existe una wiki y vale
+la pena buscar en ella.
+
+Este chequeo solo lee la wiki — nunca bloquea ni retrasa tu solicitud, y
+de ninguna manera puede impedir que la IA continúe. Es un empujoncito, no
+una barrera.
+
+## Función 3: mantener actualizada la herramienta de línea de comandos
 
 El plugin incluye un pequeño programa auxiliar, pero el trabajo de verdad
 lo hace una copia aparte de `llmw` instalada en tu computadora. Actualizar
