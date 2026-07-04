@@ -145,18 +145,39 @@ _PROMPT_REMINDER = (
     "prior decision, a past mistake, or existing docs."
 )
 
+# Below this, a prompt is almost certainly a trivial reply ("ok", "thanks",
+# "yes continue") or a slash command with no chance of being wiki-relevant —
+# reminding the agent to search there just teaches it to tune the reminder
+# out, and can even prompt a pointless `llmw search` call mid-task. This is
+# a length check, not a relevance guess: still no keyword-matching.
+_TRIVIAL_WORD_THRESHOLD = 4
+_TRIVIAL_CHAR_THRESHOLD = 20
+
+
+def _is_trivial_prompt(prompt: str) -> bool:
+    stripped = prompt.strip()
+    if stripped.startswith("/"):
+        return True
+    return (
+        len(stripped) < _TRIVIAL_CHAR_THRESHOLD
+        and len(stripped.split()) < _TRIVIAL_WORD_THRESHOLD
+    )
+
 
 def evaluate_userpromptsubmit(payload: dict) -> str | None:
-    """UserPromptSubmit hook: on every user message, remind the agent to
-    search the wiki itself before starting work. Deliberately does not try
-    to guess relevance by keyword-matching the prompt text — a mechanical
-    match can miss a note that's phrased differently, so the actual search
-    is left to the agent's own judgment; this only makes sure it's asked
-    every single turn instead of once at session start. Fails open (returns
-    None) outside a real llmw project.
+    """UserPromptSubmit hook: on every non-trivial user message, remind the
+    agent to search the wiki itself before starting work. Deliberately does
+    not try to guess relevance by keyword-matching the prompt text — a
+    mechanical match can miss a note that's phrased differently, and a
+    false "no related notes" signal is worse than a generic reminder; the
+    actual search is left to the agent's own judgment. Fails open (returns
+    None) outside a real llmw project or for a trivially short prompt.
     """
     prompt = payload.get("prompt")
     if not prompt or not isinstance(prompt, str):
+        return None
+
+    if _is_trivial_prompt(prompt):
         return None
 
     try:

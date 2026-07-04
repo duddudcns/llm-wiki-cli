@@ -56,14 +56,16 @@ project has a wiki with N notes" if one already exists, or a one-line
 "you should run `llmw init`" hint if it doesn't — so the AI knows about
 this tool from the very first message, even in a brand-new project.
 
-To help with that further, every single message you send also gets a
-short reminder attached: "this project has a wiki — search it first."
-This is deliberately simple, on purpose: it doesn't try to guess whether
-your message is actually related to something in the wiki by matching
+To help with that further, most messages you send also get a short
+reminder attached: "this project has a wiki — search it first." This is
+deliberately simple, on purpose: it doesn't try to guess whether your
+message is actually related to something in the wiki by matching
 keywords, since that kind of automatic guess can easily miss a note
 that's just worded differently than your message. Instead, it just asks
 the AI to go check, every time, and leaves the actual judgment (and the
-actual searching) to the AI itself.
+actual searching) to the AI itself. (A very short message, like "ok" or
+"thanks", skips the reminder — there's no real work starting there to
+check the wiki against.)
 
 This is only a reminder — it never blocks or slows down your request,
 and it can't stop the AI from proceeding either way. It's a nudge, not a
