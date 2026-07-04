@@ -132,6 +132,63 @@ wiki/                         # agent-maintained knowledge layer
 .claude-plugin/plugin.json    # optional plugin metadata for this project
 ```
 
+### Project layout: classic vs. `ai-wiki/`
+
+By default (`--layout classic`) `raw/`, `wiki/`, and `.llmw/` sit directly
+in the project root. Pass `--layout ai-wiki` to nest them one level down
+instead, keeping the root uncluttered:
+
+```bash
+llmw init --layout ai-wiki
+```
+
+```text
+ai-wiki/
+  raw/ wiki/ .llmw/            # same contents as the classic layout, nested
+.claude/skills/llm-wiki/       # still scaffolds at the real project root
+.claude-plugin/plugin.json     # still scaffolds at the real project root
+```
+
+Every command auto-detects which layout a project uses — it checks for
+`.llmw/` directly in the project root first, then falls back to
+`ai-wiki/.llmw`. Existing classic-layout projects need no migration.
+
+If a project can't be auto-detected from the current directory (e.g. a
+script running from elsewhere, or a non-standard checkout), point `llmw`
+at it explicitly with `--root <path>` or the `LLMW_ROOT` environment
+variable — either one is checked for both layouts, so a single value is
+enough (no need to specify `raw/`/`wiki/`/`.llmw/` individually):
+
+```bash
+llmw --root /path/to/project status
+LLMW_ROOT=/path/to/project llmw status
+```
+
+### Adopting an existing wiki
+
+If `raw/`/`wiki/` (or an `ai-wiki/`-nested equivalent) already has real
+content under its own conventions — e.g. a hand-rolled Karpathy-pattern
+wiki that predates `llmw` — use `--adopt` instead of a plain `init`:
+
+```bash
+llmw init --adopt                  # or: llmw init --layout ai-wiki --adopt
+```
+
+`--adopt` still creates `.llmw/` and `config.toml`, but never writes the
+default content files (`raw/README.md`, `wiki/index.md`,
+`wiki/overview.md`, `wiki/log.md`) or the default taxonomy subfolders
+(`entities/`, `concepts/`, `decisions/`, `syntheses/`, `projects/`,
+`glossary/`, `archived/`, `sources/`) — **not even with `--force`** —
+so pre-existing content at those paths is never touched or overwritten.
+A plain `llmw init` (no `--adopt`) always scaffolds those defaults and
+will overwrite them on `--force`; only use it against an empty (or
+already llmw-managed) directory. Existing schema quirks (e.g. a
+`last_updated` field instead of `created`/`updated`, or root-level
+`index.md`/`log.md` files outside `wiki/`) are handled via
+`.llmw/config.toml`'s `lint.required_frontmatter` and
+`paths.extra_root_pages` — see [Adapting llmw to an existing wiki](#adapting-llmw-to-an-existing-wiki).
+```
+
 ## Agent workflow
 
 ```bash
@@ -149,7 +206,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 
 | Command | Purpose |
 |---|---|
-| `llmw init [--force] [--no-claude-plugin]` | Scaffold `raw/`, `wiki/`, `.llmw/`, and (by default) the Claude Code skill/plugin |
+| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | Scaffold `raw/`, `wiki/`, `.llmw/` (nested under `ai-wiki/` with `--layout ai-wiki`), and (by default) the Claude Code skill/plugin. `--adopt` skips default content/taxonomy scaffolding to preserve existing wiki content |
 | `llmw status [--brief\|--json]` | Page counts, broken links, orphans, last indexed time, dirty pages |
 | `llmw rebuild` | Full re-index of `wiki/**/*.md` from scratch |
 | `llmw index [--changed\|--all]` | Incremental (default) or full re-index |
@@ -327,7 +384,8 @@ same files, not a pixel-identical one.
 ## Adapting llmw to an existing wiki
 
 If a wiki already has its own conventions (different frontmatter fields,
-top-level files living outside `wiki/`), point `llmw init` at its root and
+top-level files living outside `wiki/`), point `llmw init --adopt` at its
+root (see [Adopting an existing wiki](#adopting-an-existing-wiki)) and
 adjust `.llmw/config.toml` rather than reorganizing the wiki's files:
 
 ```toml

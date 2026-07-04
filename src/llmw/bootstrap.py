@@ -8,12 +8,18 @@ import string
 from pathlib import Path
 
 from llmw.config import Config, save_config
-from llmw.paths import ProjectPaths
+from llmw.paths import AI_WIKI_DIR_NAME, ProjectPaths
 
 TEMPLATES = resources.files("llmw.templates")
 
+LAYOUTS = ("classic", "ai-wiki")
+
 
 class ProjectAlreadyExistsError(RuntimeError):
+    pass
+
+
+class UnknownLayoutError(ValueError):
     pass
 
 
@@ -22,7 +28,13 @@ def _render(template_name: str, **subs: str) -> str:
     return string.Template(text).substitute(**subs)
 
 
-def init_project(root: Path, force: bool = False, claude_plugin: bool = True) -> ProjectPaths:
+def init_project(
+    root: Path,
+    force: bool = False,
+    claude_plugin: bool = True,
+    layout: str = "classic",
+    adopt: bool = False,
+) -> ProjectPaths:
     """Scaffold a new llmw project.
 
     `claude_plugin=False` skips creating the project-local
@@ -30,8 +42,27 @@ def init_project(root: Path, force: bool = False, claude_plugin: bool = True) ->
     use this when the llm-wiki Claude Code plugin is already installed
     from the marketplace, so a project doesn't end up with two competing
     copies of the same skill.
+
+    `layout="classic"` (default) puts `raw/`, `wiki/`, and `.llmw/`
+    directly in `root`. `layout="ai-wiki"` nests them under
+    `root/ai-wiki/` instead, keeping `root` itself uncluttered; `.claude/`
+    and `.claude-plugin/` still scaffold at `root` either way.
+
+    `adopt=True` is for pointing llmw at a wiki that already has real
+    content under its own conventions (e.g. a hand-rolled Karpathy-pattern
+    wiki): it still creates `.llmw/` + config, but never writes the
+    default content files (`raw/README.md`, `wiki/index.md`,
+    `wiki/overview.md`, `wiki/log.md`) or the default taxonomy
+    subfolders (`entities/`, `concepts/`, `decisions/`, `syntheses/`,
+    `projects/`, `glossary/`, `archived/`, `sources/`) — not even with
+    `--force` — so pre-existing content at those paths is never touched.
     """
-    paths = ProjectPaths(root=root.resolve())
+    if layout not in LAYOUTS:
+        raise UnknownLayoutError(f"Unknown layout {layout!r}; expected one of {LAYOUTS}.")
+
+    project_root = root.resolve()
+    wiki_root = project_root / AI_WIKI_DIR_NAME if layout == "ai-wiki" else project_root
+    paths = ProjectPaths(root=wiki_root, project_root=project_root)
 
     if paths.llmw_dir.exists() and not force:
         raise ProjectAlreadyExistsError(
@@ -45,48 +76,52 @@ def init_project(root: Path, force: bool = False, claude_plugin: bool = True) ->
         paths.raw_inbox,
         paths.raw_processed,
         paths.wiki,
-        paths.wiki_archived,
-        paths.wiki_sources,
-        paths.root / "wiki" / "entities",
-        paths.root / "wiki" / "concepts",
-        paths.root / "wiki" / "decisions",
-        paths.root / "wiki" / "syntheses",
-        paths.root / "wiki" / "projects",
-        paths.root / "wiki" / "glossary",
         paths.llmw_dir,
         paths.cache_dir,
         paths.backups_dir,
         paths.locks_dir,
     ]
+    if not adopt:
+        dirs += [
+            paths.wiki_archived,
+            paths.wiki_sources,
+            paths.root / "wiki" / "entities",
+            paths.root / "wiki" / "concepts",
+            paths.root / "wiki" / "decisions",
+            paths.root / "wiki" / "syntheses",
+            paths.root / "wiki" / "projects",
+            paths.root / "wiki" / "glossary",
+        ]
     if claude_plugin:
         dirs += [paths.claude_skill_dir, paths.claude_plugin_dir]
     for d in dirs:
         d.mkdir(parents=True, exist_ok=True)
 
-    raw_readme = paths.raw / "README.md"
-    if not raw_readme.exists() or force:
-        raw_readme.write_text(
-            "# raw/\n\n"
-            "Immutable source material. Neither the AI agent nor the "
-            "`llmw` CLI may modify files in this directory. Drop new "
-            "material into `inbox/`; converted output (e.g. from PDFs) "
-            "goes into `processed/`.\n",
-            encoding="utf-8",
-            newline="\n",
-        )
+    if not adopt:
+        raw_readme = paths.raw / "README.md"
+        if not raw_readme.exists() or force:
+            raw_readme.write_text(
+                "# raw/\n\n"
+                "Immutable source material. Neither the AI agent nor the "
+                "`llmw` CLI may modify files in this directory. Drop new "
+                "material into `inbox/`; converted output (e.g. from PDFs) "
+                "goes into `processed/`.\n",
+                encoding="utf-8",
+                newline="\n",
+            )
 
-    if not (paths.wiki / "index.md").exists() or force:
-        (paths.wiki / "index.md").write_text(
-            _render("wiki_index.md", created=today), encoding="utf-8", newline="\n"
-        )
-    if not (paths.wiki / "overview.md").exists() or force:
-        (paths.wiki / "overview.md").write_text(
-            _render("wiki_overview.md", created=today), encoding="utf-8", newline="\n"
-        )
-    if not paths.wiki_log.exists() or force:
-        paths.wiki_log.write_text(
-            _render("wiki_log.md", created=today), encoding="utf-8", newline="\n"
-        )
+        if not (paths.wiki / "index.md").exists() or force:
+            (paths.wiki / "index.md").write_text(
+                _render("wiki_index.md", created=today), encoding="utf-8", newline="\n"
+            )
+        if not (paths.wiki / "overview.md").exists() or force:
+            (paths.wiki / "overview.md").write_text(
+                _render("wiki_overview.md", created=today), encoding="utf-8", newline="\n"
+            )
+        if not paths.wiki_log.exists() or force:
+            paths.wiki_log.write_text(
+                _render("wiki_log.md", created=today), encoding="utf-8", newline="\n"
+            )
 
     if not paths.config_path.exists() or force:
         save_config(paths.config_path, Config(created=today))

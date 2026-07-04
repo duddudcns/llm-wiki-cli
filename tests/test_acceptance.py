@@ -3,18 +3,22 @@ console-script `llmw`, exercised as a real subprocess (as an agent would).
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 
-def run(cwd: Path, *args: str, input: str | None = None) -> subprocess.CompletedProcess:
+def run(
+    cwd: Path, *args: str, input: str | None = None, env: dict | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "llmw.cli", *args],
         cwd=cwd,
         input=input,
         capture_output=True,
         text=True,
+        env=env,
     )
 
 
@@ -125,3 +129,70 @@ def test_14_7_no_raw_modification(tmp_path: Path):
     assert result.returncode != 0
     assert "raw/" in (result.stderr + result.stdout)
     assert not (tmp_path / "raw" / "test.md").is_file()
+
+
+def test_14_8_ai_wiki_layout_init(tmp_path: Path):
+    result = run(tmp_path, "init", "--layout", "ai-wiki")
+    assert result.returncode == 0, result.stderr
+
+    assert (tmp_path / "ai-wiki" / "raw").is_dir()
+    assert (tmp_path / "ai-wiki" / "wiki").is_dir()
+    assert (tmp_path / "ai-wiki" / ".llmw").is_dir()
+    assert (tmp_path / ".claude" / "skills" / "llm-wiki" / "SKILL.md").is_file()
+    assert not (tmp_path / "raw").exists()
+    assert not (tmp_path / "wiki").exists()
+
+
+def test_14_9_ai_wiki_layout_autodetected_by_commands(tmp_path: Path):
+    run(tmp_path, "init", "--layout", "ai-wiki")
+    (tmp_path / "ai-wiki" / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "ai-wiki" / "wiki" / "concepts" / "a.md").write_text(
+        "---\ntitle: A\n---\nThis page discusses context window overhead.\n",
+        encoding="utf-8",
+    )
+
+    result = run(tmp_path, "rebuild")
+    assert result.returncode == 0, result.stderr
+
+    result = run(tmp_path, "search", "context overhead", "--json")
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert any(r["path"] == "wiki/concepts/a.md" for r in report["results"])
+
+
+def test_14_10_root_flag_targets_project_from_elsewhere(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    run(project, "init")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+
+    result = run(elsewhere, "--root", str(project), "status", "--json")
+    assert result.returncode == 0, result.stderr
+
+
+def test_14_11_llmw_root_envvar_targets_project_from_elsewhere(tmp_path: Path):
+    project = tmp_path / "project"
+    project.mkdir()
+    run(project, "init")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+
+    result = run(elsewhere, "status", "--json", env={**os.environ, "LLMW_ROOT": str(project)})
+    assert result.returncode == 0, result.stderr
+
+
+def test_14_12_adopt_flag_preserves_existing_content_even_with_force(tmp_path: Path):
+    (tmp_path / "wiki").mkdir(parents=True)
+    (tmp_path / "wiki" / "index.md").write_text("mine\n", encoding="utf-8")
+
+    result = run(tmp_path, "init", "--adopt")
+    assert result.returncode == 0, result.stderr
+
+    result = run(tmp_path, "init", "--adopt", "--force")
+    assert result.returncode == 0, result.stderr
+
+    assert (tmp_path / "wiki" / "index.md").read_text(encoding="utf-8") == "mine\n"
+    assert (tmp_path / ".llmw").is_dir()
+    assert not (tmp_path / "wiki" / "overview.md").exists()
+    assert not (tmp_path / "wiki" / "concepts").exists()
