@@ -2,48 +2,33 @@
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · **Español** · [Français](README.fr.md)
 
-CLI de Wiki para Agentes IA estilo Obsidian sin interfaz gráfica.
+Una herramienta sencilla de línea de comandos que le da a un asistente de IA para programar su propio cuaderno de notas (una "wiki") para un proyecto — así puede recordar decisiones, datos e historial en vez de olvidarlo todo entre conversaciones.
 
-## Por qué
+## ¿Por qué usar esto?
 
-Las herramientas MCP son convenientes, pero los esquemas de herramientas y las instrucciones largas consumen contexto en cada turno. `llmw` adopta un enfoque diferente: una CLI pequeña y determinista más una habilidad de Claude Code. El agente llama al wiki solo cuando lo necesita, y la CLI nunca llama un modelo — solo indexa, busca y valida.
+Muchas herramientas de IA funcionan metiendo un montón de instrucciones y datos en cada mensaje, lo que desperdicia espacio y hace todo más lento. `llmw` funciona distinto: es una herramienta pequeña y simple a la que la IA solo recurre cuando de verdad necesita buscar o anotar algo. La herramienta en sí nunca "piensa" ni genera texto — solo guarda notas, las vuelve a encontrar cuando hace falta y comprueba que estén bien escritas. Todo el trabajo de pensar (qué anotar, cómo resumirlo) lo hace la IA, no `llmw`.
 
-## Conceptos
+## La idea básica
 
-- **Wiki de Karpathy para LLM** — `raw/` contiene material fuente inmutable; `wiki/`
-  es una capa de conocimiento persistente que un agente IA escribe y mantiene;
-  esto no es RAG ordinario, el wiki es un artefacto compuesto.
-- **Wikilinks estilo Obsidian** — `[[Página]]`, `[[Página|Alias]]`,
-  `[[Página#Encabezado]]`, `![[Insertar]]`, enlaces hacia atrás, etiquetas, YAML frontmatter.
-  `wiki/` es un almacén válido de Obsidian; ábrelo allí si quieres un IDE visual humano
-  en los mismos archivos.
-- **Markdown como fuente de verdad** — `.llmw/index.sqlite` y
-  `.llmw/graph.json` son datos derivados y reconstruibles. `llmw rebuild`
-  regenera ambos desde `wiki/*.md` solamente.
-- **El agente IA escribe el wiki; la CLI indexa y lo valida** — búsqueda
-  (SQLite FTS5), enlaces hacia atrás, puntuación de páginas relacionadas, y lint son todos
-  deterministas, basados en reglas, e independientes del modelo. Resumir fuentes, escribir
-  páginas, y decidir qué archivar es trabajo del agente.
+- **Dos carpetas, dos trabajos** — `raw/` guarda el material original, que nunca cambia (como un documento que subiste). `wiki/` es donde la IA escribe sus propias notas, y las va actualizando a medida que aprende más — así el cuaderno se vuelve cada vez más útil con el tiempo, en vez de ser solo una búsqueda de una sola vez.
+- **Notas que se enlazan entre sí** — las páginas pueden enlazar a otras páginas (como los enlaces de Wikipedia), para que la IA pueda seguir un rastro de notas relacionadas. Esto también funciona con la popular app de notas [Obsidian](https://obsidian.md/), por si quieres una forma visual de explorar esas mismas notas tú mismo.
+- **Todo son simples archivos de texto** — cada nota es un archivo Markdown normal que puedes abrir y leer tú mismo, sin que haga falta ninguna base de datos especial. También hay un pequeño archivo de índice de búsqueda, pero es solo un ayudante que siempre se puede volver a generar a partir de las notas si hace falta.
+- **La IA escribe; la herramienta solo revisa y organiza** — buscar, encontrar notas relacionadas y comprobar que las notas estén bien escritas son operaciones simples y predecibles, sin ninguna IA de por medio. Decidir qué vale la pena anotar, y escribirlo bien, es trabajo de la IA.
 
-## Instalar
+## Instalación
 
-**Recomendado: Plugin de Claude Code** — sin paso separado `pip`/`uv`/`pipx`:
+**Recomendado: instalar como plugin de Claude Code** — solo dos comandos, sin nada más que configurar:
 
 ```
 /plugin marketplace add duddudcns/llm-wiki-cli
 /plugin install llm-wiki@llm-wiki-cli
 ```
 
-Esto también instala hooks que mantienen la CLI misma en sincronización automáticamente y
-evitan que los agentes la eludan — ver [docs/es/hooks.md](docs/es/hooks.md).
+Esto también activa algunas redes de seguridad útiles que mantienen todo funcionando bien por su cuenta — mira [docs/es/hooks.md](docs/es/hooks.md) para los detalles.
 
-¿Prefieres la CLI autónoma directamente (scripting, CI, otro editor),
-o gestionar actualizaciones tú mismo? Ver
-[docs/es/installation.md](docs/es/installation.md) para la matriz completa de instalación uv/pipx/pip/dev,
-dividida por Windows/macOS/Linux. Los dos no entran en conflicto — puedes
-instalar ambos.
+¿Prefieres instalar la herramienta de línea de comandos directamente (por ejemplo, para usarla fuera de Claude Code)? Mira [docs/es/installation.md](docs/es/installation.md), donde hay instrucciones paso a paso para Windows, macOS y Linux. Puedes instalar ambas cosas — no se estorban entre sí.
 
-## Inicio rápido
+## Para empezar rápido
 
 ```bash
 mkdir my-project && cd my-project
@@ -51,25 +36,21 @@ llmw init
 llmw status --brief
 ```
 
-`llmw init` genera:
+`llmw init` crea esta estructura de carpetas por ti:
 
 ```text
-raw/                          # material fuente inmutable
-wiki/                         # capa de conocimiento mantenida por agentes
+raw/                          # material original — nunca se edita
+wiki/                         # las notas propias de la IA, que ella va actualizando
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # índice/caché/copias de seguridad/bloqueos derivados (reconstruible)
-.claude/skills/llm-wiki/      # SKILL.md + reference.md + examples.md
-.claude-plugin/plugin.json    # metadatos de plugin opcionales para este proyecto
+.llmw/                        # índice de búsqueda interno (se puede reconstruir cuando quieras)
+.claude/skills/llm-wiki/      # le enseña a Claude Code cómo usar esta herramienta
+.claude-plugin/plugin.json    # información opcional del plugin para este proyecto
 ```
 
-Pasa `--layout ai-wiki` para anidar `raw/`/`wiki/`/`.llmw/` bajo una carpeta `ai-wiki/`
-en su lugar (auto-detectado por cada comando después), y `--adopt` para
-apuntar `llmw` a un wiki que ya tiene contenido real bajo sus propias
-convenciones sin andamios sobre él — ver
-[docs/es/project-layout.md](docs/es/project-layout.md).
+¿Quieres mantener más ordenada la carpeta de tu proyecto metiendo todo esto en una subcarpeta, en vez de dejarlo suelto? ¿O apuntar `llmw` a una wiki que ya armaste a mano? Mira [docs/es/project-layout.md](docs/es/project-layout.md).
 
-## Flujo de trabajo del agente
+## Un flujo de trabajo típico con IA
 
 ```bash
 llmw status --brief
@@ -79,53 +60,48 @@ llmw patch wiki/decisions/foo.md --reason "updated after new test" --stdin
 llmw lint --brief
 ```
 
-## Referencia de comandos
+## Todos los comandos
 
-Todos los comandos aceptan `--json` para salida interpretable por máquina; la mayoría de lecturas
-muestran una vista breve y económica de contexto por defecto (`--full`/`--no-brief` para más).
+Todos los comandos aceptan `--json` si quieres la salida en un formato que un programa pueda leer. La mayoría de los comandos de "lectura" muestran un resumen corto por defecto (agrega `--full`/`--no-brief` para ver todo).
 
-| Comando | Propósito |
+| Comando | Qué hace |
 |---|---|
-| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | Genera `raw/`, `wiki/`, `.llmw/` (anidado bajo `ai-wiki/` con `--layout ai-wiki`), y (por defecto) la habilidad/plugin de Claude Code. `--adopt` omite el contenido por defecto/andamios de taxonomía y protege `config.toml` de `--force`, para preservar contenido de wiki existente y sus anulaciones de config |
-| `llmw status [--brief\|--json]` | Conteos de páginas, enlaces rotos, huérfanos, última hora indexada, páginas sucias |
-| `llmw rebuild` | Re-índice completo de `wiki/**/*.md` desde cero |
-| `llmw index [--changed\|--all]` | Re-índice incremental (por defecto) o completo |
-| `llmw search "<query>" [--limit N] [--type T] [--strict]` | Búsqueda SQLite FTS5 sobre título/resumen/cuerpo — ver [docs/es/commands.md](docs/es/commands.md) para semántica de búsqueda |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | Buscar una página; breve muestra título/tipo/resumen/puntos clave/enlaces/conteo de enlaces hacia atrás |
-| `llmw links <target>` | Enlaces salientes, con estado de rotura |
-| `llmw backlinks <target>` | Enlaces entrantes |
-| `llmw related <target> [--limit N] [--by links,tags,terms]` | Candidatos de página relacionada deterministas (sin llamadas a modelo) |
-| `llmw ingest <raw/...>` | Registrar una fuente `.md`/`.txt` como borrador `wiki/sources/<slug>.md` |
-| `llmw write <path> --reason "..." --stdin [--force]` | Crear una nueva página wiki desde stdin |
-| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Reemplazo exacto de cadena en una página existente (misma semántica que una herramienta Edit nativa) |
-| `llmw patch <path> --reason "..." --stdin` | Aplicar un diff unificado a una página existente (hace copia de seguridad primero, revierte en fallo) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Mover una página a `wiki/archived/YYYY/MM/`, marcar frontmatter de archivo, registrar cambio |
-| `llmw lint [--brief\|--json]` | Enlaces rotos, huérfanos, títulos/aliases duplicados, frontmatter faltante/inválido, referencias raw colgantes, enlaces a páginas archivadas — solo reporta, nunca auto-corrige |
-| `llmw health [--brief]` | Verificaciones del sistema: config, bd de índice, versión de esquema, directorios, bloqueos |
-| `llmw graph build` / `llmw graph export --format json\|html` | Regenerar/exportar el gráfico de enlaces |
+| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | Prepara `raw/`, `wiki/` y el índice de búsqueda para un proyecto nuevo (o uno ya existente, con `--adopt` — mira [docs/es/project-layout.md](docs/es/project-layout.md)) |
+| `llmw status [--brief\|--json]` | Chequeo rápido de estado: cuántas notas hay, si hay enlaces rotos, cuándo se actualizó por última vez |
+| `llmw rebuild` | Reconstruye desde cero todo el índice de búsqueda |
+| `llmw index [--changed\|--all]` | Actualiza el índice de búsqueda (por defecto, solo lo que cambió) |
+| `llmw search "<query>" [--limit N] [--type T] [--strict]` | Busca en todas las notas — mira [docs/es/commands.md](docs/es/commands.md) para saber cómo funciona la búsqueda |
+| `llmw read <path\|title\|alias> [--full\|--brief]` | Abre una nota; la versión corta muestra el título, el resumen y los enlaces |
+| `llmw links <target>` | Muestra a qué enlaza una nota |
+| `llmw backlinks <target>` | Muestra qué otras notas enlazan a esta |
+| `llmw related <target> [--limit N] [--by links,tags,terms]` | Sugiere notas relacionadas, usando reglas simples (sin que la IA tenga que adivinar) |
+| `llmw ingest <raw/...>` | Convierte un documento fuente en un borrador de nota listo para que la IA lo complete |
+| `llmw write <path> --reason "..." --stdin [--force]` | Crea una nota completamente nueva |
+| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Reemplaza un fragmento exacto de texto en una nota que ya existe |
+| `llmw patch <path> --reason "..." --stdin` | Aplica un conjunto de cambios a una nota (primero guarda una copia de seguridad, y se deshace sola si algo sale mal) |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Mueve una nota vieja fuera del camino en lugar de borrarla, y deja una nota que señala su nueva ubicación |
+| `llmw lint [--brief\|--json]` | Busca problemas — enlaces rotos, información que falta, títulos duplicados — pero nunca los corrige por su cuenta |
+| `llmw health [--brief]` | Comprueba que todo lo que trabaja detrás de escena esté bien configurado |
+| `llmw graph build` / `llmw graph export --format json\|html` | Crea o exporta un mapa visual de cómo se enlazan las notas entre sí |
 
-## Reglas de seguridad
+## Reglas de seguridad incorporadas
 
-- `raw/` es inmutable. `write`/`patch`/`archive` rechazan cualquier ruta bajo él.
-- Cada `write`/`patch`/`archive` requiere `--reason`, registrado en
-  `wiki/log.md` y la tabla `log_entries`.
-- No hay `delete` — usa `archive`. El predeterminado mantiene un stub de lápida
-  en la ruta original apuntando a la nueva ubicación.
-- `patch` respalda el archivo antes de aplicar un diff unificado, y deja
-  el original intacto si el diff no aplica limpiamente (desajuste de contexto).
-- Un simple bloqueo consultivo (`.llmw/locks/write.lock`) protege contra dos
-  procesos `llmw` mutando el wiki al mismo tiempo.
+- El material original en `raw/` no se puede cambiar nunca — la herramienta simplemente se niega a hacerlo.
+- Todo cambio en una nota debe venir con una razón breve, que queda anotada en un registro histórico permanente.
+- No existe "borrar" — solo "archivar", que mueve una nota a un lado y deja una señal de adónde fue, para que nada desaparezca sin dejar rastro.
+- Aplicar un conjunto de cambios siempre hace primero una copia de seguridad, y se deshace automáticamente si algo falla a mitad de camino.
+- Un simple archivo de bloqueo evita que dos copias de la herramienta editen las mismas notas al mismo tiempo y se pisen entre sí.
 
-## Documentación
+## Más documentación
 
-| Doc | Cubre |
+| Doc | Qué encontrarás |
 |---|---|
-| [docs/es/installation.md](docs/es/installation.md) | Matriz completa de instalación CLI autónoma (Windows/macOS/Linux), actualización, desinstalación |
-| [docs/es/hooks.md](docs/es/hooks.md) | Hook `PreToolUse` guardián de wiki del plugin Claude Code y hook de sincronización de versión auto-sanador `SessionStart` |
-| [docs/es/commands.md](docs/es/commands.md) | Semántica de búsqueda (fallback de 3 niveles, stemming de partículas coreanas) |
-| [docs/es/project-layout.md](docs/es/project-layout.md) | Diseño clásico vs. `ai-wiki/`, `--root`/`LLMW_ROOT`, `--adopt`, adaptar `llmw` a las convenciones de wiki existentes, notas de compatibilidad con Obsidian |
-| [docs/es/development.md](docs/es/development.md) | Configuración de dev, la habilidad de Claude Code, alcance MVP |
+| [docs/es/installation.md](docs/es/installation.md) | Instrucciones completas de instalación para Windows, macOS y Linux; cómo actualizarla o quitarla |
+| [docs/es/hooks.md](docs/es/hooks.md) | Cómo el plugin de Claude Code evita que la IA se salte la wiki, y cómo se mantiene actualizado por su cuenta |
+| [docs/es/commands.md](docs/es/commands.md) | Cómo funciona realmente la búsqueda por dentro |
+| [docs/es/project-layout.md](docs/es/project-layout.md) | Distintas formas de organizar las carpetas de la wiki, cómo adoptar una wiki que ya armaste, cómo usarla junto con la app de notas Obsidian |
+| [docs/es/development.md](docs/es/development.md) | Cómo preparar un entorno de desarrollo para trabajar en `llmw` mismo |
 
 ## Licencia
 
-MIT — ver [LICENSE](LICENSE).
+MIT — mira [LICENSE](LICENSE).

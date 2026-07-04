@@ -1,10 +1,13 @@
-# Disposition du projet, adoption d'un wiki existant, et compatibilité Obsidian
+# Organiser votre wiki, et utiliser un wiki déjà existant
 
 [English](../en/project-layout.md) · [한국어](../ko/project-layout.md) · [日本語](../ja/project-layout.md) · [简体中文](../zh-Hans/project-layout.md) · [Español](../es/project-layout.md) · **Français**
 
-## Disposition du projet : classique vs `ai-wiki/`
+## Deux façons d'organiser les dossiers
 
-Par défaut (`--layout classic`) `raw/`, `wiki/`, et `.llmw/` s'assoient directement dans la racine du projet. Passez `--layout ai-wiki` pour les imbriquer un niveau plus bas à la place, gardant la racine désencombré :
+Par défaut, `llmw init` place les dossiers `raw/`, `wiki/`, et le dossier
+technique en coulisse directement dans le dossier principal de votre
+projet. Si vous préférez garder votre dossier de projet bien rangé, vous
+pouvez tout glisser dans un sous-dossier appelé `ai-wiki/` à la place :
 
 ```bash
 llmw init --layout ai-wiki
@@ -12,59 +15,105 @@ llmw init --layout ai-wiki
 
 ```text
 ai-wiki/
-  raw/ wiki/ .llmw/            # même contenu que la disposition classique, imbriqué
-.claude/skills/llm-wiki/       # crée toujours à la vraie racine du projet
-.claude-plugin/plugin.json     # crée toujours à la vraie racine du projet
+  raw/ wiki/ .llmw/            # les mêmes dossiers qu'avant, juste un niveau plus bas
+.claude/skills/llm-wiki/       # reste toujours dans le dossier principal de votre projet
+.claude-plugin/plugin.json     # reste toujours dans le dossier principal de votre projet
 ```
 
-Chaque commande auto-détecte la disposition qu'un projet utilise — elle vérifie d'abord `.llmw/` directement dans la racine du projet, puis revient à `ai-wiki/.llmw`. Les projets à disposition classique existants ne nécessitent pas de migration.
+Chaque commande détecte automatiquement le style que vous utilisez — vous
+n'avez jamais besoin de le préciser à nouveau après le premier `init`. Si
+vous avez déjà des notes organisées de la façon classique, vous n'avez
+rien à changer.
 
-Si un projet ne peut pas être auto-détecté depuis le répertoire courant (par exemple un script s'exécutant ailleurs, ou un checkout non-standard), pointez `llmw` vers lui explicitement avec `--root <path>` ou la variable d'environnement `LLMW_ROOT` — soit l'une soit vérifiée pour les deux dispositions, donc une seule valeur suffit (pas besoin de spécifier `raw/`/`wiki/`/`.llmw/` individuellement) :
+Si vous lancez `llmw` depuis un endroit en dehors du dossier de projet
+(par exemple depuis un script), vous pouvez simplement lui indiquer où
+chercher, et il devinera tout seul lequel des deux styles de dossiers
+vous utilisez :
 
 ```bash
 llmw --root /path/to/project status
 LLMW_ROOT=/path/to/project llmw status
 ```
 
-## Adoption d'un wiki existant
+## Utiliser `llmw` avec un wiki que vous avez déjà créé à la main
 
-Si `raw/`/`wiki/` (ou un équivalent imbriqué `ai-wiki/`) a déjà du contenu réel dans ses propres conventions — par exemple un wiki de motif Karpathy fait à la main qui précède `llmw` — utilisez `--adopt` à la place d'un `init` simple :
+Peut-être avez-vous déjà votre propre ensemble de notes, créé avant même
+de connaître cet outil, et vous voulez juste que `llmw` commence à s'en
+occuper. Utilisez `--adopt` plutôt qu'un simple `init` :
 
 ```bash
-llmw init --adopt                  # ou: llmw init --layout ai-wiki --adopt
+llmw init --adopt                  # ou : llmw init --layout ai-wiki --adopt
 ```
 
-`--adopt` crée `.llmw/` et `config.toml` à la première exécution, mais n'écrit jamais les fichiers de contenu par défaut (`raw/README.md`, `wiki/index.md`, `wiki/overview.md`, `wiki/log.md`) ou les sous-dossiers de taxonomie par défaut (`entities/`, `concepts/`, `decisions/`, `syntheses/`, `projects/`, `glossary/`, `archived/`, `sources/`) — **pas même avec `--force`** — donc le contenu pré-existant à ces chemins n'est jamais touché ou écrasé. Une fois que `config.toml` existe, `--force` ne le réécrit jamais avec des défauts non plus, donc les remplacements ajustés à la main pour le schéma adopté (voir ci-dessous) survivent un re-`init --adopt --force`. Un simple `llmw init` (sans `--adopt`) crée toujours ces défauts, les écrase sur `--force`, et réinitialise également `config.toml` aux défauts sur `--force` ; ne l'utilisez que contre un répertoire vide (ou déjà géré par llmw). Les bizarreries du schéma existant (par exemple un champ `last_updated` au lieu de `created`/`updated`, ou des fichiers `index.md`/`log.md` au niveau racine en dehors de `wiki/`) sont traitées via les `lint.required_frontmatter` et `paths.extra_root_pages` de `.llmw/config.toml` — voir ci-dessous.
+Cela met en place l'index de recherche en coulisse, mais ne **créera** ni
+n'**écrasera** jamais aucune de vos notes ou de vos dossiers existants —
+même si vous relancez plus tard la commande avec `--force`. Votre fichier
+de configuration est protégé de la même manière, donc les réglages
+personnalisés que vous avez faits ne seront jamais réinitialisés par
+accident. (Un simple `llmw init`, sans `--adopt`, se comporte
+différemment : il crée bien quelques notes et dossiers de départ, et
+`--force` les écrasera — donc n'utilisez la version simple que sur un
+projet tout neuf et vide.)
 
-## Adaptation de llmw à un wiki existant
+## Adapter `llmw` à des notes qui suivent des règles différentes
 
-Si un wiki a déjà ses propres conventions (champs de frontmatter différents, fichiers de niveau supérieur vivant en dehors de `wiki/`), pointez `llmw init --adopt` vers sa racine (voir ci-dessus) et ajustez `.llmw/config.toml` plutôt que de réorganiser les fichiers du wiki :
+Si vos notes existantes sont organisées un peu différemment — par
+exemple, certains fichiers importants se trouvent en dehors du dossier
+`wiki/`, ou ils utilisent des étiquettes différentes de celles attendues
+par `llmw` — vous n'avez pas besoin de tout réorganiser. Il suffit
+d'ajuster un petit fichier de configuration, après avoir adopté le wiki
+comme montré ci-dessus :
 
 ```toml
 [paths]
-# Fichiers Markdown individuels supplémentaires (relatifs à la racine du projet) à indexer
-# aux côtés de wiki/**/*.md — par exemple un fichier de schéma/index/log conservé en dehors de wiki/.
+# Fichiers de notes individuels supplémentaires (en dehors du dossier wiki/
+# habituel) qui doivent quand même être inclus dans la recherche — par
+# exemple un fichier d'index ou de journal gardé au niveau racine.
 extra_root_pages = ["index.md", "log.md", "schema.md"]
 
 [lint]
-# Remplacer quelles clés de frontmatter `llmw lint` nécessite. Par défaut
-# ["type", "status", "created", "updated"] ; "updated" accepte aussi une
-# clé `last_updated`.
+# Quelles informations chaque note est censée avoir en haut.
+# La valeur par défaut est ["type", "status", "created", "updated"] ;
+# "updated" accepte aussi une note qui utilise plutôt "last_updated".
 required_frontmatter = ["type", "status", "last_updated"]
 ```
 
-Aucune page existante ne doit changer — `llmw rebuild` récupère la nouvelle config à la prochaine exécution.
+Aucune de vos notes existantes n'a besoin de changer pour que cela
+fonctionne.
 
-## Compatibilité Obsidian
+## Utiliser `llmw` avec Obsidian
 
-`wiki/` est du Markdown simple avec frontmatter YAML et `[[wikilinks]]` — ouvrez-le directement comme un coffre Obsidian pour obtenir la vue graphique, backlinks, et recherche dans une GUI, sans renoncer à aucun du flux de travail de l'agent piloté par la CLI.
+Chaque note est un simple fichier texte, donc vous pouvez aussi ouvrir le
+dossier `wiki/` directement dans l'application de prise de notes très
+connue [Obsidian](https://obsidian.md/) — vous obtenez sa vue en carte
+visuelle, sa vue « qui pointe vers cette note », et sa recherche, le tout
+sur les mêmes notes, sans rien perdre de la façon dont l'IA les utilise.
 
-La résolution de liens traite spécifiquement les bizarreries réelles d'export Obsidian :
+Certains détails sur la façon dont les notes se relient entre elles sont
+conçus pour correspondre à ce que fait Obsidian lui-même, y compris
+quelques cas particuliers délicats :
 
-- `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading|Alias]]`, `[[#Heading]]`, `![[Embed]]` — grammaire de wikilink complète.
-- Les cibles de wikilink de type chemin (`[[concepts/foo]]`) se résolvent relatif à la **racine du coffre** (`wiki/`), correspondant à la façon dont Obsidian les résout quand vous ouvrez réellement `wiki/` en tant que coffre — pas juste relatif au dossier propre de la page de liaison.
-- Le frontmatter `related:` est une source de lien de première classe, même que les wikilinks en ligne — tant un chemin simple/titre (`related: [wiki/concepts/foo]`, la convention que certains wikis utilisaient avant d'adopter `llmw`) que le propre format Properties-panel d'Obsidian (`related: ["[[Note]]"]`) se résolvent correctement.
-- Les liens Markdown avec cibles codées en URL (`[Profile](Project%20Profile.md)`, courant quand un nom de fichier a des espaces) sont décodés avant de correspondre à des pages sur disque.
-- Les wikilinks relatifs qui pointent en dehors de `wiki/` (par exemple `[[../notes/x]]`) sont vérifiés contre le système de fichiers réel — ils sont uniquement rapportés comme rompus par `llmw lint` si la cible n'existe vraiment nulle part dans le projet, pas simplement parce qu'elle n'est pas une page wiki indexée.
+- Tous les styles de liens d'Obsidian sont reconnus : un lien simple vers
+  une autre note, un lien avec un nom d'affichage personnalisé, un lien
+  vers un titre précis à l'intérieur d'une note, et une « intégration »
+  qui reprend le contenu d'une autre note.
+- Un lien qui contient un chemin de dossier est interprété exactement
+  comme Obsidian l'interprète — relatif au sommet du wiki, pas relatif à
+  la note dans laquelle le lien est écrit.
+- Les notes peuvent aussi lister des « notes liées » en haut, dans
+  plusieurs formats différents, et les deux sont reconnus correctement.
+- Les liens vers des fichiers dont le nom contient des espaces ou des
+  caractères spéciaux (fréquent quand des notes sont exportées depuis
+  d'autres outils) sont quand même correctement associés.
+- Un lien qui pointe en dehors du dossier `wiki/` est vérifié par rapport
+  à ce qui existe réellement sur le disque, donc il n'est signalé comme
+  cassé que s'il n'existe vraiment nulle part.
 
-**Où le graphe diverge délibérément d'Obsidian** : les bords `related:` et la résolution de wikilink basée sur le titre de llmw (`[[Exact Page Title]]` se résolvant même quand cela ne correspond pas au nom de fichier) sont tous deux des extensions llmw sans équivalent Obsidian — la propre vue graphique d'Obsidian ne montrera pas ces bords. Deux pages avec le même stem de nom de fichier dans des dossiers différents se résolvent aussi ambiguïment (première correspondance gagne) dans les deux outils. Ouvrir `wiki/` dans Obsidian vous obtient un vrai graphe utile sur les mêmes fichiers, pas un pixel-identique.
+**Quelques petites différences avec le vrai Obsidian** : cet outil
+comprend quelques types de connexions supplémentaires entre les notes
+(comme la liste de « notes liées » mentionnée plus haut) que la vue en
+carte d'Obsidian ne montrera pas, car ces connexions sont propres à cet
+outil. Et si deux notes ont exactement le même nom de fichier dans des
+dossiers différents, cet outil et Obsidian peuvent tous les deux parfois
+choisir la mauvaise note quand un lien ne précise pas de quel dossier il
+s'agit. Pour tout le reste, ça correspond.

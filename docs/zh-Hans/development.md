@@ -1,15 +1,15 @@
-# 开发
+# 参与 `llmw` 的开发
 
 [English](../en/development.md) · [한국어](../ko/development.md) · [日本語](../ja/development.md) · **简体中文** · [Español](../es/development.md) · [Français](../fr/development.md)
 
-参见 [installation.md](installation.md) 的"本地克隆、可编辑安装"部分来设置开发环境；`pytest` 从那里运行测试套件。
+参考 [installation.md](installation.md) 里"参与 `llmw` 自身的开发"这一节来搭建开发环境;搭好之后在里面跑 `pytest` 就能运行测试。
 
-## Claude Code 技能
+## Claude Code 技能是怎么工作的
 
-`llmw init` 写 `.claude/skills/llm-wiki/{SKILL.md,reference.md,examples.md}` 到项目中。Claude Code 自动发现这作为纯技能 —— 无安装步骤。它告诉智能体何时使用 `llmw`、核心搜索优先工作流，并指向 `reference.md`/`examples.md` 获取完整细节，所以总是加载的 `SKILL.md` 保持简短。
+`llmw init` 会在你项目的 `.claude/skills/llm-wiki/` 目录下写入几个文件。Claude Code 会自动识别这些文件——不需要另外单独安装。这些文件教会 AI 什么时候该用 `llmw`、该怎么用,而不需要每次都把所有细节都加载进来。
 
-如果 llm-wiki Claude Code 插件已从市场安装，传递 `--no-claude-plugin` 来跳过此项目本地副本 —— 否则项目最终有相同技能的两个副本（市场插件的，和这个），这是冗余且当 Claude Code 加载两个时可能令人困惑。
+如果你已经从应用市场装了 Claude Code 插件,那运行 `llmw init` 的时候加上 `--no-claude-plugin`,跳过再创建这一份多余的副本——不然你就会有两份一模一样的说明,既多余又可能造成混乱。
 
-## MVP 范围
+## 这个工具目前刻意不做的事
 
-故意排除：MCP 服务器、daemon/watch 模式、嵌入/向量搜索、直接 PDF/DOCX 解析、Obsidian 插件、web UI 和任何自动合并/自动删除/矛盾检测逻辑。
+按照设计,以下这些暂时都不在这个工具的范围之内：直接连接 AI 模型、自动监控文件变化、AI 驱动的语义搜索、直接读取 PDF/Word 文件、图形界面应用,以及任何自动合并/删除/解决笔记冲突的功能。

@@ -2,33 +2,33 @@
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **简体中文** · [Español](README.es.md) · [Français](README.fr.md)
 
-面向 AI 智能体的无头 Obsidian 式 LLM Wiki CLI。
+一个简单的命令行工具，能让 AI 编程助手拥有属于自己的项目笔记本("wiki")——这样它就能记住之前做过的决定、了解到的事实和历史,而不是每次对话之后就把一切都忘光。
 
-## 为什么
+## 为什么要用它?
 
-MCP 工具虽然便利，但工具架构和冗长的说明会在每一轮消耗上下文。`llmw` 采用了不同的方式：一个小型的、确定性的 CLI 加上一个 Claude Code 技能。智能体只在需要时调用 wiki，CLI 本身永远不调用模型 —— 它仅用来索引、搜索和验证。
+很多 AI 工具的做法是,每条消息都塞进一大堆说明和资料,这样既占地方又拖慢速度。`llmw` 的思路不一样：它是一个很小、很简单的工具,只有 AI 真正需要查资料或记点什么的时候才会用到它。这个工具本身从不"思考"或生成文字——它只是负责把笔记存起来、之后再找出来,以及检查笔记有没有写对格式。真正的思考工作(该写什么、怎么概括)全部由 AI 自己完成,`llmw` 不参与。
 
-## 概念
+## 基本思路
 
-- **Karpathy LLM Wiki** —— `raw/` 保存不可变的源材料；`wiki/` 是一个持久化知识层，由 AI 智能体编写和维护；这不是普通的 RAG，wiki 是一个不断增长的工件。
-- **Obsidian 式 wikilinks** —— `[[Page]]`、`[[Page|Alias]]`、`[[Page#Heading]]`、`![[Embed]]`、反向链接、标签、YAML 前置元数据。`wiki/` 是一个有效的 Obsidian vault；如果需要人类可视化的 IDE，可以在那里打开它。
-- **Markdown 作为单一事实来源** —— `.llmw/index.sqlite` 和 `.llmw/graph.json` 是派生的、可重建的数据。`llmw rebuild` 仅从 `wiki/*.md` 重新生成两者。
-- **AI 智能体写 wiki；CLI 索引并验证它** —— 搜索（SQLite FTS5）、反向链接、相关页面评分和 lint 都是确定性的、基于规则的，无需模型。总结来源、编写页面和决定要归档什么是智能体的工作。
+- **两个文件夹,两种用途** —— `raw/` 存放原始资料,这些内容永远不会改动(就像你上传的一份文档)。`wiki/` 是 AI 写自己笔记的地方,它会随着了解得越多不断更新这些笔记——所以这个笔记本会越用越好用,而不只是查一次就完事。
+- **笔记之间可以互相链接** —— 页面可以链接到其他页面(有点像维基百科的链接),这样 AI 就能顺着相关笔记的线索找下去。这也能配合大家常用的笔记软件 [Obsidian](https://obsidian.md/) 使用,如果你想自己用可视化的方式浏览这些笔记的话。
+- **一切都只是普通的文本文件** —— 每一篇笔记都是一个普通的 Markdown 文件,你自己也能打开看,不需要什么特殊数据库。另外还有一个小小的搜索索引文件,但那只是个辅助工具,需要的话随时都能从笔记内容重新生成出来。
+- **AI 负责写,工具只负责检查和整理** —— 搜索、查找相关笔记、检查笔记格式是否正确,这些都是简单、可预测的操作,不涉及任何 AI。至于什么值得记下来、怎么写好,这是 AI 的工作。
 
 ## 安装
 
-**推荐：Claude Code 插件** —— 无需单独的 `pip`/`uv`/`pipx` 步骤：
+**推荐做法：作为 Claude Code 插件安装** —— 只需要两条命令,不用再折腾别的：
 
 ```
 /plugin marketplace add duddudcns/llm-wiki-cli
 /plugin install llm-wiki@llm-wiki-cli
 ```
 
-这也会安装钩子，让 CLI 本身保持同步，并防止智能体绕过它 —— 参见 [docs/zh-Hans/hooks.md](docs/zh-Hans/hooks.md)。
+这样装还会顺带装上几个贴心的安全保障机制,让一切都能自动保持正常运转——详情见 [docs/zh-Hans/hooks.md](docs/zh-Hans/hooks.md)。
 
-想直接使用独立的 CLI（用于脚本编写、CI 或其他编辑器），或者想自己管理升级？参见 [docs/zh-Hans/installation.md](docs/zh-Hans/installation.md) 了解完整的 uv/pipx/pip/dev 安装矩阵，按 Windows/macOS/Linux 划分。两者不冲突 —— 可以同时安装两个。
+想直接安装命令行工具(比如想在 Claude Code 之外使用)?可以看 [docs/zh-Hans/installation.md](docs/zh-Hans/installation.md),里面有针对 Windows、macOS、Linux 的详细步骤。两种方式可以同时装,互不影响。
 
-## 快速开始
+## 快速上手
 
 ```bash
 mkdir my-project && cd my-project
@@ -36,21 +36,21 @@ llmw init
 llmw status --brief
 ```
 
-`llmw init` 搭建：
+`llmw init` 会帮你建好这样的文件夹结构：
 
 ```text
-raw/                          # 不可变的源材料
-wiki/                         # 智能体维护的知识层
+raw/                          # 原始资料 —— 不会被编辑
+wiki/                         # AI 自己的笔记,会不断更新
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # 派生的索引/缓存/备份/锁（可重建）
-.claude/skills/llm-wiki/      # SKILL.md + reference.md + examples.md
-.claude-plugin/plugin.json    # 此项目的可选插件元数据
+.llmw/                        # 后台用的搜索索引(随时可以重新生成)
+.claude/skills/llm-wiki/      # 教 Claude Code 怎么用这个工具
+.claude-plugin/plugin.json    # 这个项目的可选插件信息
 ```
 
-传递 `--layout ai-wiki` 将 `raw/`/`wiki/`/`.llmw/` 嵌套到 `ai-wiki/` 文件夹下（之后每个命令都会自动检测），以及 `--adopt` 以指向已经有真实内容的 wiki，且使用自己的约定，无需在其上搭建 —— 参见 [docs/zh-Hans/project-layout.md](docs/zh-Hans/project-layout.md)。
+想让项目文件夹更清爽,把这些都收进一个子文件夹里?或者想让 `llmw` 使用你早就手动建好的 wiki?可以看看 [docs/zh-Hans/project-layout.md](docs/zh-Hans/project-layout.md)。
 
-## 智能体工作流
+## AI 的典型使用流程
 
 ```bash
 llmw status --brief
@@ -60,48 +60,48 @@ llmw patch wiki/decisions/foo.md --reason "updated after new test" --stdin
 llmw lint --brief
 ```
 
-## 命令参考
+## 全部命令
 
-所有命令都接受 `--json` 以获得机器可解析的输出；大多数读取默认为简洁、上下文节约的视图（使用 `--full`/`--no-brief` 以获取更多）。
+每个命令都支持 `--json`,如果你想要程序能读懂的输出格式。大多数"读取"类命令默认只显示简短摘要(加上 `--full`/`--no-brief` 可以看到全部内容)。
 
-| 命令 | 目的 |
+| 命令 | 作用 |
 |---|---|
-| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | 搭建 `raw/`、`wiki/`、`.llmw/`（使用 `--layout ai-wiki` 时嵌套在 `ai-wiki/` 下），默认还包括 Claude Code 技能/插件。`--adopt` 跳过默认内容/分类搭建，并保护 `config.toml` 不被 `--force` 覆盖，以保留现有 wiki 内容及其配置覆盖 |
-| `llmw status [--brief\|--json]` | 页面计数、损坏的链接、孤立页面、最后索引时间、脏页面 |
-| `llmw rebuild` | 从头完全重新索引 `wiki/**/*.md` |
-| `llmw index [--changed\|--all]` | 增量（默认）或完全重新索引 |
-| `llmw search "<query>" [--limit N] [--type T] [--strict]` | 对标题/摘要/正文进行 SQLite FTS5 搜索 —— 参见 [docs/zh-Hans/commands.md](docs/zh-Hans/commands.md) 了解搜索语义 |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | 查找页面；简洁版显示标题/类型/摘要/关键点/链接/反向链接计数 |
-| `llmw links <target>` | 出站链接及其损坏状态 |
-| `llmw backlinks <target>` | 入站链接 |
-| `llmw related <target> [--limit N] [--by links,tags,terms]` | 确定性相关页面候选（无模型调用） |
-| `llmw ingest <raw/...>` | 将 `.md`/`.txt` 源注册为 `wiki/sources/<slug>.md` 草稿 |
-| `llmw write <path> --reason "..." --stdin [--force]` | 从 stdin 创建新的 wiki 页面 |
-| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 在现有页面中精确字符串替换（语义与原生编辑工具相同） |
-| `llmw patch <path> --reason "..." --stdin` | 对现有页面应用统一差异（先备份，失败时回滚） |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 将页面移至 `wiki/archived/YYYY/MM/`，加上存档前置元数据，记录更改 |
-| `llmw lint [--brief\|--json]` | 损坏的链接、孤立页面、重复的标题/别名、缺失/无效的前置元数据、悬挂的原始引用、存档页面链接 —— 仅报告，永不自动修复 |
-| `llmw health [--brief]` | 系统检查：配置、索引数据库、架构版本、目录、锁 |
-| `llmw graph build` / `llmw graph export --format json\|html` | 重新生成/导出链接图 |
+| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | 为新项目搭建 `raw/`、`wiki/` 和搜索索引(如果是已有项目,加上 `--adopt`——参见 [docs/zh-Hans/project-layout.md](docs/zh-Hans/project-layout.md)) |
+| `llmw status [--brief\|--json]` | 快速健康检查：有多少篇笔记、有没有失效的链接、上次更新是什么时候 |
+| `llmw rebuild` | 把整个搜索索引从头重新建一遍 |
+| `llmw index [--changed\|--all]` | 更新搜索索引(默认只更新有变化的部分) |
+| `llmw search "<query>" [--limit N] [--type T] [--strict]` | 搜索所有笔记——搜索具体是怎么工作的,参见 [docs/zh-Hans/commands.md](docs/zh-Hans/commands.md) |
+| `llmw read <path\|title\|alias> [--full\|--brief]` | 打开一篇笔记;简短版会显示标题、摘要和链接 |
+| `llmw links <target>` | 显示某篇笔记链接到了哪些其他笔记 |
+| `llmw backlinks <target>` | 显示有哪些其他笔记链接到了这一篇 |
+| `llmw related <target> [--limit N] [--by links,tags,terms]` | 推荐相关笔记,用的是简单规则(不涉及 AI 猜测) |
+| `llmw ingest <raw/...>` | 把一份原始资料变成一篇草稿笔记,方便 AI 接着填写 |
+| `llmw write <path> --reason "..." --stdin [--force]` | 创建一篇全新的笔记 |
+| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 把一篇现有笔记里的某段文字精确替换掉 |
+| `llmw patch <path> --reason "..." --stdin` | 对一篇笔记应用一组改动(会先备份,出问题时自动撤销) |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 把一篇旧笔记挪到一边而不是直接删掉,并留下一个指向新位置的提示 |
+| `llmw lint [--brief\|--json]` | 检查各种问题——失效链接、缺信息、标题重复——但从不自动修复 |
+| `llmw health [--brief]` | 检查后台的各项设置是否正常 |
+| `llmw graph build` / `llmw graph export --format json\|html` | 生成或导出一张笔记之间链接关系的可视化地图 |
 
-## 安全规则
+## 内置的安全规则
 
-- `raw/` 不可变。`write`/`patch`/`archive` 拒绝其下任何路径。
-- 每个 `write`/`patch`/`archive` 都需要 `--reason`，记录在 `wiki/log.md` 和 `log_entries` 表中。
-- 没有 `delete` —— 使用 `archive`。默认保留墓碑存根在原始位置，指向新位置。
-- `patch` 在应用统一差异前备份文件，如果差异不能干净地应用（上下文不匹配），则保留原始文件不变。
-- 一个简单的建议锁（`.llmw/locks/write.lock`）防止两个 `llmw` 进程同时变更 wiki。
+- `raw/` 里的原始资料永远不能被改动——工具会直接拒绝。
+- 对笔记的每一次改动都必须附上一个简短的理由,这个理由会被永久记录在历史日志里。
+- 没有"删除"这个操作——只有"归档",会把笔记挪到一边,并留下一个路标,确保什么都不会凭空消失。
+- 应用一组改动时,总是会先备份,如果中途出了什么问题,会自动撤销。
+- 一个简单的锁文件能防止工具的两个副本同时编辑同一篇笔记、互相冲突。
 
-## 文档
+## 更多文档
 
-| 文档 | 涵盖内容 |
+| 文档 | 内容 |
 |---|---|
-| [docs/zh-Hans/installation.md](docs/zh-Hans/installation.md) | 完整的独立 CLI 安装矩阵（Windows/macOS/Linux）、更新、卸载 |
-| [docs/zh-Hans/hooks.md](docs/zh-Hans/hooks.md) | Claude Code 插件的 `PreToolUse` wiki 守卫和自愈 `SessionStart` 版本同步钩子 |
-| [docs/zh-Hans/commands.md](docs/zh-Hans/commands.md) | 搜索语义（3 层回退、韩语助词词干提取） |
-| [docs/zh-Hans/project-layout.md](docs/zh-Hans/project-layout.md) | 经典 vs. `ai-wiki/` 布局、`--root`/`LLMW_ROOT`、`--adopt`、将 `llmw` 适应到现有 wiki 的约定、Obsidian 兼容性注意事项 |
-| [docs/zh-Hans/development.md](docs/zh-Hans/development.md) | 开发设置、Claude Code 技能、MVP 范围 |
+| [docs/zh-Hans/installation.md](docs/zh-Hans/installation.md) | Windows、macOS、Linux 的完整安装说明;如何更新或卸载 |
+| [docs/zh-Hans/hooks.md](docs/zh-Hans/hooks.md) | Claude Code 插件如何防止 AI 绕开 wiki,以及如何自动保持自身更新 |
+| [docs/zh-Hans/commands.md](docs/zh-Hans/commands.md) | 搜索背后到底是怎么工作的 |
+| [docs/zh-Hans/project-layout.md](docs/zh-Hans/project-layout.md) | wiki 文件夹的不同组织方式、如何接手你已有的 wiki、如何搭配笔记软件 Obsidian 使用 |
+| [docs/zh-Hans/development.md](docs/zh-Hans/development.md) | 如何搭建开发环境来参与 `llmw` 本身的开发 |
 
-## 许可
+## 许可证
 
-MIT —— 参见 [LICENSE](LICENSE)。
+MIT —— 见 [LICENSE](LICENSE)。

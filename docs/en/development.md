@@ -1,27 +1,26 @@
-# Development
+# Contributing to `llmw`
 
 **English** · [한국어](../ko/development.md) · [日本語](../ja/development.md) · [简体中文](../zh-Hans/development.md) · [Español](../es/development.md) · [Français](../fr/development.md)
 
-See [installation.md](installation.md)'s "Local clone, editable install"
-section to set up a dev environment; `pytest` runs the test suite from
-there.
+See [installation.md](installation.md)'s "Working on `llmw`'s own code"
+section to set up a dev environment; run `pytest` from there to run the
+test suite.
 
-## Claude Code skill
+## How the Claude Code skill works
 
-`llmw init` writes `.claude/skills/llm-wiki/{SKILL.md,reference.md,examples.md}`
-into the project. Claude Code auto-discovers this as a plain skill — no
-install step. It tells the agent when to reach for `llmw`, the core
-search-first workflow, and points to `reference.md`/`examples.md` for full
-detail so the always-loaded `SKILL.md` stays short.
+`llmw init` writes a few files into `.claude/skills/llm-wiki/` in your
+project. Claude Code picks these up automatically — there's no separate
+install step needed. These files teach the AI when it should use `llmw`
+and how, without needing to load all the detail every single time.
 
-If the llm-wiki Claude Code plugin is already installed from the
-marketplace, pass `--no-claude-plugin` to skip this project-local copy —
-otherwise the project ends up with two copies of the same skill (the
-marketplace plugin's, and this one), which is redundant and can be
-confusing when Claude Code loads both.
+If you've already installed the Claude Code plugin from the marketplace,
+add `--no-claude-plugin` when running `llmw init` to skip creating this
+extra copy — otherwise you'd end up with two copies of the same
+instructions, which is redundant and can confuse things.
 
-## MVP scope
+## What this tool intentionally doesn't do (yet)
 
-Deliberately excludes: an MCP server, daemon/watch mode, embedding/vector
-search, direct PDF/DOCX parsing, an Obsidian plugin, a web UI, and any
-auto-merge/auto-delete/contradiction-detection logic.
+By design, this stays out of scope for now: connecting to AI models
+directly, watching files for changes automatically, AI-powered semantic
+search, reading PDF/Word files directly, a graphical app, or any
+automatic merging/deleting/conflict-resolving of notes.

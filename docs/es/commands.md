@@ -1,33 +1,39 @@
-# Detalles de comandos
+# Cómo funciona la búsqueda
 
 [English](../en/commands.md) · [한국어](../ko/commands.md) · [日本語](../ja/commands.md) · [简体中文](../zh-Hans/commands.md) · **Español** · [Français](../fr/commands.md)
 
-Ver la tabla de referencia de comandos del README para la lista completa de comandos y
-sus banderas. Esta página cubre las partes demasiado profundas para una entrada de tabla de una línea.
+Mira la tabla de comandos del README para ver la lista completa. Esta
+página solo explica con más detalle una cosa: cómo decide `llmw search`
+qué cuenta como una coincidencia.
 
-## Semántica de búsqueda
+## La búsqueda prueba tres formas, de la más estricta a la más flexible
 
-`llmw search` nunca requiere fraseología solo con palabras clave — una consulta de lenguaje natural completo
-está bien. Intenta hasta tres niveles, solo moviéndose al siguiente
-cuando el anterior no encuentra nada, así que una coincidencia completa nunca puede
-ser superada por una parcial:
+Puedes escribir una búsqueda igual que harías una pregunta — frases
+completas están bien, no necesitas adivinar palabras clave especiales.
+Por detrás, prueba hasta tres formas de buscar, y solo pasa a la siguiente
+si la anterior no encontró absolutamente nada — así una nota que coincide
+exactamente con tu búsqueda nunca queda por debajo de una nota que apenas
+coincide un poco:
 
-1. **strict** — cada término de consulta requerido (AND).
-2. **relaxed** — términos que no pueden coincidir con ninguna página indexada en absoluto (errores tipográficos,
-   conjugaciones verbales) se descartan; el resto todavía se requieren.
-3. **any** — cada término se vuelve opcional (OR), clasificado por relevancia.
+1. **Estricta** — cada palabra de tu búsqueda tiene que aparecer en algún
+   lugar de la nota.
+2. **Flexible** — las palabras que no aparecen en ninguna nota (por un
+   error de tipeo, o por estar en una forma ligeramente distinta) se
+   descartan sin avisar; el resto de las palabras todavía tienen que
+   coincidir.
+3. **Cualquier coincidencia** — cada palabra pasa a ser opcional, y los
+   resultados simplemente se ordenan según qué tan bien coinciden.
 
-La salida `--json` reporta qué nivel respondió la consulta:
-`{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
-Pasa `--strict` para desactivar los niveles de fallback y solo ejecutar nivel 1.
+Si pides la salida en formato `--json`, te dice cuál de las tres formas
+encontró el resultado: `{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
+Agrega `--strict` si solo quieres que use la primera forma, la más
+estricta.
 
-Los términos de consulta que son una sola palabra Hangul con una partícula final (una 조사
-— p. ej. `스탯창을`, `포탈에서`) se reducen a la sustancia desnuda (`스탯창`, `포탈`)
-antes de coincidir, ya que la búsqueda de prefijo de SQLite FTS5 solo coincide con una consulta
-que es un prefijo de la palabra indexada, no al revés, así que una
-consulta flexionada de otra manera echaría de menos una página de sustantivo desnudo. Esta es una
-lista de sufijos curada pequeña, no un analizador morfológico completo — no reducirá
-conjugaciones verbales (eso es para lo que es el nivel relajado) y ocasionalmente
-eliminará una terminación coincidental no-partícula (p. ej. `도로` → `도`); esto es
-siempre seguro para recall (el tallo es un prefijo de la palabra original) en el peor de los casos
-agregando ruido de clasificación menor, nunca una página faltante.
+Para texto en coreano: a una palabra de búsqueda que es un solo sustantivo
+coreano con una pequeña terminación gramatical pegada (como `스탯창을` o
+`포탈에서`) se le recorta esa terminación antes de buscar (queda como
+`스탯창`, `포탈`), para que igual pueda encontrar una nota que use el
+sustantivo solo, sin la terminación. Esto solo cubre una lista pequeña y
+común de terminaciones, no todas las formas posibles de cada palabra —
+está pensado para que nunca se le escape una nota, solo para que a veces
+ordene los resultados un poco distinto de lo esperado.

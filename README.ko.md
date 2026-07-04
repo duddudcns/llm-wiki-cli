@@ -2,34 +2,33 @@
 
 [English](README.md) · **한국어** · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [Español](README.es.md) · [Français](README.fr.md)
 
-AI 에이전트를 위한 헤드리스 Obsidian 스타일의 LLM Wiki CLI.
+AI 코딩 어시스턴트에게 프로젝트 전용 개인 노트("위키")를 만들어 주는 간단한 커맨드라인 도구입니다. 덕분에 대화가 끝나도 그때그때 모든 걸 잊어버리는 대신, 그동안 내린 결정이나 알게 된 사실, 그리고 프로젝트의 역사를 계속 기억할 수 있습니다.
 
-## 왜 필요한가
+## 왜 쓰나요?
 
-MCP 도구는 편리하지만, 도구 스키마와 긴 명령문은 매 턴마다 컨텍스트를 소비합니다. `llmw`는 다른 접근법을 취합니다: 작은 결정론적 CLI와 Claude Code 스킬 조합입니다. 에이전트는 필요할 때만 위키를 호출하고, CLI 자체는 절대 모델을 호출하지 않습니다. 인덱싱, 검색, 검증만 수행합니다.
+많은 AI 도구들은 메시지를 보낼 때마다 긴 지침과 데이터 덩어리를 통째로 밀어 넣는 방식으로 동작합니다. 이렇게 하면 공간도 낭비되고 속도도 느려지죠. `llmw`는 다릅니다. AI가 정말 뭔가를 찾아보거나 기록해야 할 때만 손을 뻗는, 작고 단순한 도구입니다. 이 도구 자체는 절대로 "생각"하거나 글을 지어내지 않습니다. 그저 메모를 저장하고, 나중에 다시 찾아주고, 제대로 작성됐는지 확인만 할 뿐입니다. 무엇을 적을지, 어떻게 요약할지 같은 실제 사고는 전부 AI가 합니다. `llmw`가 하는 게 아닙니다.
 
-## 개념
+## 기본 아이디어
 
-- **Karpathy LLM Wiki** — `raw/`는 불변의 소스 자료를 보유하고, `wiki/`는 AI 에이전트가 작성하고 유지보수하는 영구 지식층입니다. 이는 일반적인 RAG가 아닌, 위키는 복합적으로 누적되는 산출물입니다.
-- **Obsidian 스타일 위키링크** — `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading]]`, `![[Embed]]`, 백링크, 태그, YAML 프론트매터. `wiki/`는 유효한 Obsidian 볼트입니다. 원하면 그곳에서 열어 같은 파일 위에 인간 친화적인 시각적 IDE를 사용할 수 있습니다.
-- **Markdown을 진실의 원천으로** — `.llmw/index.sqlite`와 `.llmw/graph.json`은 파생되고 재구성 가능한 데이터입니다. `llmw rebuild`는 `wiki/*.md`만으로 둘 다 재생성합니다.
-- **AI 에이전트가 위키를 작성하고, CLI가 인덱싱하고 검증합니다** — 검색(SQLite FTS5), 백링크, 관련 페이지 점수 매기기, 린트는 모두 결정론적이고 규칙 기반이며 모델 없는 작업입니다. 소스 요약, 페이지 작성, 보관할 항목 결정은 에이전트의 일입니다.
+- **폴더 두 개, 역할 두 개** — `raw/`에는 절대 바뀌지 않는 원본 자료가 들어갑니다(업로드한 문서 같은 것들). `wiki/`는 AI가 직접 메모를 작성하는 곳으로, 알아가는 게 늘어날수록 계속 내용을 고쳐 씁니다. 그래서 이 노트는 한 번 검색하고 끝나는 게 아니라 시간이 지날수록 점점 더 쓸모 있어집니다.
+- **서로 연결되는 메모** — 페이지는 다른 페이지를 링크로 연결할 수 있습니다(위키백과 링크처럼). 그래서 AI가 관련된 메모를 따라가며 살펴볼 수 있습니다. 이 방식은 인기 있는 노트 앱인 [Obsidian](https://obsidian.md/)에서도 그대로 동작하므로, 원한다면 같은 메모를 직접 눈으로 훑어볼 수도 있습니다.
+- **전부 그냥 텍스트 파일** — 모든 메모는 평범한 Markdown 파일이라서 직접 열어서 읽을 수 있고, 특별한 데이터베이스도 필요 없습니다. 검색을 도와주는 작은 인덱스 파일이 하나 있긴 하지만, 이건 그냥 보조 도구일 뿐이라 필요하면 메모들로부터 언제든 다시 만들어낼 수 있습니다.
+- **AI는 글을 쓰고, 도구는 확인하고 정리만** — 검색하기, 관련 메모 찾기, 메모가 제대로 작성됐는지 확인하기는 전부 단순하고 예측 가능한 작업이며 AI가 개입하지 않습니다. 무엇을 적어둘 가치가 있는지 판단하고 잘 쓰는 일은 AI의 몫입니다.
 
 ## 설치
 
-**권장: Claude Code 플러그인** — 별도의 `pip`/`uv`/`pipx` 단계 없음:
+**추천: Claude Code 플러그인으로 설치** — 명령어 딱 두 줄이면 끝, 따로 준비할 것도 없습니다:
 
 ```
 /plugin marketplace add duddudcns/llm-wiki-cli
 /plugin install llm-wiki@llm-wiki-cli
 ```
 
-이것은 또한 CLI 자체를 자동으로 동기화 상태로 유지하고 에이전트가 그것을 우회하는 것을 방지하는 훅을 설치합니다 — [docs/ko/hooks.md](docs/ko/hooks.md)를 참조하세요.
+이렇게 하면 모든 게 알아서 잘 굴러가도록 도와주는 안전장치도 몇 가지 함께 설치됩니다. 자세한 내용은 [docs/ko/hooks.md](docs/ko/hooks.md)를 보세요.
 
-스탠드얼론 CLI를 직접 원하시나요(스크립팅, CI, 다른 에디터), 또는 업그레이드를 직접 관리하시겠어요? 
-[docs/ko/installation.md](docs/ko/installation.md)를 참조하세요(Windows/macOS/Linux별 완전한 uv/pipx/pip/dev 설치 매트릭스). 둘은 충돌하지 않습니다 — 둘 다 설치할 수 있습니다.
+Claude Code 밖에서도 쓰려고 커맨드라인 도구를 직접 설치하고 싶으신가요? [docs/ko/installation.md](docs/ko/installation.md)에 Windows, macOS, Linux별로 하나하나 따라 할 수 있는 설치 방법이 있습니다. 둘 다 설치해도 서로 방해되지 않으니 같이 설치하셔도 됩니다.
 
-## 빠른 시작
+## 빠르게 시작하기
 
 ```bash
 mkdir my-project && cd my-project
@@ -37,21 +36,21 @@ llmw init
 llmw status --brief
 ```
 
-`llmw init`은 다음을 구성합니다:
+`llmw init`을 실행하면 이런 폴더 구조가 만들어집니다:
 
 ```text
-raw/                          # 불변의 소스 자료
-wiki/                         # 에이전트가 유지보수하는 지식층
+raw/                          # 원본 자료 — 절대 수정하지 않음
+wiki/                         # AI가 계속 고쳐 쓰는 자기 메모
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # 파생 인덱스/캐시/백업/잠금(재구성 가능)
-.claude/skills/llm-wiki/      # SKILL.md + reference.md + examples.md
-.claude-plugin/plugin.json    # 이 프로젝트를 위한 선택적 플러그인 메타데이터
+.llmw/                        # 뒤에서 돌아가는 검색 인덱스(언제든 다시 만들 수 있음)
+.claude/skills/llm-wiki/      # Claude Code에게 이 도구 쓰는 법을 알려줌
+.claude-plugin/plugin.json    # 이 프로젝트를 위한 선택적 플러그인 정보
 ```
 
-`--layout ai-wiki`를 전달하여 `raw/`/`wiki/`/`.llmw/`를 `ai-wiki/` 폴더 아래에 중첩하고(이후의 모든 명령에서 자동 감지됨), `--adopt`를 전달하여 기본 콘텐츠를 구성하지 않고 이미 자체 규칙에 따라 실제 콘텐츠가 있는 위키를 가리킵니다 — [docs/ko/project-layout.md](docs/ko/project-layout.md)를 참조하세요.
+프로젝트 폴더를 더 깔끔하게 유지하려고 이 모든 걸 하위 폴더 하나에 몰아넣고 싶으신가요? 아니면 이미 직접 만들어 둔 위키를 `llmw`가 그대로 쓰게 하고 싶으신가요? [docs/ko/project-layout.md](docs/ko/project-layout.md)를 확인해보세요.
 
-## 에이전트 워크플로우
+## AI가 실제로 쓰는 방식
 
 ```bash
 llmw status --brief
@@ -61,47 +60,47 @@ llmw patch wiki/decisions/foo.md --reason "updated after new test" --stdin
 llmw lint --brief
 ```
 
-## 명령 참조
+## 전체 명령어
 
-모든 명령은 기계 해석 가능한 출력을 위해 `--json`을 수용합니다. 대부분의 읽기는 간단하고 컨텍스트가 저렴한 보기를 기본값으로 합니다(`--full`/`--no-brief`로 더 보기).
+모든 명령어는 프로그램이 읽기 좋은 형식으로 결과를 받고 싶다면 `--json`을 지원합니다. 대부분의 "읽기" 명령어는 기본적으로 짧은 요약만 보여줍니다(전체 내용을 보려면 `--full`이나 `--no-brief`를 붙이세요).
 
-| 명령 | 목적 |
+| 명령어 | 하는 일 |
 |---|---|
-| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | `raw/`, `wiki/`, `.llmw/`를 구성합니다(ai-wiki/` 아래 중첩됨 `--layout ai-wiki` 포함). `--adopt`는 기본 콘텐츠/분류 구성을 건너뛰고 기존 위키 콘텐츠와 구성 재정의를 보호합니다 |
-| `llmw status [--brief\|--json]` | 페이지 수, 끊긴 링크, 고아 페이지, 마지막 인덱싱 시간, 더티 페이지 |
-| `llmw rebuild` | `wiki/**/*.md`의 전체 재인덱싱 |
-| `llmw index [--changed\|--all]` | 증분(기본값) 또는 전체 재인덱싱 |
-| `llmw search "<query>" [--limit N] [--type T] [--strict]` | 제목/요약/본문에 대한 SQLite FTS5 검색 — 검색 의미론은 [docs/ko/commands.md](docs/ko/commands.md)를 참조 |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | 페이지 조회; brief는 제목/유형/요약/핵심 포인트/링크/백링크 수 표시 |
-| `llmw links <target>` | 나가는 링크, 끊김 상태 포함 |
-| `llmw backlinks <target>` | 들어오는 링크 |
-| `llmw related <target> [--limit N] [--by links,tags,terms]` | 결정론적 관련 페이지 후보(모델 호출 없음) |
-| `llmw ingest <raw/...>` | `.md`/`.txt` 소스를 `wiki/sources/<slug>.md` 초안으로 등록 |
-| `llmw write <path> --reason "..." --stdin [--force]` | stdin에서 새 위키 페이지 작성 |
-| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 기존 페이지에서 정확한 문자열 바꾸기(네이티브 Edit 도구와 동일한 의미론) |
-| `llmw patch <path> --reason "..." --stdin` | 기존 페이지에 통합 diff 적용(먼저 백업, 실패 시 롤백) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 페이지를 `wiki/archived/YYYY/MM/`로 이동, 아카이브 프론트매터 스탬프, 변경 기록 |
-| `llmw lint [--brief\|--json]` | 끊긴 링크, 고아 페이지, 중복 제목/별칭, 누락/잘못된 프론트매터, 매달린 raw 참조, 아카이브된 페이지 링크 — 보고만 하고 자동 수정 없음 |
-| `llmw health [--brief]` | 시스템 검사: 구성, 인덱스 db, 스키마 버전, 디렉토리, 잠금 |
-| `llmw graph build` / `llmw graph export --format json\|html` | 링크 그래프 재생성/내보내기 |
+| `llmw init [--force] [--no-claude-plugin] [--layout classic\|ai-wiki] [--adopt]` | 새 프로젝트에 `raw/`, `wiki/`, 검색 인덱스를 만듭니다(이미 있는 프로젝트라면 `--adopt`를 붙이세요 — [docs/ko/project-layout.md](docs/ko/project-layout.md) 참고) |
+| `llmw status [--brief\|--json]` | 빠른 상태 점검: 메모가 몇 개 있는지, 끊긴 링크가 있는지, 마지막으로 언제 갱신됐는지 |
+| `llmw rebuild` | 검색 인덱스를 처음부터 전부 다시 만듭니다 |
+| `llmw index [--changed\|--all]` | 검색 인덱스를 갱신합니다(기본은 바뀐 부분만) |
+| `llmw search "<query>" [--limit N] [--type T] [--strict]` | 모든 메모를 검색합니다 — 검색이 어떻게 동작하는지는 [docs/ko/commands.md](docs/ko/commands.md) 참고 |
+| `llmw read <path\|title\|alias> [--full\|--brief]` | 메모를 엽니다. 짧은 버전은 제목, 요약, 링크만 보여줍니다 |
+| `llmw links <target>` | 이 메모가 어디로 링크하는지 보여줍니다 |
+| `llmw backlinks <target>` | 다른 메모 중 어떤 것이 이 메모로 링크하는지 보여줍니다 |
+| `llmw related <target> [--limit N] [--by links,tags,terms]` | 간단한 규칙으로 관련 메모를 추천합니다(AI의 추측은 개입하지 않음) |
+| `llmw ingest <raw/...>` | 원본 문서를 AI가 채워 넣을 초안 메모로 바꿔줍니다 |
+| `llmw write <path> --reason "..." --stdin [--force]` | 완전히 새로운 메모를 만듭니다 |
+| `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 기존 메모에서 정확히 일치하는 한 부분만 바꿉니다 |
+| `llmw patch <path> --reason "..." --stdin` | 메모에 여러 변경 사항을 한꺼번에 적용합니다(먼저 백업하고, 문제가 생기면 스스로 되돌립니다) |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 오래된 메모를 지우는 대신 옆으로 치워두고, 새 위치를 알려주는 메모를 남겨둡니다 |
+| `llmw lint [--brief\|--json]` | 끊긴 링크, 빠진 정보, 중복된 제목 같은 문제를 찾아줍니다(자동으로 고쳐주진 않습니다) |
+| `llmw health [--brief]` | 뒤에서 돌아가는 부분들이 다 제대로 설정됐는지 확인합니다 |
+| `llmw graph build` / `llmw graph export --format json\|html` | 메모들이 서로 어떻게 링크되는지 보여주는 지도를 만들거나 내보냅니다 |
 
-## 안전 규칙
+## 기본 안전 규칙
 
-- `raw/`는 불변입니다. `write`/`patch`/`archive`는 그 아래의 모든 경로를 거부합니다.
-- 모든 `write`/`patch`/`archive`는 `--reason`이 필요하고, `wiki/log.md`와 `log_entries` 테이블에 기록됩니다.
-- `delete`는 없습니다. `archive`를 사용하세요. 기본값은 원래 위치에서 새 위치를 가리키는 묘비 스텁을 유지합니다.
-- `patch`는 diff를 적용하기 전에 파일을 백업하고, diff가 깔끔하게 적용되지 않으면(컨텍스트 불일치) 원본을 건드리지 않은 상태로 둡니다.
-- 간단한 권고 잠금(`.llmw/locks/write.lock`)이 두 개의 `llmw` 프로세스가 동시에 위키를 변경하는 것을 방지합니다.
+- `raw/`에 있는 원본 자료는 절대 바꿀 수 없습니다. 이 도구는 그냥 거부합니다.
+- 메모를 바꿀 때는 항상 짧은 이유를 함께 남겨야 하고, 이 이유는 영구 기록에 저장됩니다.
+- "삭제"라는 건 없습니다. "보관"만 있을 뿐이죠. 메모를 옆으로 옮기고 표지판을 남겨서, 아무것도 그냥 사라지지 않게 합니다.
+- 여러 변경 사항을 한꺼번에 적용할 때는 항상 먼저 백업하고, 중간에 문제가 생기면 자동으로 되돌립니다.
+- 간단한 잠금 파일이 있어서, 이 도구 두 개가 동시에 같은 메모를 건드리다 서로 덮어쓰는 일을 막아줍니다.
 
-## 문서
+## 더 많은 문서
 
-| 문서 | 설명 |
+| 문서 | 담긴 내용 |
 |---|---|
-| [docs/ko/installation.md](docs/ko/installation.md) | 완전한 스탠드얼론 CLI 설치 매트릭스(Windows/macOS/Linux), 업그레이드, 제거 |
-| [docs/ko/hooks.md](docs/ko/hooks.md) | Claude Code 플러그인의 `PreToolUse` 위키 가드 및 자동 치유 `SessionStart` 버전 동기화 훅 |
-| [docs/ko/commands.md](docs/ko/commands.md) | 검색 의미론(3단계 폴백, 한국어 입자 어간 제거) |
-| [docs/ko/project-layout.md](docs/ko/project-layout.md) | 클래식 vs `ai-wiki/` 레이아웃, `--root`/`LLMW_ROOT`, `--adopt`, 기존 위키의 규칙에 llmw 적응, Obsidian 호환성 참고 |
-| [docs/ko/development.md](docs/ko/development.md) | 개발 설정, Claude Code 스킬, MVP 범위 |
+| [docs/ko/installation.md](docs/ko/installation.md) | Windows, macOS, Linux별 전체 설치 방법, 업데이트·제거 방법 |
+| [docs/ko/hooks.md](docs/ko/hooks.md) | Claude Code 플러그인이 AI가 위키를 건너뛰지 못하게 막고, 스스로 최신 상태를 유지하는 방법 |
+| [docs/ko/commands.md](docs/ko/commands.md) | 검색이 내부적으로 실제 어떻게 동작하는지 |
+| [docs/ko/project-layout.md](docs/ko/project-layout.md) | 위키 폴더를 정리하는 여러 방법, 이미 만들어 둔 위키를 그대로 쓰는 방법, 노트 앱 Obsidian과 함께 쓰는 방법 |
+| [docs/ko/development.md](docs/ko/development.md) | `llmw` 자체를 개발하기 위한 환경 설정 |
 
 ## 라이선스
 

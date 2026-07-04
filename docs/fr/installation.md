@@ -4,70 +4,98 @@
 
 ## Recommandé : plugin Claude Code
 
-Si vous utilisez `llmw` depuis Claude Code, installez-le comme plugin — c'est le chemin recommandé et ne nécessite aucune étape séparée `pip`/`uv`/`pipx` :
+Si vous utilisez `llmw` depuis Claude Code, installez-le comme plugin — c'est
+la solution recommandée, et elle ne demande aucune étape séparée avec
+`pip`/`uv`/`pipx` :
 
 ```
 /plugin marketplace add duddudcns/llm-wiki-cli
 /plugin install llm-wiki@llm-wiki-cli
 ```
 
-(équivalents non-interactifs : `claude plugin marketplace add duddudcns/llm-wiki-cli` et `claude plugin install llm-wiki@llm-wiki-cli`)
+(équivalents non interactifs : `claude plugin marketplace add duddudcns/llm-wiki-cli`
+et `claude plugin install llm-wiki@llm-wiki-cli`)
 
-Cela installe la compétence Claude Code plus deux hooks qui gardent le binaire `llmw` autonome installé et synchronisé automatiquement, et empêchent les agents de le contourner — voir [hooks.md](hooks.md) pour savoir exactement ce que ces hooks font et comment les configurer. Si vous préférez gérer l'installation de la CLI vous-même, sautez ceci et utilisez l'une des méthodes ci-dessous à la place — elles ne sont pas en conflit, vous pouvez également installer les deux.
+Cela installe aussi deux filets de sécurité : l'un garde automatiquement
+l'outil en ligne de commande à jour, et l'autre empêche l'IA de sauter
+l'étape du wiki pour modifier des fichiers directement — voir [hooks.md](hooks.md)
+pour savoir exactement ce qu'ils font et comment les désactiver si vous
+n'en voulez pas. Si vous préférez installer vous-même l'outil en ligne de
+commande et gérer les mises à jour à la main, passez cette étape et
+utilisez plutôt l'une des méthodes ci-dessous — elles ne se gênent pas,
+vous pouvez installer les deux.
 
-## CLI autonome
+## Outil en ligne de commande (sans le plugin)
 
-Choisissez ceci si vous voulez `llmw` sur PATH en dehors de Claude Code (scripting, CI, un autre éditeur/agent), ou si vous préférez contrôler les mises à jour manuellement au lieu du hook d'auto-cicatrisation du plugin.
+Choisissez cette option si vous voulez utiliser `llmw` en dehors de
+Claude Code — dans un script, dans un pipeline automatisé, ou avec un
+autre éditeur/outil.
 
-`llmw` nécessite **Python 3.11 ou ultérieur**, et n'est pas encore sur PyPI, il s'installe donc directement depuis ce dépôt plutôt que d'un index de paquet. **Ce dépôt est actuellement privé** — l'installation (n'importe quelle méthode ci-dessous) nécessite votre propre `git` authentifié (par exemple déjà connecté via `gh auth login`, ou une clé SSH sur votre compte GitHub) ; quiconque sans accès au dépôt obtient une erreur de récupération, pas une installation partielle.
+`llmw` nécessite **Python 3.11 ou une version plus récente**. Il n'est pas
+encore publié sur un dépôt public de paquets, donc il s'installe
+directement depuis ce dépôt GitHub. **Ce dépôt est actuellement privé** —
+pour l'installer (peu importe la méthode ci-dessous), il faut que votre
+propre compte GitHub soit configuré pour `git` (par exemple déjà connecté
+via `gh auth login`, ou une clé SSH ajoutée à votre compte GitHub). Sans
+ça, l'installation échouera avec un message d'erreur clair, plutôt que
+d'installer quelque chose de cassé.
 
-Toutes les méthodes ci-dessous vous donnent une commande `llmw` globale sans toucher aux dépendances de tout autre projet Python.
+Chaque méthode ci-dessous vous donne une commande `llmw` que vous pouvez
+utiliser depuis n'importe où, sans toucher aux autres projets Python sur
+votre ordinateur.
 
 ### Windows
 
-Vérifiez d'abord votre version Python (PowerShell ou Git Bash) :
+Vérifiez d'abord quelle version de Python vous avez (PowerShell ou Git Bash) :
 
 ```powershell
 python --version
 ```
 
-N'avez-vous pas encore 3.11+ ?
+Vous n'avez pas encore la 3.11 ou plus récente ?
 
 ```powershell
 winget install Python.Python.3.12
 ```
 
-ou téléchargez le programme d'installation depuis [python.org/downloads](https://www.python.org/downloads/).
+ou téléchargez l'installeur depuis [python.org/downloads](https://www.python.org/downloads/).
 
-Ensuite, avec [uv](https://docs.astral.sh/uv/) (recommandé — rapide, aucune installation pipx séparée nécessaire) :
+Ensuite, avec [uv](https://docs.astral.sh/uv/) (recommandé — rapide, pas
+besoin d'installer pipx séparément) :
 
 ```powershell
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-ou [pipx](https://pipx.pypa.io/) :
+ou avec [pipx](https://pipx.pypa.io/) :
 
 ```powershell
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-ou pip simple (installe dans n'importe quel environnement Python actuellement actif — utilisez un venv à moins que vous sachiez que vous le voulez globalement) :
+ou avec pip tout simple (cela installe dans la configuration Python
+actuellement active sur votre ordinateur — ne faites ça que si c'est
+vraiment ce que vous voulez) :
 
 ```powershell
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-> Les hooks du plugin Claude Code (voir [hooks.md](hooks.md)) ont besoin de Git Bash sur Windows — Claude Code revient à PowerShell quand Git Bash n'est pas installé, que ces hooks de forme shell ne supportent pas. La porte de sécurité propre de `llmw` tient toujours de toute façon ; seule la commodité supplémentaire des hooks est affectée.
+> Les filets de sécurité du plugin Claude Code (voir [hooks.md](hooks.md))
+> ont besoin de « Git Bash » installé sur Windows pour fonctionner. S'il
+> est absent, ces fonctionnalités supplémentaires ne se lancent tout
+> simplement pas — `llmw` lui-même continue de fonctionner normalement, et
+> garde ses propres vérifications de sécurité dans tous les cas.
 
 ### macOS
 
-Vérifiez d'abord votre version Python :
+Vérifiez d'abord quelle version de Python vous avez :
 
 ```bash
 python3 --version
 ```
 
-N'avez-vous pas encore 3.11+ ?
+Vous n'avez pas encore la 3.11 ou plus récente ?
 
 ```bash
 brew install python@3.12
@@ -79,13 +107,13 @@ Ensuite, avec [uv](https://docs.astral.sh/uv/) (recommandé) :
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-ou [pipx](https://pipx.pypa.io/) :
+ou avec [pipx](https://pipx.pypa.io/) :
 
 ```bash
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-ou pip simple :
+ou avec pip tout simple :
 
 ```bash
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
@@ -93,13 +121,13 @@ pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 
 ### Linux
 
-Vérifiez d'abord votre version Python :
+Vérifiez d'abord quelle version de Python vous avez :
 
 ```bash
 python3 --version
 ```
 
-N'avez-vous pas encore 3.11+ ?
+Vous n'avez pas encore la 3.11 ou plus récente ?
 
 ```bash
 sudo apt install python3.12 python3.12-venv   # Ubuntu/Debian
@@ -112,19 +140,19 @@ Ensuite, avec [uv](https://docs.astral.sh/uv/) (recommandé) :
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-ou [pipx](https://pipx.pypa.io/) :
+ou avec [pipx](https://pipx.pypa.io/) :
 
 ```bash
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-ou pip simple :
+ou avec pip tout simple :
 
 ```bash
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-### Clone local, installation éditable (pour contribuer à `llmw` lui-même)
+### Travailler sur le code de `llmw` lui-même
 
 ```bash
 git clone https://github.com/duddudcns/llm-wiki-cli.git
@@ -133,29 +161,31 @@ python3 -m venv .venv
 source .venv/bin/activate      # Windows PowerShell: .venv\Scripts\Activate.ps1
                                 # Windows git-bash:   source .venv/Scripts/activate
 pip install -e ".[dev]"
-pytest                         # devrait afficher tous les tests réussis
+pytest                         # tous les tests devraient passer
 ```
 
-Voir [development.md](development.md) pour le reste du flux de travail de dev.
+Voir [development.md](development.md) pour en savoir plus sur comment contribuer.
 
-### Vérifier
+### Vérifier que ça a marché
 
 ```bash
 llmw --version
 llmw --help
 ```
 
-### Mise à jour
+### Mettre à jour
 
 ```bash
-uv tool upgrade llmw           # si installé via uv
-pipx upgrade llmw              # si installé via pipx
-pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # pip simple
+uv tool upgrade llmw           # si installé avec uv
+pipx upgrade llmw              # si installé avec pipx
+pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # avec pip tout simple
 ```
 
-(Si vous utilisez le plugin Claude Code, la mise à jour du plugin depuis la place de marché garde également la CLI autonome synchronisée automatiquement — voir [hooks.md](hooks.md).)
+(Si vous avez installé le plugin Claude Code, mettre le plugin à jour
+depuis la marketplace met aussi automatiquement à jour l'outil en ligne de
+commande — voir [hooks.md](hooks.md).)
 
-### Désinstallation
+### Désinstaller
 
 ```bash
 uv tool uninstall llmw

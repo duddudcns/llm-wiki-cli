@@ -1,15 +1,29 @@
-# Développement
+# Contribuer à `llmw`
 
 [English](../en/development.md) · [한국어](../ko/development.md) · [日本語](../ja/development.md) · [简体中文](../zh-Hans/development.md) · [Español](../es/development.md) · **Français**
 
-Voir la section "Clone local, installation éditable" de [installation.md](installation.md) pour configurer un environnement de dev ; `pytest` exécute la suite de tests à partir de là.
+Voir la section « Travailler sur le code de `llmw` lui-même » de
+[installation.md](installation.md) pour mettre en place un environnement
+de développement ; lancez `pytest` depuis là pour exécuter la suite de
+tests.
 
-## Compétence Claude Code
+## Comment fonctionne la compétence Claude Code
 
-`llmw init` écrit `.claude/skills/llm-wiki/{SKILL.md,reference.md,examples.md}` dans le projet. Claude Code découvre ceci automatiquement comme une compétence simple — aucune étape d'installation. Elle dit à l'agent quand atteindre `llmw`, le flux de travail central recherche-d'abord, et pointe vers `reference.md`/`examples.md` pour le détail complet afin que le toujours-chargé `SKILL.md` reste court.
+`llmw init` écrit quelques fichiers dans `.claude/skills/llm-wiki/` de
+votre projet. Claude Code les reconnaît automatiquement — aucune étape
+d'installation séparée n'est nécessaire. Ces fichiers apprennent à l'IA
+quand et comment utiliser `llmw`, sans avoir besoin de charger tous les
+détails à chaque fois.
 
-Si le plugin Claude Code llm-wiki est déjà installé depuis la place de marché, passez `--no-claude-plugin` pour ignorer cette copie locale du projet — autrement le projet se retrouve avec deux copies de la même compétence (la place de marché du plugin, et celle-ci), qui est redondant et peut être confus quand Claude Code charge les deux.
+Si vous avez déjà installé le plugin Claude Code depuis la marketplace,
+ajoutez `--no-claude-plugin` en lançant `llmw init` pour éviter de créer
+cette copie en plus — sinon vous vous retrouveriez avec deux copies des
+mêmes instructions, ce qui est redondant et peut créer de la confusion.
 
-## Étendue MVP
+## Ce que cet outil ne fait volontairement pas (pour l'instant)
 
-Exclut délibérément : un serveur MCP, mode daemon/watch, recherche par embedding/vecteur, analyse directe de PDF/DOCX, un plugin Obsidian, une UI web, et toute logique d'auto-fusion/auto-suppression/détection de contradiction.
+Par choix, cela reste hors du périmètre pour l'instant : se connecter
+directement à des modèles d'IA, surveiller automatiquement les fichiers
+pour détecter des changements, la recherche sémantique par IA, lire
+directement des fichiers PDF ou Word, une application graphique, ou toute
+fusion, suppression ou résolution de conflit automatique des notes.
