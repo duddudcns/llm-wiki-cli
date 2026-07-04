@@ -87,7 +87,7 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
     except ProjectNotFoundError:
         return None
 
-    paths = ProjectPaths(root=root)
+    paths = ProjectPaths.for_project_root(root)
     config = load_project_config(paths)
     guard = config.hooks_wiki_guard
     if guard == "off":
@@ -120,9 +120,11 @@ def evaluate_sessionstart(cwd: str) -> str | None:
     except ProjectNotFoundError:
         return _NO_PROJECT_HINT
 
-    paths = ProjectPaths(root=root)
+    paths = ProjectPaths.for_project_root(root)
     status = build_status(paths)
-    wiki_rel = paths.rel(paths.wiki)
+    # Relative to the project root (not `paths.root`/wiki_root), so this
+    # correctly reads "ai-wiki/wiki" when the wiki is nested there.
+    wiki_rel = paths.wiki.resolve().relative_to(paths.project_root.resolve()).as_posix()
 
     if not status.index_exists:
         pages_note = "index not built yet — run `llmw rebuild`"

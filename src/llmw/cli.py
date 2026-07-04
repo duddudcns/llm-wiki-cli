@@ -13,7 +13,7 @@ import sys
 
 from llmw import __version__
 from llmw.archive import PageNotFoundForArchiveError, archive_page as do_archive
-from llmw.bootstrap import ProjectAlreadyExistsError, init_project
+from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_project
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
@@ -85,9 +85,15 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+# Set by the `--root`/`LLMW_ROOT` global option in `main()` before any
+# command body runs. `None` means "walk up from cwd looking for `.llmw`
+# or `ai-wiki/.llmw`" (the default, auto-detecting behavior).
+_root_override: Optional[Path] = None
+
+
 def _require_paths():
     try:
-        return resolve_paths()
+        return resolve_paths(root_override=_root_override)
     except ProjectNotFoundError as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
@@ -98,8 +104,20 @@ def main(
     version: Optional[bool] = typer.Option(
         None, "--version", callback=_version_callback, is_eager=True
     ),
+    root: Optional[Path] = typer.Option(
+        None,
+        "--root",
+        envvar="LLMW_ROOT",
+        help=(
+            "Project root to use instead of auto-detecting it from the "
+            "current directory. Still auto-detects raw/wiki/.llmw directly "
+            "in this path vs. nested under 'ai-wiki/'."
+        ),
+    ),
 ) -> None:
     """llmw: headless Obsidian-like LLM Wiki CLI."""
+    global _root_override
+    _root_override = root
 
 
 @app.command()
@@ -116,14 +134,46 @@ def init(
             "marketplace, to avoid a redundant local copy of the same skill."
         ),
     ),
+    layout: str = typer.Option(
+        "classic",
+        "--layout",
+        help=(
+            "'classic' puts raw/, wiki/, .llmw/ directly in <path>. "
+            "'ai-wiki' nests them under <path>/ai-wiki/ instead, keeping "
+            "<path> itself uncluttered."
+        ),
+    ),
+    adopt: bool = typer.Option(
+        False,
+        "--adopt",
+        help=(
+            "Adopt a directory that already has real wiki content under its "
+            "own conventions: create .llmw/ + config only, and never write "
+            "the default content files (raw/README.md, wiki/index.md, "
+            "wiki/overview.md, wiki/log.md) or default taxonomy subfolders — "
+            "not even with --force."
+        ),
+    ),
 ) -> None:
     """Scaffold raw/, wiki/, .llmw/, and (by default) the Claude Code skill/plugin."""
     try:
-        paths = init_project(path, force=force, claude_plugin=claude_plugin)
+        paths = init_project(
+            path, force=force, claude_plugin=claude_plugin, layout=layout, adopt=adopt
+        )
     except ProjectAlreadyExistsError as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
-    console.print(f"Initialized llmw project at {paths.root}", style="bold")
+    except UnknownLayoutError as exc:
+        _err(exc)
+        raise typer.Exit(code=1) from exc
+    if paths.root == paths.project_root:
+        console.print(f"Initialized llmw project at {paths.root}", style="bold")
+    else:
+        console.print(
+            f"Initialized llmw project at {paths.project_root} "
+            f"(wiki data under {paths.root})",
+            style="bold",
+        )
 
 
 @app.command()

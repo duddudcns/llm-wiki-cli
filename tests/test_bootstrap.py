@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from llmw.bootstrap import ProjectAlreadyExistsError, init_project
+from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_project
 from llmw.indexer import rebuild
 from llmw.status import build_status
 
@@ -77,3 +77,75 @@ def test_init_writes_lf_only_even_on_windows(tmp_path: Path) -> None:
         assert b"\r\n" not in raw, f"{fs_path} contains CRLF"
     assert b"\r\n" not in paths.config_path.read_bytes()
     assert b"\r\n" not in (paths.claude_skill_dir / "SKILL.md").read_bytes()
+
+
+def test_init_ai_wiki_layout_nests_wiki_data_under_ai_wiki(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, layout="ai-wiki")
+
+    assert paths.project_root == tmp_path.resolve()
+    assert paths.root == tmp_path.resolve() / "ai-wiki"
+    assert paths.raw.is_dir()
+    assert paths.wiki.is_dir()
+    assert paths.llmw_dir.is_dir()
+    assert not (tmp_path / "raw").exists()
+    assert not (tmp_path / "wiki").exists()
+    assert not (tmp_path / ".llmw").exists()
+
+    # .claude/ stays at the real project root, never nested under ai-wiki/.
+    assert paths.claude_skill_dir == tmp_path.resolve() / ".claude" / "skills" / "llm-wiki"
+    assert (paths.claude_skill_dir / "SKILL.md").is_file()
+    assert not (tmp_path / "ai-wiki" / ".claude").exists()
+
+
+def test_init_unknown_layout_raises(tmp_path: Path) -> None:
+    with pytest.raises(UnknownLayoutError):
+        init_project(tmp_path, layout="bogus")
+
+
+def test_init_adopt_preserves_preexisting_content_files(tmp_path: Path) -> None:
+    (tmp_path / "wiki").mkdir(parents=True)
+    (tmp_path / "wiki" / "index.md").write_text("# My existing index\n", encoding="utf-8")
+    (tmp_path / "raw").mkdir(parents=True)
+
+    paths = init_project(tmp_path, adopt=True)
+
+    assert paths.llmw_dir.is_dir()
+    assert paths.config_path.is_file()
+    assert (
+        tmp_path / "wiki" / "index.md"
+    ).read_text(encoding="utf-8") == "# My existing index\n"
+    assert not (tmp_path / "wiki" / "overview.md").exists()
+    assert not paths.wiki_log.exists()
+    assert not (tmp_path / "raw" / "README.md").exists()
+
+
+def test_init_adopt_skips_default_taxonomy_dirs(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, adopt=True)
+
+    for name in ("entities", "concepts", "decisions", "syntheses", "projects", "glossary",
+                 "archived", "sources"):
+        assert not (tmp_path / "wiki" / name).exists(), name
+
+    # Structural dirs llmw actually needs still get created.
+    assert paths.raw.is_dir()
+    assert paths.raw_inbox.is_dir()
+    assert paths.raw_processed.is_dir()
+    assert paths.wiki.is_dir()
+    assert paths.llmw_dir.is_dir()
+
+
+def test_init_adopt_never_overwrites_even_with_force(tmp_path: Path) -> None:
+    (tmp_path / "wiki").mkdir(parents=True)
+    (tmp_path / "wiki" / "index.md").write_text("mine\n", encoding="utf-8")
+
+    init_project(tmp_path, adopt=True)
+    init_project(tmp_path, adopt=True, force=True)
+
+    assert (tmp_path / "wiki" / "index.md").read_text(encoding="utf-8") == "mine\n"
+
+
+def test_init_adopt_still_scaffolds_claude_plugin_by_default(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, adopt=True)
+
+    assert (paths.claude_skill_dir / "SKILL.md").is_file()
+    assert (paths.claude_plugin_dir / "plugin.json").is_file()

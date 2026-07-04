@@ -45,6 +45,21 @@ def test_pretooluse_denies_edit_on_wiki_md(tmp_path: Path):
     assert "wiki/concepts/a.md" in out["permissionDecisionReason"]
 
 
+def test_pretooluse_denies_edit_on_wiki_md_in_ai_wiki_layout(tmp_path: Path):
+    paths = init_project(tmp_path, layout="ai-wiki")
+    target = paths.wiki / "concepts" / "a.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("---\ntitle: A\n---\nbody\n", encoding="utf-8")
+
+    result = evaluate_pretooluse(_edit_payload(target))
+    assert result is not None
+    out = result["hookSpecificOutput"]
+    assert out["permissionDecision"] == "deny"
+    # rel() stays relative to the wiki container (ai-wiki/), matching what
+    # `llmw edit` expects as its path argument.
+    assert "wiki/concepts/a.md" in out["permissionDecisionReason"]
+
+
 def test_pretooluse_denies_edit_on_existing_raw_file(tmp_path: Path):
     paths = init_project(tmp_path)
     target = paths.raw / "README.md"
@@ -169,6 +184,15 @@ def test_sessionstart_emits_context_inside_project(tmp_path: Path):
     assert context is not None
     assert "llmw" in context
     assert "search" in context.lower()
+
+
+def test_sessionstart_shows_ai_wiki_prefix_in_nested_layout(tmp_path: Path):
+    paths = init_project(tmp_path, layout="ai-wiki")
+    rebuild(paths)
+
+    context = evaluate_sessionstart(str(tmp_path))
+    assert context is not None
+    assert "ai-wiki/wiki/" in context
 
 
 def test_sessionstart_hints_init_outside_project(tmp_path: Path):
