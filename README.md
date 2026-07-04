@@ -221,9 +221,11 @@ skill), a `PreToolUse` hook closes that gap at the harness level: a native
 denied (or, per config, turned into a confirmation prompt), and the
 denial message names the exact `llmw` command to run instead — so the
 agent's very next action is a one-line rewrite, not a dead end. A
-`SessionStart` hook also drops a short "this project has an llmw wiki"
-note into context, so a blank environment with no project `CLAUDE.md`
-still discovers `llmw` on turn one.
+`SessionStart` hook also drops a short note into context every session:
+"this project has an llmw wiki" (with page count) when `.llmw` already
+exists, or a one-line "run `llmw init`" hint when it doesn't yet — so a
+blank environment with no project `CLAUDE.md`, and no wiki initialized
+at all, still discovers `llmw` on turn one.
 
 The guard only ever looks at `Edit`/`Write`/`NotebookEdit` calls whose
 target resolves (by walking up from the file, the same way `llmw` finds

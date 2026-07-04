@@ -108,11 +108,37 @@ it under a competing skill's instructions.
       0.1.7 (restart needed for the new PreToolUse hook to take effect in
       this session).
 
-## Status: both phases shipped
+## Phase 3 — SessionStart init hint (0.1.8) — DONE
 
-All three phases are done and pushed to `origin/master` (`60fa30d`,
-`066d137`, `2baa791`). Restart Claude Code to pick up the new
-`PreToolUse` hook and updated `SessionStart` context in this session.
+Root cause: `evaluate_sessionstart` returned `None` (fully silent) when no
+`.llmw` project exists yet, so a brand-new repo with the plugin installed
+gave zero signal that `llmw init` was even an option — the only path to
+discovery was the model spontaneously matching the SKILL.md description.
+Explicitly NOT auto-running `llmw init` from the hook itself: doing so
+would silently scaffold `.llmw/`/`wiki/`/`raw/` into every project ever
+opened with the plugin installed, including ones that never want a wiki —
+a bigger, more surprising side effect than the minimal-harness bar allows.
+User chose "hint only" over "auto-init" or "no signal" when asked directly.
+
+- [x] `src/llmw/hook.py` — `evaluate_sessionstart` returns a one-line
+      `_NO_PROJECT_HINT` ("Run `llmw init` if you want persistent,
+      searchable project knowledge tracked here") instead of `None` when
+      `find_project_root` raises `ProjectNotFoundError`. Pure text, no
+      file-system side effects — same fail-open shape as everywhere else
+      in `hook.py`.
+- [x] `tests/test_hook.py` — updated `test_sessionstart_silent_outside_project`
+      -> `test_sessionstart_hints_init_outside_project` and the matching
+      CLI-level test to assert the hint text instead of silence.
+- [x] README "How the plugin keeps agents honest" section updated to
+      describe both `SessionStart` cases (inside vs. outside a project).
+- [x] Version bump 0.1.7 → 0.1.8 across all 5 lockstep files.
+
+## Status: all phases shipped
+
+All four phases are done and pushed to `origin/master` (`60fa30d`,
+`066d137`, `2baa791`, plus Phase 3's commit). Restart Claude Code to pick
+up the new `PreToolUse` hook and updated `SessionStart` context in this
+session.
 
 ## Explicitly out of scope (per Fable's plan)
 
