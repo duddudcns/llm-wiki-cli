@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_project
+from llmw.config import Config, load_config, save_config
 from llmw.indexer import rebuild
 from llmw.status import build_status
 
@@ -149,3 +150,31 @@ def test_init_adopt_still_scaffolds_claude_plugin_by_default(tmp_path: Path) -> 
 
     assert (paths.claude_skill_dir / "SKILL.md").is_file()
     assert (paths.claude_plugin_dir / "plugin.json").is_file()
+
+
+def test_init_adopt_force_preserves_config_overrides(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, adopt=True)
+    save_config(
+        paths.config_path,
+        Config(
+            extra_root_pages=["index.md", "log.md", "schema.md"],
+            lint_required_frontmatter=["type", "status", "last_updated"],
+        ),
+    )
+
+    init_project(tmp_path, adopt=True, force=True)
+
+    reloaded = load_config(paths.config_path)
+    assert reloaded.extra_root_pages == ["index.md", "log.md", "schema.md"]
+    assert reloaded.lint_required_frontmatter == ["type", "status", "last_updated"]
+
+
+def test_init_force_without_adopt_still_resets_config(tmp_path: Path) -> None:
+    # Only --adopt protects config.toml from a --force reinit; the plain
+    # (non-adopt) path keeps its existing "force resets everything" behavior.
+    paths = init_project(tmp_path)
+    save_config(paths.config_path, Config(extra_root_pages=["custom.md"]))
+
+    init_project(tmp_path, force=True)
+
+    assert load_config(paths.config_path).extra_root_pages == []
