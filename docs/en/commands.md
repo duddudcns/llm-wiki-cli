@@ -1,33 +1,34 @@
-# Command details
+# How search works
 
 **English** · [한국어](../ko/commands.md) · [日本語](../ja/commands.md) · [简体中文](../zh-Hans/commands.md) · [Español](../es/commands.md) · [Français](../fr/commands.md)
 
-See the README's command reference table for the full list of commands and
-their flags. This page covers the parts too deep for a one-line table entry.
+See the README's command table for the full list of commands. This page
+just explains one thing in more detail: how `llmw search` decides what
+counts as a match.
 
-## Search semantics
+## Search tries three ways, from strictest to loosest
 
-`llmw search` never requires keyword-only phrasing — a full natural-
-language query is fine. It tries up to three tiers, only moving to the next
-when the previous one finds nothing, so a full match can never be
-outranked by a partial one:
+You can type a search the same way you'd ask a question — full sentences
+are fine, you don't need to guess special keywords. Behind the scenes, it
+tries up to three approaches, moving to the next one only if the previous
+one found nothing at all — so a note that matches your search exactly will
+never get pushed down the list by a note that only sort-of matches:
 
-1. **strict** — every query term required (AND).
-2. **relaxed** — terms that can't match any indexed page at all (typos,
-   verb conjugations) are dropped; the rest are still required.
-3. **any** — every term becomes optional (OR), ranked by relevance.
+1. **Strict** — every word in your search has to appear somewhere in the note.
+2. **Relaxed** — words that don't appear anywhere in any note (typos, or a
+   slightly different form of a word) get quietly dropped; the rest of the
+   words still have to match.
+3. **Any match** — every word becomes optional, and results are just
+   ranked by how well they match.
 
-`--json` output reports which tier answered the query:
-`{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
-Pass `--strict` to disable the fallback tiers and only ever run tier 1.
+If you ask for `--json` output, it tells you which of the three ways
+found the result: `{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
+Add `--strict` if you only ever want the first, strictest kind of match.
 
-Query terms that are a single Hangul word with a trailing particle (a 조사
-— e.g. `스탯창을`, `포탈에서`) are stemmed to the bare noun (`스탯창`, `포탈`)
-before matching, since SQLite FTS5's prefix search only matches a query
-that is a prefix of the indexed word, not the other way around, so an
-inflected query would otherwise miss a bare-noun page. This is a small
-curated suffix list, not a full morphological analyzer — it won't stem verb
-conjugations (that's what the relaxed tier is for) and will occasionally
-strip a coincidental non-particle ending (e.g. `도로` → `도`); this is
-always recall-safe (the stem is a prefix of the original word) at worst
-adding minor ranking noise, never a missed page.
+For Korean text: a search word that's a single Korean noun with a small
+grammatical ending attached (like `스탯창을` or `포탈에서`) gets that ending
+trimmed off before matching (to `스탯창`, `포탈`), so it can still find a
+note that just uses the plain noun by itself. This only handles a small,
+common list of endings, not every possible form of every word — it's
+designed to never cause a note to be missed, just occasionally rank
+things slightly differently than expected.

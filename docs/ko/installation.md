@@ -2,91 +2,112 @@
 
 [English](../en/installation.md) · **한국어** · [日本語](../ja/installation.md) · [简体中文](../zh-Hans/installation.md) · [Español](../es/installation.md) · [Français](../fr/installation.md)
 
-## 권장: Claude Code 플러그인
+## 추천 방법: Claude Code 플러그인
 
-Claude Code에서 `llmw`를 사용한다면, 플러그인으로 설치하세요. 이것이 권장 경로이며 별도의 `pip`/`uv`/`pipx` 단계가 필요하지 않습니다:
+Claude Code에서 `llmw`를 쓸 거라면 플러그인으로 설치하세요. 가장
+추천하는 방법이고, 따로 `pip`/`uv`/`pipx` 단계를 거칠 필요도 없습니다:
 
 ```
 /plugin marketplace add duddudcns/llm-wiki-cli
 /plugin install llm-wiki@llm-wiki-cli
 ```
 
-(비대화형 동등물: `claude plugin marketplace add duddudcns/llm-wiki-cli`
-그리고 `claude plugin install llm-wiki@llm-wiki-cli`)
+(터미널에서 직접 실행하고 싶다면: `claude plugin marketplace add duddudcns/llm-wiki-cli`
+와 `claude plugin install llm-wiki@llm-wiki-cli`)
 
-이것은 Claude Code 스킬과 두 개의 훅을 설치합니다. 훅은 스탠드얼론 `llmw` 바이너리를 설치되고 동기화 상태로 자동 유지하며, 에이전트가 이를 우회하는 것을 방지합니다 — 정확히 어떤 훅이 무엇을 하는지, 어떻게 구성하는지는 [hooks.md](hooks.md)를 참조하세요. CLI 설치를 직접 관리하려면 이를 건너뛰고 대신 아래 방법 중 하나를 사용하세요. 충돌하지 않습니다. 둘 다 설치할 수도 있습니다.
+이렇게 설치하면 안전장치 두 가지도 함께 들어옵니다. 하나는 커맨드라인
+도구 자체를 자동으로 최신 상태로 유지해 주고, 다른 하나는 AI가 위키를
+건너뛰고 파일을 직접 고치지 못하게 막아줍니다. 정확히 어떤 기능인지,
+원하지 않으면 어떻게 끄는지는 [hooks.md](hooks.md)를 보세요. 커맨드라인
+도구를 직접 설치해서 업데이트도 손수 관리하고 싶다면, 이건 건너뛰고 아래
+방법 중 하나를 쓰면 됩니다. 서로 충돌하지 않으니 둘 다 설치해도 됩니다.
 
-## 스탠드얼론 CLI
+## 커맨드라인 도구만 설치하기 (플러그인 없이)
 
-Claude Code 외부(스크립팅, CI, 다른 에디터/에이전트)에서 `llmw`를 원하거나, 플러그인의 자동 치유 훅 대신 업그레이드를 직접 제어하려면 이를 선택하세요.
+Claude Code 밖에서 `llmw`를 쓰고 싶다면 이 방법을 고르세요. 스크립트나
+자동화 파이프라인, 다른 에디터·도구와 함께 쓸 때 적합합니다.
 
-`llmw`는 **Python 3.11 이상**이 필요하며, 아직 PyPI에 없어서 패키지 인덱스 대신 이 저장소에서 직접 설치됩니다. **이 저장소는 현재 비공개입니다** — 설치(어떤 방법이든)는 인증된 자신의 `git`이 필요합니다(예: `gh auth login`을 통해 이미 로그인되었거나, GitHub 계정에 SSH 키가 있음). 저장소 접근 권한이 없는 사람은 부분 설치가 아닌 페치 오류를 받습니다.
+`llmw`는 **Python 3.11 이상**이 필요합니다. 아직 공개 패키지 저장소에
+올라가 있지 않아서, 대신 이 GitHub 저장소에서 바로 설치합니다. **이
+저장소는 현재 비공개(private)입니다** — 어떤 방법으로 설치하든 자신의
+GitHub 로그인이 `git`에 연결돼 있어야 합니다(예를 들어 이미
+`gh auth login`으로 로그인해 두었거나, GitHub 계정에 SSH 키를 등록해
+둔 경우). 이게 안 돼 있으면 설치가 실패하면서 이유를 명확히 알려줍니다.
+뭔가 망가진 채로 설치되는 일은 없습니다.
 
-아래의 모든 방법은 다른 Python 프로젝트의 의존성을 건드리지 않고 전역 `llmw` 명령을 제공합니다.
+아래 방법은 어떤 걸 선택해도 컴퓨터 어디서든 실행할 수 있는 `llmw`
+명령어가 만들어지고, 컴퓨터에 있는 다른 Python 프로젝트에는 영향을
+주지 않습니다.
 
 ### Windows
 
-먼저 Python 버전을 확인하세요(PowerShell 또는 Git Bash):
+먼저 어떤 버전의 Python이 있는지 확인하세요 (PowerShell이나 Git Bash에서):
 
 ```powershell
 python --version
 ```
 
-3.11+가 없나요?
+아직 3.11 이상이 없다면:
 
 ```powershell
 winget install Python.Python.3.12
 ```
 
-또는 [python.org/downloads](https://www.python.org/downloads/)에서 인스톨러를 다운로드하세요.
+또는 [python.org/downloads](https://www.python.org/downloads/)에서
+설치 파일을 내려받으세요.
 
-그 후, [uv](https://docs.astral.sh/uv/)를 사용하여(권장 — 빠르고 별도 pipx 설치 불필요):
+그다음, [uv](https://docs.astral.sh/uv/)를 쓴다면(추천 — 빠르고, 별도로
+pipx를 설치할 필요도 없습니다):
 
 ```powershell
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-또는 [pipx](https://pipx.pypa.io/):
+또는 [pipx](https://pipx.pypa.io/)를 쓴다면:
 
 ```powershell
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-또는 일반 pip(현재 활성화된 모든 Python 환경에 설치 — venv를 사용하지 않으면 전역으로 설치):
+또는 그냥 pip로 설치한다면(현재 컴퓨터에서 쓰고 있는 Python 환경에
+그대로 설치됩니다 — 이게 정말 원하는 방식일 때만 쓰세요):
 
 ```powershell
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-> Claude Code 플러그인의 훅([hooks.md](hooks.md) 참조)은 Windows에서 Git Bash를 필요로 합니다. Git Bash가 설치되지 않으면 Claude Code는 PowerShell로 폴백하고, 이 셸 형태 훅은 지원되지 않습니다. `llmw` 자체의 안전 게이트는 어느 쪽이든 여전히 적용됩니다. 훅의 추가 편의성만 영향을 받습니다.
+> Claude Code 플러그인의 안전장치 기능(자세한 내용은 [hooks.md](hooks.md))은
+> Windows에서 동작하려면 "Git Bash"가 설치돼 있어야 합니다. 없다면
+> 그 추가 기능들만 실행되지 않을 뿐, `llmw` 자체는 문제없이 동작하고
+> 자체 안전 점검도 그대로 유지됩니다.
 
 ### macOS
 
-먼저 Python 버전을 확인하세요:
+먼저 어떤 버전의 Python이 있는지 확인하세요:
 
 ```bash
 python3 --version
 ```
 
-3.11+가 없나요?
+아직 3.11 이상이 없다면:
 
 ```bash
 brew install python@3.12
 ```
 
-그 후, [uv](https://docs.astral.sh/uv/)를 사용하여(권장):
+그다음, [uv](https://docs.astral.sh/uv/)를 쓴다면(추천):
 
 ```bash
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-또는 [pipx](https://pipx.pypa.io/):
+또는 [pipx](https://pipx.pypa.io/)를 쓴다면:
 
 ```bash
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-또는 일반 pip:
+또는 그냥 pip로 설치한다면:
 
 ```bash
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
@@ -94,38 +115,38 @@ pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 
 ### Linux
 
-먼저 Python 버전을 확인하세요:
+먼저 어떤 버전의 Python이 있는지 확인하세요:
 
 ```bash
 python3 --version
 ```
 
-3.11+가 없나요?
+아직 3.11 이상이 없다면:
 
 ```bash
 sudo apt install python3.12 python3.12-venv   # Ubuntu/Debian
 sudo dnf install python3.12                   # Fedora
 ```
 
-그 후, [uv](https://docs.astral.sh/uv/)를 사용하여(권장):
+그다음, [uv](https://docs.astral.sh/uv/)를 쓴다면(추천):
 
 ```bash
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-또는 [pipx](https://pipx.pypa.io/):
+또는 [pipx](https://pipx.pypa.io/)를 쓴다면:
 
 ```bash
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-또는 일반 pip:
+또는 그냥 pip로 설치한다면:
 
 ```bash
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-### 로컬 클론, 편집 가능 설치(`llmw` 자체에 기여)
+### `llmw` 자체를 개발하고 싶다면
 
 ```bash
 git clone https://github.com/duddudcns/llm-wiki-cli.git
@@ -134,29 +155,31 @@ python3 -m venv .venv
 source .venv/bin/activate      # Windows PowerShell: .venv\Scripts\Activate.ps1
                                 # Windows git-bash:   source .venv/Scripts/activate
 pip install -e ".[dev]"
-pytest                         # 모든 테스트가 통과하는 것으로 표시되어야 함
+pytest                         # 모든 테스트가 통과해야 합니다
 ```
 
-나머지 개발 워크플로우는 [development.md](development.md)를 참조하세요.
+기여하는 방법은 [development.md](development.md)에서 더 자세히 볼 수 있습니다.
 
-### 확인
+### 잘 설치됐는지 확인하기
 
 ```bash
 llmw --version
 llmw --help
 ```
 
-### 업그레이드
+### 업데이트하기
 
 ```bash
-uv tool upgrade llmw           # uv를 통해 설치한 경우
-pipx upgrade llmw              # pipx를 통해 설치한 경우
-pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # 일반 pip
+uv tool upgrade llmw           # uv로 설치했다면
+pipx upgrade llmw              # pipx로 설치했다면
+pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # 그냥 pip라면
 ```
 
-(Claude Code 플러그인을 사용하는 경우, 마켓플레이스에서 플러그인을 업그레이드하면 스탠드얼론 CLI도 자동으로 동기화됩니다 — [hooks.md](hooks.md) 참조.)
+(Claude Code 플러그인을 설치했다면, 마켓플레이스에서 플러그인을
+업데이트할 때 커맨드라인 도구도 자동으로 함께 업데이트됩니다 —
+[hooks.md](hooks.md) 참고.)
 
-### 제거
+### 제거하기
 
 ```bash
 uv tool uninstall llmw

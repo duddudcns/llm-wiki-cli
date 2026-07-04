@@ -2,90 +2,91 @@
 
 [English](../en/installation.md) · [한국어](../ko/installation.md) · [日本語](../ja/installation.md) · **简体中文** · [Español](../es/installation.md) · [Français](../fr/installation.md)
 
-## 推荐：Claude Code 插件
+## 推荐做法：Claude Code 插件
 
-如果从 Claude Code 使用 `llmw`，将其作为插件安装 —— 这是推荐的方式，不需要单独的 `pip`/`uv`/`pipx` 步骤：
+如果你是在 Claude Code 里使用 `llmw`,建议直接把它装成插件——这是推荐的方式,完全不用另外走 `pip`/`uv`/`pipx` 那一套步骤：
 
 ```
 /plugin marketplace add duddudcns/llm-wiki-cli
 /plugin install llm-wiki@llm-wiki-cli
 ```
 
-（非交互式等效命令：`claude plugin marketplace add duddudcns/llm-wiki-cli` 和 `claude plugin install llm-wiki@llm-wiki-cli`）
+(非交互式的写法：`claude plugin marketplace add duddudcns/llm-wiki-cli`
+和 `claude plugin install llm-wiki@llm-wiki-cli`)
 
-这会安装 Claude Code 技能加上两个钩子，这些钩子会自动保持独立的 `llmw` 二进制文件安装和同步，并防止智能体绕过它 —— 参见 [hooks.md](hooks.md) 了解这些钩子的具体作用和配置方式。如果你想自己管理 CLI 安装，跳过这个，改用下面的方法之一 —— 它们不冲突，你也可以同时安装两个。
+这样装还会附带两个安全保障机制：一个负责自动让命令行工具本身保持最新,另一个负责防止 AI 绕开 wiki、直接改文件——具体是怎么做的、以及不想要的话怎么关掉,可以看 [hooks.md](hooks.md)。如果你更想自己安装命令行工具、自己手动管理更新,可以跳过这一步,改用下面的方法——两者不会冲突,你可以两个都装。
 
-## 独立 CLI
+## 单独安装命令行工具(不装插件)
 
-如果想在 Claude Code 之外的 PATH 上使用 `llmw`（脚本编写、CI、其他编辑器/智能体），或者想手动控制升级而不是使用插件的自愈钩子，选择这个。
+如果你想在 Claude Code 之外使用 `llmw`——比如写脚本、搭自动化流程,或者配合别的编辑器/工具——就选这个方式。
 
-`llmw` 需要 **Python 3.11 或更高版本**，且尚未在 PyPI 上，所以直接从此仓库安装而不是从包索引。**此仓库目前是私有的** —— 安装它（任何下面的方法）需要您自己的身份验证 `git`（例如已通过 `gh auth login` 登录，或在 GitHub 账户上有 SSH 密钥）；没有仓库访问权限的人会得到获取错误，而不是部分安装。
+`llmw` 需要 **Python 3.11 或更高版本**。它目前还没有发布到公共的包索引上,所以是直接从这个 GitHub 仓库安装的。**这个仓库目前是私有的**——不管用下面哪种方法安装,都需要你自己的 GitHub 账号已经给 `git` 配置好了(比如已经用 `gh auth login` 登录过,或者给你的 GitHub 账号加了 SSH key)。如果没配置好,安装会直接报一个清楚的错误,而不会装出一个坏掉的东西。
 
-下面的所有方法都能让您获得全局 `llmw` 命令，不会接触任何其他 Python 项目的依赖。
+下面每一种方法安装完,你都会得到一个随处可用的 `llmw` 命令,而且不会影响你电脑上其他的 Python 项目。
 
 ### Windows
 
-首先检查您的 Python 版本（PowerShell 或 Git Bash）：
+先看看你现在的 Python 版本是多少(PowerShell 或 Git Bash 里都行)：
 
 ```powershell
 python --version
 ```
 
-没有 3.11+ 版本？
+还没有 3.11 以上的版本?
 
 ```powershell
 winget install Python.Python.3.12
 ```
 
-或从 [python.org/downloads](https://www.python.org/downloads/) 下载安装程序。
+或者直接去 [python.org/downloads](https://www.python.org/downloads/) 下载安装包。
 
-然后，使用 [uv](https://docs.astral.sh/uv/)（推荐 —— 快速，无需单独的 pipx 安装）：
+然后,用 [uv](https://docs.astral.sh/uv/)(推荐——速度快,也不用另外装 pipx)：
 
 ```powershell
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-或 [pipx](https://pipx.pypa.io/)：
+或者用 [pipx](https://pipx.pypa.io/)：
 
 ```powershell
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-或纯 pip（安装到当前活跃的 Python 环境 —— 除非你知道想要全局，否则使用 venv）：
+或者直接用 pip(这会装到你电脑当前正在用的那个 Python 环境里——只有在你确定自己想这么做的时候才用这种方式)：
 
 ```powershell
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-> Claude Code 插件的钩子（参见 [hooks.md](hooks.md)）在 Windows 上需要 Git Bash —— 当未安装 Git Bash 时，Claude Code 回退到 PowerShell，这些 shell 形式的钩子不支持。`llmw` 自身的安全门仍然有效；只是钩子的额外便利受到影响。
+> Claude Code 插件的安全保障功能(见 [hooks.md](hooks.md))在 Windows 上需要装了"Git Bash"才能运行。如果没装,这些额外功能就是不会跑而已——`llmw` 本身照样能正常工作,它自带的安全检查也一样会生效。
 
 ### macOS
 
-首先检查您的 Python 版本：
+先看看你现在的 Python 版本是多少：
 
 ```bash
 python3 --version
 ```
 
-没有 3.11+ 版本？
+还没有 3.11 以上的版本?
 
 ```bash
 brew install python@3.12
 ```
 
-然后，使用 [uv](https://docs.astral.sh/uv/)（推荐）：
+然后,用 [uv](https://docs.astral.sh/uv/)(推荐)：
 
 ```bash
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-或 [pipx](https://pipx.pypa.io/)：
+或者用 [pipx](https://pipx.pypa.io/)：
 
 ```bash
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-或纯 pip：
+或者直接用 pip：
 
 ```bash
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
@@ -93,38 +94,38 @@ pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 
 ### Linux
 
-首先检查您的 Python 版本：
+先看看你现在的 Python 版本是多少：
 
 ```bash
 python3 --version
 ```
 
-没有 3.11+ 版本？
+还没有 3.11 以上的版本?
 
 ```bash
 sudo apt install python3.12 python3.12-venv   # Ubuntu/Debian
 sudo dnf install python3.12                   # Fedora
 ```
 
-然后，使用 [uv](https://docs.astral.sh/uv/)（推荐）：
+然后,用 [uv](https://docs.astral.sh/uv/)(推荐)：
 
 ```bash
 uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-或 [pipx](https://pipx.pypa.io/)：
+或者用 [pipx](https://pipx.pypa.io/)：
 
 ```bash
 pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-或纯 pip：
+或者直接用 pip：
 
 ```bash
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-### 本地克隆、可编辑安装（用于为 `llmw` 本身贡献）
+### 参与 `llmw` 自身的开发
 
 ```bash
 git clone https://github.com/duddudcns/llm-wiki-cli.git
@@ -133,27 +134,27 @@ python3 -m venv .venv
 source .venv/bin/activate      # Windows PowerShell: .venv\Scripts\Activate.ps1
                                 # Windows git-bash:   source .venv/Scripts/activate
 pip install -e ".[dev]"
-pytest                         # 应显示所有测试通过
+pytest                         # 应该会显示所有测试都通过
 ```
 
-参见 [development.md](development.md) 了解其余开发工作流。
+想了解更多关于参与开发的内容,可以看 [development.md](development.md)。
 
-### 验证
+### 确认安装成功
 
 ```bash
 llmw --version
 llmw --help
 ```
 
-### 更新
+### 获取更新
 
 ```bash
-uv tool upgrade llmw           # 如果通过 uv 安装
-pipx upgrade llmw              # 如果通过 pipx 安装
-pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # 纯 pip
+uv tool upgrade llmw           # 如果是用 uv 装的
+pipx upgrade llmw              # 如果是用 pipx 装的
+pip install --upgrade --force-reinstall "git+https://github.com/duddudcns/llm-wiki-cli.git"   # 普通 pip
 ```
 
-（如果使用 Claude Code 插件，从市场更新插件也会自动保持独立 CLI 同步 —— 参见 [hooks.md](hooks.md)。）
+(如果你装的是 Claude Code 插件,从应用市场更新插件时也会自动一并更新命令行工具——见 [hooks.md](hooks.md)。)
 
 ### 卸载
 

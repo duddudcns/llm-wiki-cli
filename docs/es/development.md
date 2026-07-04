@@ -1,26 +1,28 @@
-# Desarrollo
+# Contribuir a `llmw`
 
 [English](../en/development.md) · [한국어](../ko/development.md) · [日本語](../ja/development.md) · [简体中文](../zh-Hans/development.md) · **Español** · [Français](../fr/development.md)
 
-Ver la sección "Clon local, instalación editable" de [installation.md](installation.md)
-para configurar un entorno de dev; `pytest` ejecuta el conjunto de pruebas desde
-allí.
+Mira la sección "Trabajar en el código de `llmw` mismo" de
+[installation.md](installation.md) para preparar un entorno de
+desarrollo; desde ahí, corre `pytest` para ejecutar las pruebas.
 
-## Habilidad de Claude Code
+## Cómo funciona la skill de Claude Code
 
-`llmw init` escribe `.claude/skills/llm-wiki/{SKILL.md,reference.md,examples.md}`
-en el proyecto. Claude Code auto-descubre esto como una habilidad plana — sin
-paso de instalación. Le dice al agente cuándo alcanzar `llmw`, el flujo de trabajo central
-búsqueda-primero, y apunta a `reference.md`/`examples.md` para detalle completo así que el siempre cargado `SKILL.md` permanece corto.
+`llmw init` escribe algunos archivos en `.claude/skills/llm-wiki/` dentro
+de tu proyecto. Claude Code los detecta automáticamente — no hace falta
+ningún paso de instalación aparte. Estos archivos le enseñan a la IA
+cuándo debería usar `llmw` y cómo hacerlo, sin necesitar cargar todo el
+detalle cada vez.
 
-Si el plugin de Claude Code llm-wiki ya está instalado desde el
-mercado, pasa `--no-claude-plugin` para omitir esta copia de proyecto-local —
-de otra manera el proyecto termina con dos copias de la misma habilidad (del
-plugin de mercado, y esta), que es redundante y puede ser
-confuso cuando Claude Code carga ambas.
+Si ya instalaste el plugin de Claude Code desde el marketplace, agrega
+`--no-claude-plugin` al correr `llmw init` para no crear esta copia
+extra — de lo contrario terminarías con dos copias de las mismas
+instrucciones, lo cual es redundante y puede generar confusión.
 
-## Alcance MVP
+## Lo que esta herramienta todavía no hace, a propósito
 
-Deliberadamente excluye: un servidor MCP, modo daemon/watch, búsqueda de embedding/vector,
-análisis directo de PDF/DOCX, un plugin Obsidian, una interfaz web, y cualquier
-lógica de auto-merge/auto-delete/detección de contradicción.
+Por diseño, esto se queda fuera del alcance por ahora: conectarse
+directamente a modelos de IA, vigilar archivos para detectar cambios de
+forma automática, búsqueda semántica con IA, leer archivos PDF o Word
+directamente, tener una aplicación gráfica, o cualquier fusión, borrado o
+resolución de conflictos automática entre notas.

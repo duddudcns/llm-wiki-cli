@@ -1,71 +1,69 @@
-# Hooks: mantener agentes honestos y la CLI en sincronización
+# Redes de seguridad integradas en el plugin
 
 [English](../en/hooks.md) · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · **Español** · [Français](../fr/hooks.md)
 
-El plugin de Claude Code (ver [installation.md](installation.md)) instala dos
-hooks. Ninguno es requerido para usar `llmw` — son conveniencias capas
-encima de una CLI que ya refuerza sus propias reglas de seguridad sin importar
-si un hook se ejecutó.
+Instalar el plugin de Claude Code (mira [installation.md](installation.md))
+activa dos funciones de seguridad automáticas. Ninguna de las dos es
+obligatoria para usar `llmw` — son solo comodidades extra sobre una
+herramienta que ya se protege sola de todas formas.
 
-## PreToolUse: el guardián wiki
+## Función 1: evitar que la IA edite las notas de la forma incorrecta
 
-Nada detiene a un agente de ignorar la habilidad de Claude Code y editar
-`wiki/*.md` o `raw/**` directamente con sus propias herramientas de edición de archivos en lugar de
-`llmw` — esto omite el registro de auditoría `--reason`, validación de frontmatter, y
-copia de seguridad automática, y sucede en la práctica siempre que un *diferente*,
-conjunto competidor de instrucciones está en efecto y nunca menciona `llmw`.
+Técnicamente, nada impide que un asistente de IA ignore esta herramienta y
+edite una nota de la wiki directamente, igual que edita cualquier otro
+archivo. Si eso pasa, pierdes la copia de seguridad automática, la nota
+obligatoria de "por qué hice este cambio", y la comprobación de que la
+nota sigue bien escrita — y en la práctica, esto sí pasa cada vez que hay
+otra instrucción al mando que nunca menciona esta herramienta.
 
-Cuando se instala como un plugin de Claude Code (no una habilidad de proyecto bare `llmw init`),
-un hook `PreToolUse` cierra esa brecha al nivel del arnés: una llamada nativa
-`Edit`/`Write`/`NotebookEdit` dirigida a `wiki/*.md` o `raw/**` se
-niega (o, por config, se convierte en un aviso de confirmación), y el mensaje de negación nombra el comando exacto `llmw` a ejecutar en su lugar — así la próxima
-acción del agente es una reescritura de una línea, no un callejón sin salida.
+Cuando lo instalas como plugin de Claude Code, un chequeo de seguridad
+detecta esto: si la IA intenta editar una nota de la wiki directamente con
+sus herramientas normales de edición de archivos, ese cambio se bloquea
+(o, si prefieres, primero pide confirmación), y se le indica exactamente
+qué comando de `llmw` debería usar en su lugar — así puede intentarlo de
+nuevo enseguida, de la forma correcta, en vez de quedarse trabada.
 
-El guardián solo mira llamadas `Edit`/`Write`/`NotebookEdit` cuyo
-objetivo se resuelve (caminando hacia arriba desde el archivo, de la misma manera que `llmw` encuentra su
-propia raíz de proyecto) a un proyecto llmw real's `wiki/*.md` o `raw/**` —
-todo lo demás, incluyendo plain `Read`, pasa sin tocar, y nunca
-inspecciona comandos `Bash` (la policía de cadenas shell es su propio
-campo minado de falsos positivos, así que el registro de auditoría en `wiki/log.md` más `llmw
-lint` permanecen como la capa de detección para esa brecha en lugar de un hook tratando de
-bloquearla).
+Este chequeo solo se fija en cambios dirigidos a notas de la wiki dentro
+de un proyecto que usa esta herramienta — todo lo demás se deja
+completamente en paz, incluyendo simplemente leer archivos.
 
-Configura o desactiva por proyecto en `.llmw/config.toml`:
+Puedes desactivarlo o cambiar qué tan estricto es, por proyecto, en
+`.llmw/config.toml`:
 
 ```toml
 [hooks]
-wiki_guard = "deny"  # default: block, with a message naming the llmw fix
-# wiki_guard = "ask"   # prompt for confirmation instead of blocking
-# wiki_guard = "off"   # disable the guard for this project
+wiki_guard = "deny"  # opción por defecto: bloquea el cambio y explica la forma correcta de hacerlo
+# wiki_guard = "ask"   # pide confirmación en vez de bloquear
+# wiki_guard = "off"   # desactiva este chequeo para este proyecto
 ```
 
-Ambos hooks requieren Git Bash en Windows (Claude Code vuelve a
-PowerShell cuando Git Bash no está instalado, que estos hooks de forma shell
-no soportan) — en todos lados, la puerta de seguridad propia de `llmw` (razón
-requerida, ruta confinada, frontmatter validado, copia de seguridad antes de escribir) se mantiene sin importar si el hook se ejecutó.
+En Windows, este chequeo necesita tener "Git Bash" instalado para
+funcionar. Si no lo tienes, el chequeo simplemente no se ejecuta — las
+reglas de seguridad propias de `llmw` (una razón obligatoria para cada
+cambio, copias de seguridad antes de editar, etc.) se siguen aplicando
+igual.
 
-También deja una nota corta `SessionStart` en contexto cada sesión: "este
-proyecto tiene un wiki llmw" (con conteo de páginas) cuando `.llmw` ya existe, o
-un aviso de una línea "ejecuta `llmw init`" cuando aún no lo hace — así un entorno en blanco
-sin proyecto `CLAUDE.md`, y sin wiki inicializado en absoluto,
-aún descubre `llmw` en turno uno.
+También aparece un pequeño recordatorio al comienzo de cada sesión: "este
+proyecto tiene una wiki con N notas" si ya existe una, o una pista de una
+sola línea que dice "deberías correr `llmw init`" si todavía no existe —
+así la IA se entera de esta herramienta desde el primer mensaje, incluso
+en un proyecto completamente nuevo.
 
-## SessionStart: instalación CLI auto-sanadora
+## Función 2: mantener actualizada la herramienta de línea de comandos
 
-`plugin/bin/llmw` es un despachador delgado, no una distribución Python empaquetada — se
-canaliza hacia un real `llmw` en PATH. Actualizar el plugin desde el
-marketplace solo actualiza los archivos del plugin mismo (habilidad, hooks); **no**
-toca ese binario autónomo. Dejado solo, eso significa instalar una
-actualización de plugin puede silenciosamente dejarte ejecutando una CLI vieja debajo de él.
+El plugin incluye un pequeño programa auxiliar, pero el trabajo de verdad
+lo hace una copia aparte de `llmw` instalada en tu computadora. Actualizar
+el plugin desde el marketplace **no** actualiza automáticamente esa copia
+aparte — si no se hiciera nada más, podrías terminar usando una versión
+vieja sin darte cuenta.
 
-Un hook `SessionStart` (`plugin/hooks/session-start.sh`, cableado vía
-`plugin/hooks/hooks.json`) cierra esa brecha: cada sesión, compara el
-`llmw --version` instalado contra la versión que este paquete de plugin declara
-(`plugin/.claude-plugin/plugin.json`). En un desajuste — incluyendo "no
-instalado en absoluto" — (re)instala vía `uv tool install --force` (volviendo
-a `pip install --user --force-reinstall`), fijado a la etiqueta `git` coincidente (`git+...@v<version>`), así que una
-actualización de mercado de plugins también trae el binario de CLI autónomo en sincronización sin un `uv tool upgrade llmw`
-manual separado.
+Para evitar eso, se hace un chequeo rápido al comienzo de cada sesión:
+compara la versión de `llmw` instalada en tu computadora con la versión
+que el plugin espera. Si no coinciden — incluso si `llmw` todavía no está
+instalada — la reinstala automáticamente en la versión correcta. Así,
+actualizar el plugin también mantiene sincronizada la herramienta de línea
+de comandos, sin que tengas que hacer nada extra.
 
-Cuando las versiones ya coinciden, la verificación es solo una llamada local `llmw --version`
-(sin red) cada sesión — la ruta de reinstalación solo se ejecuta en desajuste de versión genuino, aproximadamente una vez por lanzamiento.
+Cuando las versiones ya coinciden, este chequeo es solo una comprobación
+rápida y local, sin necesitar conexión a internet — la reinstalación de
+verdad solo ocurre en las raras ocasiones en que algo está desincronizado.

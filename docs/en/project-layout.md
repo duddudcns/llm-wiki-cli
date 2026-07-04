@@ -1,12 +1,13 @@
-# Project layout, adopting an existing wiki, and Obsidian compatibility
+# Organizing your wiki, and using an existing one
 
 **English** · [한국어](../ko/project-layout.md) · [日本語](../ja/project-layout.md) · [简体中文](../zh-Hans/project-layout.md) · [Español](../es/project-layout.md) · [Français](../fr/project-layout.md)
 
-## Project layout: classic vs. `ai-wiki/`
+## Two ways to organize the folders
 
-By default (`--layout classic`) `raw/`, `wiki/`, and `.llmw/` sit directly
-in the project root. Pass `--layout ai-wiki` to nest them one level down
-instead, keeping the root uncluttered:
+By default, `llmw init` puts the `raw/`, `wiki/`, and behind-the-scenes
+folders right in your project's main folder. If you'd rather keep your
+project folder tidy, you can tuck everything into a subfolder called
+`ai-wiki/` instead:
 
 ```bash
 llmw init --layout ai-wiki
@@ -14,107 +15,98 @@ llmw init --layout ai-wiki
 
 ```text
 ai-wiki/
-  raw/ wiki/ .llmw/            # same contents as the classic layout, nested
-.claude/skills/llm-wiki/       # still scaffolds at the real project root
-.claude-plugin/plugin.json     # still scaffolds at the real project root
+  raw/ wiki/ .llmw/            # same folders as before, just nested one level down
+.claude/skills/llm-wiki/       # this still goes in your main project folder either way
+.claude-plugin/plugin.json     # this still goes in your main project folder either way
 ```
 
-Every command auto-detects which layout a project uses — it checks for
-`.llmw/` directly in the project root first, then falls back to
-`ai-wiki/.llmw`. Existing classic-layout projects need no migration.
+Every command automatically figures out which style you're using — you
+never have to tell it again after the first `init`. If you already have
+notes set up the plain way, you don't need to change anything.
 
-If a project can't be auto-detected from the current directory (e.g. a
-script running from elsewhere, or a non-standard checkout), point `llmw`
-at it explicitly with `--root <path>` or the `LLMW_ROOT` environment
-variable — either one is checked for both layouts, so a single value is
-enough (no need to specify `raw/`/`wiki/`/`.llmw/` individually):
+If you're running `llmw` from somewhere outside the project folder (say,
+from a script), you can just tell it where to look, and it'll figure out
+which of the two folder styles you're using on its own:
 
 ```bash
 llmw --root /path/to/project status
 LLMW_ROOT=/path/to/project llmw status
 ```
 
-## Adopting an existing wiki
+## Using `llmw` with a wiki you already made by hand
 
-If `raw/`/`wiki/` (or an `ai-wiki/`-nested equivalent) already has real
-content under its own conventions — e.g. a hand-rolled Karpathy-pattern
-wiki that predates `llmw` — use `--adopt` instead of a plain `init`:
+Maybe you already have your own set of notes, made before you ever heard
+of this tool, and you just want `llmw` to start managing it. Use
+`--adopt` instead of a plain `init`:
 
 ```bash
 llmw init --adopt                  # or: llmw init --layout ai-wiki --adopt
 ```
 
-`--adopt` creates `.llmw/` and `config.toml` on first run, but never writes
-the default content files (`raw/README.md`, `wiki/index.md`,
-`wiki/overview.md`, `wiki/log.md`) or the default taxonomy subfolders
-(`entities/`, `concepts/`, `decisions/`, `syntheses/`, `projects/`,
-`glossary/`, `archived/`, `sources/`) — **not even with `--force`** — so
-pre-existing content at those paths is never touched or overwritten. Once
-`config.toml` exists, `--force` never rewrites it back to defaults either,
-so hand-tuned overrides for the adopted schema (see below) survive a
-re-`init --adopt --force`. A plain `llmw init` (no `--adopt`) always
-scaffolds those defaults, overwrites them on `--force`, and resets
-`config.toml` to defaults on `--force` too; only use it against an empty
-(or already llmw-managed) directory. Existing schema quirks (e.g. a
-`last_updated` field instead of `created`/`updated`, or root-level
-`index.md`/`log.md` files outside `wiki/`) are handled via
-`.llmw/config.toml`'s `lint.required_frontmatter` and
-`paths.extra_root_pages` — see below.
+This sets up the behind-the-scenes search index, but it will **never**
+create or overwrite any of your existing notes or folders — even if you
+later re-run the command with `--force`. Your settings file is protected
+the same way, so any custom settings you've made will never get reset by
+accident. (A plain `llmw init`, without `--adopt`, behaves differently:
+it does create some starter notes and folders, and `--force` will
+overwrite them — so only use the plain version on a brand-new, empty
+project.)
 
-## Adapting llmw to an existing wiki
+## Fitting `llmw` to notes that use different rules
 
-If a wiki already has its own conventions (different frontmatter fields,
-top-level files living outside `wiki/`), point `llmw init --adopt` at its
-root (see above) and adjust `.llmw/config.toml` rather than reorganizing
-the wiki's files:
+If your existing notes are organized a little differently — for example,
+some important files live outside the `wiki/` folder, or they use
+different labels than `llmw` expects — you don't need to reorganize
+anything. Just adjust a small settings file instead, after adopting the
+wiki as shown above:
 
 ```toml
 [paths]
-# Extra individual Markdown files (relative to the project root) to index
-# alongside wiki/**/*.md — e.g. a schema/index/log file kept outside wiki/.
+# Extra individual note files (outside the normal wiki/ folder) that
+# should still be included when searching — for example, an index or
+# changelog file kept at the top level.
 extra_root_pages = ["index.md", "log.md", "schema.md"]
 
 [lint]
-# Override which frontmatter keys `llmw lint` requires. Default is
-# ["type", "status", "created", "updated"]; "updated" also accepts a
-# `last_updated` key.
+# Which pieces of information every note is expected to have at the top.
+# The built-in default is ["type", "status", "created", "updated"];
+# "updated" also accepts a note that instead uses "last_updated".
 required_frontmatter = ["type", "status", "last_updated"]
 ```
 
-No existing page needs to change — `llmw rebuild` picks up the new config
-on the next run.
+None of your existing notes need to change for this to work.
 
-## Obsidian compatibility
+## Using it together with Obsidian
 
-`wiki/` is plain Markdown with YAML frontmatter and `[[wikilinks]]` — open
-it directly as an Obsidian vault to get graph view, backlinks, and search
-in a GUI, without giving up any of the CLI-driven agent workflow.
+Every note is a plain text file, so you can also open the `wiki/` folder
+directly in the popular note-taking app [Obsidian](https://obsidian.md/)
+— you'll get its visual map view, its "what links here" view, and its
+search, all on the very same notes, without giving up anything about how
+the AI uses them.
 
-Link resolution specifically handles real-world Obsidian export quirks:
+Some details about how notes link to each other are designed to match
+what Obsidian itself does, including some tricky edge cases:
 
-- `[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading|Alias]]`, `[[#Heading]]`,
-  `![[Embed]]` — full wikilink grammar.
-- Path-like wikilink targets (`[[concepts/foo]]`) resolve relative to the
-  **vault root** (`wiki/`), matching how Obsidian resolves them when you
-  actually open `wiki/` as a vault — not just relative to the linking
-  page's own folder.
-- `related:` frontmatter is a first-class link source, same as inline
-  wikilinks — both a plain path/title (`related: [wiki/concepts/foo]`, the
-  convention some wikis used before adopting `llmw`) and Obsidian's own
-  Properties-panel format (`related: ["[[Note]]"]`) resolve correctly.
-- Markdown links with URL-encoded targets (`[Profile](Project%20Profile.md)`,
-  common when a filename has spaces) are decoded before matching against
-  on-disk pages.
-- Relative wikilinks that point outside `wiki/` (e.g. `[[../notes/x]]`) are
-  checked against the real filesystem — they're only reported as broken by
-  `llmw lint` if the target genuinely doesn't exist anywhere in the
-  project, not merely because they aren't an indexed wiki page.
+- All of Obsidian's linking styles are understood: a plain link to
+  another note, a link with a custom display name, a link to a specific
+  heading inside a note, and an "embed" that pulls in another note's
+  content.
+- A link that includes a folder path is understood the same way Obsidian
+  understands it — relative to the top of the wiki, not relative to
+  whichever note the link is written in.
+- Notes can also list "related notes" at the top in a couple of different
+  formats, and both are understood correctly.
+- Links to files with spaces or special characters in their names (common
+  when notes are exported from other tools) are still matched up
+  correctly.
+- A link pointing outside the `wiki/` folder is checked against what
+  actually exists on disk, so it's only flagged as broken if it truly
+  doesn't exist anywhere.
 
-**Where the graph deliberately diverges from Obsidian's own**: `related:`
-edges and llmw's title-based wikilink resolution (`[[Exact Page Title]]`
-resolving even when it doesn't match the filename) are both llmw
-extensions with no Obsidian equivalent — Obsidian's own graph view won't
-show those edges. Two pages with the same filename stem in different
-folders also resolve ambiguously (first match wins) in both tools. Opening
-`wiki/` in Obsidian gets you a real, useful graph on the same files, not a
-pixel-identical one.
+**A couple of small differences from real Obsidian:** this tool
+understands a couple of extra kinds of connections between notes (like
+the "related notes" list mentioned above) that Obsidian's own map view
+won't show, since they're specific to this tool. And if two notes
+happen to have the exact same filename in different folders, both this
+tool and Obsidian will sometimes pick the wrong one when a link doesn't
+specify which folder it means. Everything else lines up.

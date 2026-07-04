@@ -1,75 +1,67 @@
-# Hooks: keeping agents honest and the CLI in sync
+# Safety nets built into the plugin
 
 **English** · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · [Español](../es/hooks.md) · [Français](../fr/hooks.md)
 
-The Claude Code plugin (see [installation.md](installation.md)) installs two
-hooks. Neither is required to use `llmw` — they're conveniences layered on
-top of a CLI that already enforces its own safety rules regardless of
-whether a hook ran.
+Installing the Claude Code plugin (see [installation.md](installation.md))
+turns on two automatic safety features. Neither one is required to use
+`llmw` — they're just extra convenience on top of a tool that already
+protects itself either way.
 
-## PreToolUse: the wiki guard
+## Feature 1: stopping the AI from editing notes the wrong way
 
-Nothing stops an agent from ignoring the Claude Code skill and editing
-`wiki/*.md` or `raw/**` directly with its own file-edit tools instead of
-`llmw` — that skips the `--reason` audit log, frontmatter validation, and
-automatic backup, and it happens in practice whenever a *different*,
-competing set of instructions is in effect and never mentions `llmw`.
+Nothing technically stops an AI assistant from ignoring this tool and just
+editing a wiki note directly, the same way it edits any other file. If
+that happens, you lose the automatic backup, the required "why did I
+change this" note, and the check that the note is still written
+correctly — and in practice, it does happen whenever some other
+instruction is in charge and never mentions this tool.
 
-When installed as a Claude Code plugin (not a bare `llmw init` project
-skill), a `PreToolUse` hook closes that gap at the harness level: a native
-`Edit`/`Write`/`NotebookEdit` call targeting `wiki/*.md` or `raw/**` is
-denied (or, per config, turned into a confirmation prompt), and the denial
-message names the exact `llmw` command to run instead — so the agent's very
-next action is a one-line rewrite, not a dead end.
+When installed as the Claude Code plugin, a safety check catches this: if
+the AI tries to directly edit a wiki note using its normal file-editing
+tools, that edit is blocked (or, if you prefer, it just asks for
+confirmation first), and it's told exactly which `llmw` command to use
+instead — so it can immediately try again the right way instead of
+getting stuck.
 
-The guard only ever looks at `Edit`/`Write`/`NotebookEdit` calls whose
-target resolves (by walking up from the file, the same way `llmw` finds its
-own project root) to a real llmw project's `wiki/*.md` or `raw/**` —
-everything else, including plain `Read`, passes through untouched, and it
-never inspects `Bash` commands (shell-string policing is its own
-false-positive minefield, so the audit trail in `wiki/log.md` plus `llmw
-lint` remain the detection layer for that gap instead of a hook trying to
-block it).
+This check only ever looks at edits aimed at wiki notes in a project that
+uses this tool — everything else is left alone completely, including
+just reading files.
 
-Configure or disable it per project in `.llmw/config.toml`:
+You can turn this off or change how strict it is, per project, in
+`.llmw/config.toml`:
 
 ```toml
 [hooks]
-wiki_guard = "deny"  # default: block, with a message naming the llmw fix
-# wiki_guard = "ask"   # prompt for confirmation instead of blocking
-# wiki_guard = "off"   # disable the guard for this project
+wiki_guard = "deny"  # default: block the edit, and explain the right way to do it
+# wiki_guard = "ask"   # ask for confirmation instead of blocking
+# wiki_guard = "off"   # turn this check off for this project
 ```
 
-Both hooks require Git Bash on Windows (Claude Code falls back to
-PowerShell when Git Bash isn't installed, which these shell-form hooks
-don't support) — everywhere else, `llmw`'s own safety gate (reason
-required, path confined, frontmatter validated, backup before write) still
-holds regardless of whether the hook ran.
+On Windows, this check needs "Git Bash" installed to work. If it's
+missing, the check just won't run — `llmw`'s own built-in safety rules
+(a reason is required for every change, backups before edits, etc.) still
+apply regardless.
 
-Also drops a short `SessionStart` note into context every session: "this
-project has an llmw wiki" (with page count) when `.llmw` already exists, or
-a one-line "run `llmw init`" hint when it doesn't yet — so a blank
-environment with no project `CLAUDE.md`, and no wiki initialized at all,
-still discovers `llmw` on turn one.
+There's also a small reminder shown at the start of every session: "this
+project has a wiki with N notes" if one already exists, or a one-line
+"you should run `llmw init`" hint if it doesn't — so the AI knows about
+this tool from the very first message, even in a brand-new project.
 
-## SessionStart: self-healing CLI install
+## Feature 2: keeping the command-line tool itself up to date
 
-`plugin/bin/llmw` is a thin dispatcher, not a bundled Python distribution —
-it shells out to a real `llmw` on PATH. Updating the plugin from the
-marketplace only updates the plugin's own files (skill, hooks); it does
-**not** touch that standalone binary. Left alone, that means installing a
-plugin update can silently leave you running an old CLI underneath it.
+The plugin includes a small helper program, but the real work is done by
+a separate copy of `llmw` installed on your computer. Updating the plugin
+through the marketplace does **not** automatically update that separate
+copy — left alone, you could end up running an outdated version without
+realizing it.
 
-A `SessionStart` hook (`plugin/hooks/session-start.sh`, wired up via
-`plugin/hooks/hooks.json`) closes that gap: every session, it compares the
-installed `llmw --version` against the version this plugin bundle declares
-(`plugin/.claude-plugin/plugin.json`). On a mismatch — including "not
-installed at all" — it (re)installs via `uv tool install --force` (falling
-back to `pip install --user --force-reinstall`), pinned to the matching
-`git` tag (`git+...@v<version>`), so a plugin-marketplace update also
-brings the standalone CLI binary in sync without a separate manual
-`uv tool upgrade llmw`.
+To prevent that, a quick check runs at the start of every session: it
+compares the version of `llmw` installed on your computer to the version
+the plugin expects. If they don't match — including if `llmw` isn't
+installed at all yet — it automatically reinstalls the correct version
+for you. So updating the plugin also keeps the command-line tool in sync,
+with nothing extra for you to do.
 
-When versions already match, the check is just one local `llmw --version`
-call (no network) each session — the reinstall path only runs on genuine
-version drift, roughly once per release.
+When the versions already match, this check is just a quick, local check
+with no internet connection needed — the actual reinstall only happens
+on the rare occasion something is out of sync.
