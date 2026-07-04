@@ -5,7 +5,11 @@ from pathlib import Path
 
 from llmw.bootstrap import init_project
 from llmw.config import Config, save_config
-from llmw.hook import evaluate_pretooluse, evaluate_sessionstart
+from llmw.hook import (
+    evaluate_pretooluse,
+    evaluate_sessionstart,
+    evaluate_userpromptsubmit,
+)
 from llmw.indexer import rebuild
 
 
@@ -261,3 +265,66 @@ def test_hook_cli_session_start_hints_init_outside_project(tmp_path: Path):
     result = _run_hook(tmp_path, "session-start", stdin=payload)
     assert result.returncode == 0
     assert "llmw init" in result.stdout
+
+
+def _write(root: Path, rel: str, content: str) -> None:
+    p = root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+
+
+def test_userpromptsubmit_surfaces_matching_page(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/decisions/retry-cap.md",
+        "---\ntitle: Uploader Retry Cap\n---\n"
+        "Retries are capped at 2 because the upstream API rate-limits after 3.\n",
+    )
+    rebuild(paths)
+
+    context = evaluate_userpromptsubmit(
+        {"prompt": "add retry logic to the uploader", "cwd": str(tmp_path)}
+    )
+    assert context is not None
+    assert "Uploader Retry Cap" in context
+    assert "wiki/decisions/retry-cap.md" in context
+
+
+def test_userpromptsubmit_falls_back_to_generic_reminder_when_no_hits(tmp_path: Path):
+    paths = init_project(tmp_path)
+    rebuild(paths)
+
+    context = evaluate_userpromptsubmit(
+        {"prompt": "zzz nonexistent topic qqq", "cwd": str(tmp_path)}
+    )
+    assert context is not None
+    assert "llmw search" in context
+
+
+def test_userpromptsubmit_ignores_files_outside_llmw_project(tmp_path: Path):
+    assert evaluate_userpromptsubmit({"prompt": "anything", "cwd": str(tmp_path)}) is None
+
+
+def test_userpromptsubmit_ignores_missing_or_empty_prompt(tmp_path: Path):
+    paths = init_project(tmp_path)
+    rebuild(paths)
+
+    assert evaluate_userpromptsubmit({"cwd": str(tmp_path)}) is None
+    assert evaluate_userpromptsubmit({"prompt": "", "cwd": str(tmp_path)}) is None
+
+
+def test_userpromptsubmit_returns_none_before_index_built(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    assert evaluate_userpromptsubmit({"prompt": "anything", "cwd": str(tmp_path)}) is None
+
+
+def test_hook_cli_userpromptsubmit_emits_context(tmp_path: Path):
+    paths = init_project(tmp_path)
+    rebuild(paths)
+    payload = json.dumps({"prompt": "hello", "cwd": str(tmp_path)})
+
+    result = _run_hook(tmp_path, "userpromptsubmit", stdin=payload)
+    assert result.returncode == 0
+    assert "llmw" in result.stdout

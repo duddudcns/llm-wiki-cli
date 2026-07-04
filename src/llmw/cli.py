@@ -17,7 +17,11 @@ from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_p
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
-from llmw.hook import evaluate_pretooluse, evaluate_sessionstart
+from llmw.hook import (
+    evaluate_pretooluse,
+    evaluate_sessionstart,
+    evaluate_userpromptsubmit,
+)
 from llmw.indexer import index_changed, rebuild as rebuild_index
 from llmw.ingest import (
     SourceAlreadyIngestedError,
@@ -677,6 +681,21 @@ def hook_session_start() -> None:
         payload = jsonlib.loads(sys.stdin.read() or "{}")
         context = evaluate_sessionstart(payload.get("cwd") or ".")
     except Exception:  # noqa: BLE001 - a hook must never crash session start
+        return
+    if context:
+        print(context)
+
+
+@hook_app.command("userpromptsubmit")
+def hook_userpromptsubmit() -> None:
+    """UserPromptSubmit hook: reads the prompt payload from stdin, searches
+    the wiki for notes related to that prompt's text, and prints a short
+    reminder (added as context) — naming any hits, or a generic nudge to
+    search if a wiki exists but nothing matched. Always exits 0."""
+    try:
+        payload = jsonlib.loads(sys.stdin.read() or "{}")
+        context = evaluate_userpromptsubmit(payload)
+    except Exception:  # noqa: BLE001 - a hook must never crash a turn
         return
     if context:
         print(context)
