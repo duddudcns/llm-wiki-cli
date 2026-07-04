@@ -1,10 +1,13 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from llmw.bootstrap import init_project
+from llmw.config import load_config, save_config
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.indexer import rebuild
+from llmw.lint import run_lint
 from llmw.patching import PatchApplyError, apply_unified_diff
 from llmw.safety import PathNotAllowedError, ReasonRequiredError
 from llmw.search import search
@@ -53,6 +56,38 @@ def test_write_existing_file_without_force_raises(tmp_path: Path):
     paths = init_project(tmp_path)
     with pytest.raises(FileExistsConflictError):
         write_page(paths, "wiki/index.md", "overwritten\n", reason="oops")
+
+
+def test_first_write_under_adopt_seeds_log_frontmatter_without_title_collision(
+    tmp_path: Path,
+):
+    # Simulates adopting an existing hand-rolled wiki that already has its own
+    # root-level log.md titled "Log" (the scenario in
+    # wiki/decisions/ai-wiki-nested-layout.md). `init --adopt` skips
+    # scaffolding wiki/log.md, so the very first write/edit/patch call is what
+    # creates it — it must not collide with the adopted project's own log.
+    (tmp_path / "log.md").write_text(
+        "---\ntitle: Log\ntype: note\nstatus: active\n---\n\n# Log\n", encoding="utf-8"
+    )
+    paths = init_project(tmp_path, adopt=True)
+    assert not paths.wiki_log.exists()
+
+    config = load_config(paths.config_path)
+    save_config(paths.config_path, replace(config, extra_root_pages=["log.md"]))
+    rebuild(paths)
+
+    write_page(
+        paths, "wiki/concepts/new.md", "---\ntitle: New\n---\nbody\n", reason="adopt smoke test"
+    )
+
+    assert paths.wiki_log.is_file()
+    log_text = paths.wiki_log.read_text(encoding="utf-8")
+    assert "title: llmw Activity Log" in log_text
+    assert "adopt smoke test" in log_text
+
+    rebuild(paths)
+    report = run_lint(paths)
+    assert report.duplicate_titles == {}
 
 
 def test_write_existing_file_with_force_backs_up_and_overwrites(tmp_path: Path):

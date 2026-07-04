@@ -15,6 +15,33 @@ def append_log(
     _append_db(paths, now, action, path, reason, detail)
 
 
+_LOG_TITLE = "llmw Activity Log"
+
+
+def _seed_frontmatter(now: datetime.datetime) -> str:
+    # Under `init --adopt`, bootstrap skips scaffolding wiki/log.md, so this
+    # is the first write it ever gets. Without frontmatter here, the title
+    # falls back to the filename stem ("log"), which collides with any
+    # adopted project's own root-level log.md sharing that name/title.
+    # `_LOG_TITLE` is deliberately distinct from a generic "Log" to avoid
+    # that collision (see wiki/decisions/ai-wiki-nested-layout.md).
+    created = now.date().isoformat()
+    return (
+        "---\n"
+        f"title: {_LOG_TITLE}\n"
+        "type: note\n"
+        "status: active\n"
+        f"created: {created}\n"
+        f"updated: {created}\n"
+        "summary: Running history of wiki writes, patches, and archives.\n"
+        "---\n\n"
+        f"# {_LOG_TITLE}\n\n"
+        "This file is appended to automatically by `llmw write`, `llmw patch`, and\n"
+        "`llmw archive`. Do not hand-edit past entries; add new context in a new\n"
+        "entry instead."
+    )
+
+
 def _append_markdown(
     paths: ProjectPaths,
     now: datetime.datetime,
@@ -24,7 +51,10 @@ def _append_markdown(
     detail: str,
 ) -> None:
     paths.wiki_log.parent.mkdir(parents=True, exist_ok=True)
-    text = paths.wiki_log.read_text(encoding="utf-8") if paths.wiki_log.exists() else ""
+    if paths.wiki_log.exists():
+        text = paths.wiki_log.read_text(encoding="utf-8")
+    else:
+        text = _seed_frontmatter(now)
     text = text.rstrip("\n")
 
     date_heading = f"## {now.date().isoformat()}"
