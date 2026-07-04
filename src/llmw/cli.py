@@ -620,9 +620,9 @@ def hook_pretooluse() -> None:
 
 @hook_app.command("session-start")
 def hook_session_start() -> None:
-    """SessionStart hook: reads the session payload from stdin, prints a
-    short plain-text note (added as context) when cwd is inside an llmw
-    project, otherwise prints nothing."""
+    """SessionStart hook: reads the session payload from stdin and prints a
+    short plain-text note (added as context) — wiki status when cwd is
+    inside an llmw project, otherwise a one-line hint to run `llmw init`."""
     try:
         payload = jsonlib.loads(sys.stdin.read() or "{}")
         context = evaluate_sessionstart(payload.get("cwd") or ".")

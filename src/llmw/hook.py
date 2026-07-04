@@ -107,11 +107,18 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
     return None
 
 
+_NO_PROJECT_HINT = (
+    "No llmw wiki initialized in this project yet. Run `llmw init` if you "
+    "want persistent, searchable project knowledge (decisions, docs, "
+    "backlinks) tracked here."
+)
+
+
 def evaluate_sessionstart(cwd: str) -> str | None:
     try:
         root = find_project_root(Path(cwd))
     except ProjectNotFoundError:
-        return None
+        return _NO_PROJECT_HINT
 
     paths = ProjectPaths(root=root)
     status = build_status(paths)

@@ -171,8 +171,10 @@ def test_sessionstart_emits_context_inside_project(tmp_path: Path):
     assert "search" in context.lower()
 
 
-def test_sessionstart_silent_outside_project(tmp_path: Path):
-    assert evaluate_sessionstart(str(tmp_path)) is None
+def test_sessionstart_hints_init_outside_project(tmp_path: Path):
+    context = evaluate_sessionstart(str(tmp_path))
+    assert context is not None
+    assert "llmw init" in context
 
 
 def test_sessionstart_detects_project_from_nested_cwd(tmp_path: Path):
@@ -230,8 +232,8 @@ def test_hook_cli_session_start_emits_context_inside_project(tmp_path: Path):
     assert "llmw" in result.stdout
 
 
-def test_hook_cli_session_start_silent_outside_project(tmp_path: Path):
+def test_hook_cli_session_start_hints_init_outside_project(tmp_path: Path):
     payload = json.dumps({"cwd": str(tmp_path)})
     result = _run_hook(tmp_path, "session-start", stdin=payload)
     assert result.returncode == 0
-    assert result.stdout == ""
+    assert "llmw init" in result.stdout
