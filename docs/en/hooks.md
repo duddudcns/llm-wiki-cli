@@ -56,17 +56,18 @@ project has a wiki with N notes" if one already exists, or a one-line
 "you should run `llmw init`" hint if it doesn't — so the AI knows about
 this tool from the very first message, even in a brand-new project.
 
-To help with that, every message you send is quietly checked against the
-wiki first. If anything in the wiki looks related to what you just asked
-for, the AI is shown the matching note titles before it starts working —
-so a documented decision or a past mistake surfaces right when it's
-relevant, not just once at the start of the session. If nothing matches,
-you instead just get a short reminder that a wiki exists and is worth
-searching.
+To help with that further, every single message you send also gets a
+short reminder attached: "this project has a wiki — search it first."
+This is deliberately simple, on purpose: it doesn't try to guess whether
+your message is actually related to something in the wiki by matching
+keywords, since that kind of automatic guess can easily miss a note
+that's just worded differently than your message. Instead, it just asks
+the AI to go check, every time, and leaves the actual judgment (and the
+actual searching) to the AI itself.
 
-This check only ever reads the wiki — it never blocks or slows down your
-request, and it can't stop the AI from proceeding either way. It's a
-nudge, not a gate.
+This is only a reminder — it never blocks or slows down your request,
+and it can't stop the AI from proceeding either way. It's a nudge, not a
+gate.
 
 ## Feature 3: keeping the command-line tool itself up to date
 

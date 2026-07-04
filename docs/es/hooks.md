@@ -59,16 +59,16 @@ de una sola línea que dice "deberías correr `llmw init`" si todavía no
 existe — así la IA se entera de esta herramienta desde el primer mensaje,
 incluso en un proyecto completamente nuevo.
 
-Para ayudar con eso, cada mensaje que envías se compara silenciosamente
-con la wiki antes de nada. Si algo en la wiki parece relacionado con lo
-que acabas de pedir, se le muestran a la IA los títulos de las notas
-coincidentes antes de que empiece a trabajar — así una decisión
-documentada o un error pasado aparece justo cuando es relevante, no solo
-una vez al comienzo de la sesión. Si no hay coincidencias, en cambio
-simplemente recibes un recordatorio breve de que existe una wiki y vale
-la pena buscar en ella.
+Para ayudar más con eso, a cada mensaje que envías también se le agrega
+un recordatorio breve: "este proyecto tiene una wiki — búscala primero".
+Esto es deliberadamente simple, a propósito: no intenta adivinar si tu
+mensaje tiene realmente algo que ver con la wiki comparando palabras
+clave, porque ese tipo de adivinanza automática fácilmente puede pasar
+por alto una nota que está redactada de forma distinta a tu mensaje. En
+cambio, simplemente le pide a la IA que revise, cada vez, y deja el
+criterio real (y la búsqueda real) en manos de la propia IA.
 
-Este chequeo solo lee la wiki — nunca bloquea ni retrasa tu solicitud, y
+Esto es solo un recordatorio — nunca bloquea ni retrasa tu solicitud, y
 de ninguna manera puede impedir que la IA continúe. Es un empujoncito, no
 una barrera.
 
