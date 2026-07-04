@@ -15,13 +15,14 @@ the recommended path and needs no separate `pip`/`uv`/`pipx` step:
 (non-interactive equivalents: `claude plugin marketplace add duddudcns/llm-wiki-cli`
 and `claude plugin install llm-wiki@llm-wiki-cli`)
 
-This also installs two safety nets: one keeps the command-line tool itself
-up to date automatically, and one keeps the AI from skipping the wiki and
-editing files directly — see [hooks.md](hooks.md) for exactly what they do
-and how to turn them off if you don't want them. If you'd rather install
-the command-line tool yourself and manage updates by hand, skip this and
-use one of the methods below instead — they don't conflict, you can
-install both.
+This also installs three safety nets: one keeps the command-line tool
+itself up to date automatically, one keeps the AI from skipping the wiki
+and editing files directly, and one reminds the AI to search the wiki
+before starting new work — see [hooks.md](hooks.md) for exactly what they
+do and how to turn them off if you don't want them. If you'd rather
+install the command-line tool yourself and manage updates by hand, skip
+this and use one of the methods below instead — they don't conflict, you
+can install both.
 
 ## Command-line tool (without the plugin)
 

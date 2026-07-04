@@ -688,10 +688,11 @@ def hook_session_start() -> None:
 
 @hook_app.command("userpromptsubmit")
 def hook_userpromptsubmit() -> None:
-    """UserPromptSubmit hook: reads the prompt payload from stdin, searches
-    the wiki for notes related to that prompt's text, and prints a short
-    reminder (added as context) — naming any hits, or a generic nudge to
-    search if a wiki exists but nothing matched. Always exits 0."""
+    """UserPromptSubmit hook: reads the prompt payload from stdin and, for
+    any non-trivial prompt inside a real llmw project, prints a short
+    reminder (added as context) to search the wiki before starting work.
+    Does not keyword-match the prompt against wiki content; skips trivially
+    short prompts and slash commands. Always exits 0."""
     try:
         payload = jsonlib.loads(sys.stdin.read() or "{}")
         context = evaluate_userpromptsubmit(payload)
