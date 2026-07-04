@@ -10,10 +10,9 @@ build/
 # Derived, rebuildable llmw data (see `llmw rebuild`) — never source of truth.
 **/.llmw/
 
-# Local dogfooding wiki for this project itself (root-level only — does not
-# affect examples/sample-project/{raw,wiki}, which are committed on purpose).
-# NOTE: /.claude-plugin/ is NOT listed here — it holds the real, committed
-# marketplace.json for this repo, not scaffold output.
-/raw/
-/wiki/
+# Local dogfooding wiki for this project itself, nested under ai-wiki/ (does
+# not affect examples/sample-project/{raw,wiki}, which are committed on
+# purpose). NOTE: /.claude-plugin/ is NOT listed here — it holds the real,
+# committed marketplace.json for this repo, not scaffold output.
+/ai-wiki/
 /.claude/
