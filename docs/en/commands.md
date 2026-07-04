@@ -1,5 +1,7 @@
 # Command details
 
+**English** · [한국어](../ko/commands.md) · [日本語](../ja/commands.md) · [简体中文](../zh-Hans/commands.md) · [Español](../es/commands.md) · [Français](../fr/commands.md)
+
 See the README's command reference table for the full list of commands and
 their flags. This page covers the parts too deep for a one-line table entry.
 

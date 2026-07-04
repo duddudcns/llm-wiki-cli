@@ -1,5 +1,7 @@
 # Project layout, adopting an existing wiki, and Obsidian compatibility
 
+**English** · [한국어](../ko/project-layout.md) · [日本語](../ja/project-layout.md) · [简体中文](../zh-Hans/project-layout.md) · [Español](../es/project-layout.md) · [Français](../fr/project-layout.md)
+
 ## Project layout: classic vs. `ai-wiki/`
 
 By default (`--layout classic`) `raw/`, `wiki/`, and `.llmw/` sit directly

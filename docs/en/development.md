@@ -1,5 +1,7 @@
 # Development
 
+**English** · [한국어](../ko/development.md) · [日本語](../ja/development.md) · [简体中文](../zh-Hans/development.md) · [Español](../es/development.md) · [Français](../fr/development.md)
+
 See [installation.md](installation.md)'s "Local clone, editable install"
 section to set up a dev environment; `pytest` runs the test suite from
 there.

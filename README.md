@@ -1,5 +1,7 @@
 # llmw
 
+**English** · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-Hans.md) · [Español](README.es.md) · [Français](README.fr.md)
+
 Headless Obsidian-like LLM Wiki CLI for AI agents.
 
 ## Why
@@ -37,11 +39,11 @@ indexes, searches, and validates.
 ```
 
 This also installs hooks that keep the CLI itself in sync automatically and
-keep agents from bypassing it — see [docs/hooks.md](docs/hooks.md).
+keep agents from bypassing it — see [docs/en/hooks.md](docs/en/hooks.md).
 
 Want the standalone CLI directly instead (scripting, CI, another editor),
 or to manage upgrades yourself? See
-[docs/installation.md](docs/installation.md) for the full uv/pipx/pip/dev
+[docs/en/installation.md](docs/en/installation.md) for the full uv/pipx/pip/dev
 install matrix, split by Windows/macOS/Linux. The two don't conflict — you
 can install both.
 
@@ -69,7 +71,7 @@ Pass `--layout ai-wiki` to nest `raw/`/`wiki/`/`.llmw/` under an `ai-wiki/`
 folder instead (auto-detected by every command afterward), and `--adopt` to
 point `llmw` at a wiki that already has real content under its own
 conventions without scaffolding over it — see
-[docs/project-layout.md](docs/project-layout.md).
+[docs/en/project-layout.md](docs/en/project-layout.md).
 
 ## Agent workflow
 
@@ -92,7 +94,7 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 | `llmw status [--brief\|--json]` | Page counts, broken links, orphans, last indexed time, dirty pages |
 | `llmw rebuild` | Full re-index of `wiki/**/*.md` from scratch |
 | `llmw index [--changed\|--all]` | Incremental (default) or full re-index |
-| `llmw search "<query>" [--limit N] [--type T] [--strict]` | SQLite FTS5 search over title/summary/body — see [docs/commands.md](docs/commands.md) for search semantics |
+| `llmw search "<query>" [--limit N] [--type T] [--strict]` | SQLite FTS5 search over title/summary/body — see [docs/en/commands.md](docs/en/commands.md) for search semantics |
 | `llmw read <path\|title\|alias> [--full\|--brief]` | Look up a page; brief shows title/type/summary/key points/links/backlink count |
 | `llmw links <target>` | Outgoing links, with broken status |
 | `llmw backlinks <target>` | Incoming links |
@@ -123,11 +125,11 @@ default to a brief, context-cheap view (`--full`/`--no-brief` for more).
 
 | Doc | Covers |
 |---|---|
-| [docs/installation.md](docs/installation.md) | Full standalone-CLI install matrix (Windows/macOS/Linux), updating, uninstalling |
-| [docs/hooks.md](docs/hooks.md) | The Claude Code plugin's `PreToolUse` wiki-guard and self-healing `SessionStart` version-sync hook |
-| [docs/commands.md](docs/commands.md) | Search semantics (3-tier fallback, Korean particle stemming) |
-| [docs/project-layout.md](docs/project-layout.md) | Classic vs. `ai-wiki/` layout, `--root`/`LLMW_ROOT`, `--adopt`, adapting `llmw` to an existing wiki's conventions, Obsidian compatibility notes |
-| [docs/development.md](docs/development.md) | Dev setup, the Claude Code skill, MVP scope |
+| [docs/en/installation.md](docs/en/installation.md) | Full standalone-CLI install matrix (Windows/macOS/Linux), updating, uninstalling |
+| [docs/en/hooks.md](docs/en/hooks.md) | The Claude Code plugin's `PreToolUse` wiki-guard and self-healing `SessionStart` version-sync hook |
+| [docs/en/commands.md](docs/en/commands.md) | Search semantics (3-tier fallback, Korean particle stemming) |
+| [docs/en/project-layout.md](docs/en/project-layout.md) | Classic vs. `ai-wiki/` layout, `--root`/`LLMW_ROOT`, `--adopt`, adapting `llmw` to an existing wiki's conventions, Obsidian compatibility notes |
+| [docs/en/development.md](docs/en/development.md) | Dev setup, the Claude Code skill, MVP scope |
 
 ## License
 

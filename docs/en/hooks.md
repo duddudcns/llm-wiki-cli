@@ -1,5 +1,7 @@
 # Hooks: keeping agents honest and the CLI in sync
 
+**English** · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · [Español](../es/hooks.md) · [Français](../fr/hooks.md)
+
 The Claude Code plugin (see [installation.md](installation.md)) installs two
 hooks. Neither is required to use `llmw` — they're conveniences layered on
 top of a CLI that already enforces its own safety rules regardless of
