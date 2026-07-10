@@ -24,6 +24,18 @@ install the command-line tool yourself and manage updates by hand, skip
 this and use one of the methods below instead — they don't conflict, you
 can install both.
 
+## Codex plugin
+
+Install the marketplace directly from GitHub, install the plugin, then install its CLI:
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
+```
+
+Verify both parts with `codex plugin list` and `llmw --version`. The plugin provides Codex skills; the CLI remains a separate executable so it can also be used in scripts and other tools. Codex does not run the Claude Code hook files.
+
 ## Command-line tool (without the plugin)
 
 Pick this if you want to use `llmw` outside of Claude Code — in a script,
