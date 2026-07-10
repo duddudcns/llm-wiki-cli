@@ -26,15 +26,14 @@ Many AI tools work by stuffing a big block of instructions and data into every s
 
 This also sets up some helpful safety nets that keep everything working correctly on their own — see [docs/en/hooks.md](docs/en/hooks.md) for details.
 
-**Codex plugin:**
+**Codex plugin (CLI installation is not required):**
 
 ```powershell
 codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
-uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-The Codex plugin supplies the `llm-wiki` and explicit `llmw-init` skills. The separate `uv tool` command installs the CLI those skills use. Claude-specific hooks are not enabled in Codex; the Codex skills preserve the same editing rules and the CLI enforces its own safety checks.
+The Codex plugin supplies intent-discoverable skills and five native MCP tools: `llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, and `llmw_write`. It starts the pinned package through `uvx`, so [uv](https://docs.astral.sh/uv/) must be available but a separate `llmw` installation is not required. Claude-specific hooks remain Claude-only.
 
 Want to install the command-line tool directly instead (for example, to use it outside of Claude Code)? See [docs/en/installation.md](docs/en/installation.md) for step-by-step instructions for Windows, macOS, and Linux. You can install both — they don't get in each other's way.
 

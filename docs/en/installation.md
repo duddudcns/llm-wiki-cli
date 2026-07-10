@@ -26,15 +26,14 @@ can install both.
 
 ## Codex plugin
 
-Install the marketplace directly from GitHub, install the plugin, then install its CLI:
+Install the marketplace directly from GitHub, then install the plugin:
 
 ```powershell
 codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
-uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-Verify both parts with `codex plugin list` and `llmw --version`. The plugin provides Codex skills; the CLI remains a separate executable so it can also be used in scripts and other tools. Codex does not run the Claude Code hook files.
+Verify it with `codex plugin list`. The plugin exposes native wiki tools through an MCP server and uses `uvx` to fetch its pinned GitHub release automatically. Install [uv](https://docs.astral.sh/uv/) first if `uvx --version` is unavailable. A separate CLI install is only needed for direct terminal use. Codex does not run the Claude Code hook files.
 
 ## Command-line tool (without the plugin)
 
