@@ -1,0 +1,20 @@
+{
+  "name": "llm-wiki-cli",
+  "interface": {
+    "displayName": "LLM Wiki CLI"
+  },
+  "plugins": [
+    {
+      "name": "llm-wiki",
+      "source": {
+        "source": "local",
+        "path": "./plugins/llm-wiki"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

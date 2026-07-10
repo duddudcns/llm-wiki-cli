@@ -1,0 +1,28 @@
+{
+  "name": "llm-wiki",
+  "version": "0.1.16",
+  "description": "Persistent project knowledge for Codex, backed by the llmw CLI",
+  "author": {
+    "name": "duddudcns",
+    "url": "https://github.com/duddudcns"
+  },
+  "homepage": "https://github.com/duddudcns/llm-wiki-cli",
+  "repository": "https://github.com/duddudcns/llm-wiki-cli",
+  "license": "MIT",
+  "keywords": ["wiki", "knowledge-base", "obsidian", "markdown", "cli", "codex"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "LLM Wiki",
+    "shortDescription": "Persistent project knowledge for Codex",
+    "longDescription": "Search, read, and safely maintain a project-local Markdown wiki with the llmw CLI.",
+    "developerName": "duddudcns",
+    "category": "Productivity",
+    "capabilities": ["Search", "Read", "Write"],
+    "websiteURL": "https://github.com/duddudcns/llm-wiki-cli",
+    "defaultPrompt": [
+      "Initialize an LLM wiki for this project.",
+      "Search the project wiki for prior decisions.",
+      "Save this decision in the project wiki."
+    ]
+  }
+}
