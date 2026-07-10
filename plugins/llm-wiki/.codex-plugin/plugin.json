@@ -1,7 +1,7 @@
 {
   "name": "llm-wiki",
-  "version": "0.1.16",
-  "description": "Persistent project knowledge for Codex, backed by the llmw CLI",
+  "version": "0.1.17",
+  "description": "Persistent project knowledge for Codex, exposed as native MCP tools",
   "author": {
     "name": "duddudcns",
     "url": "https://github.com/duddudcns"
@@ -11,6 +11,7 @@
   "license": "MIT",
   "keywords": ["wiki", "knowledge-base", "obsidian", "markdown", "cli", "codex"],
   "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "LLM Wiki",
     "shortDescription": "Persistent project knowledge for Codex",

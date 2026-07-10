@@ -1,36 +1,23 @@
 ---
 name: llm-wiki
-description: Search, read, and maintain this project's llmw wiki. Use for project history, prior decisions, source documents, backlinks, and persistent knowledge.
+description: Check, search, read, or update the project wiki and persistent project knowledge, even when the user never says llmw, MCP, tool, or skill. Trigger on natural requests such as "check the wiki", "update the wiki", "what did we decide?", "project history", "프로젝트 위키 확인", "위키 확인해봐", "위키 업데이트 해", "전에 뭐로 결정했지?", and equivalent wording.
 ---
 
 # LLM Wiki Skill
 
-Use `llmw` instead of loading the whole wiki into context.
-
-## Prerequisite
-
-Run `llmw --version`. If it is unavailable, explain that the CLI is separate from the Codex plugin and can be installed from the same GitHub repository:
-
-```text
-uv tool install "git+https://github.com/duddudcns/llm-wiki-cli.git"
-```
-
-Do not silently install software. Initialization is user-invoked through the `llmw-init` skill.
+Use the native `llm-wiki` MCP tools instead of loading the whole wiki into context. A request about "the wiki" means this project wiki unless context clearly identifies another wiki.
 
 ## Workflow
 
-1. Run `llmw status --brief`.
-2. Search first with `llmw search "<query>" --limit 5`.
-3. Read relevant pages with `llmw read <path> --brief`; use `--full` only when needed.
-4. Use `llmw edit` for exact replacements, `llmw patch` for structural diffs, and `llmw write --force` for full replacement.
-5. Prefer `llmw archive` over deletion.
-6. Run `llmw lint --brief` after major wiki changes.
+1. Call `llmw_status` to verify the project wiki.
+2. For questions or checks, call `llmw_search`, then `llmw_read` for relevant results.
+3. For an update, read the existing page first and call `llmw_write` with a concise audit `reason`; set `force` only when replacing an existing page is intended.
+4. If no wiki exists and the user explicitly asked to create one, call `llmw_init`. Otherwise explain that initialization is needed.
 
 ## Safety
 
 - Never modify `raw/`.
-- Do not use generic file-edit tools on `wiki/*.md`; use `llmw edit`, `write`, `patch`, or `archive` so validation, locking, backups, and the audit log remain active.
-- Destructive or structural changes require `--reason`.
-- Keep command output brief; request JSON only for machine parsing.
+- Do not use generic file-edit tools on `wiki/*.md`; use the MCP tools so validation, locking, backups, and the audit log remain active.
+- Every write requires a meaningful `reason`.
 
 See [reference.md](reference.md) for commands and [examples.md](examples.md) for workflows.

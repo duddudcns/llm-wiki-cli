@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "llm-wiki": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/duddudcns/llm-wiki-cli.git@v0.1.17",
+        "llmw-mcp"
+      ]
+    }
+  }
+}
