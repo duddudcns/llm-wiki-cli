@@ -13,6 +13,7 @@ Use the native `llm-wiki` MCP tools instead of loading the whole wiki into conte
 2. For questions or checks, call `llmw_search`, then `llmw_read` for relevant results.
 3. For an update, read the existing page first and call `llmw_write` with a concise audit `reason`; set `force` only when replacing an existing page is intended.
 4. If no wiki exists and the user explicitly asked to create one, call `llmw_init`. Otherwise explain that initialization is needed.
+5. Capture a stated preference or convention the moment it comes up, without waiting to be asked — not just a formal decision, a passing correction counts too. A small always-apply rule (comment style, naming, "always use X") goes into `.codex/rules/` as a plain file edit. A decision with a "why," or one-off history, goes into the wiki via `llmw_write`, same as step 3. Mention briefly what got recorded — that's not a request for permission, just context.
 
 ## Safety
 
