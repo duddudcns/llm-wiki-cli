@@ -14,6 +14,7 @@ Many AI tools work by stuffing a big block of instructions and data into every s
 - **Notes that link to each other** — pages can link to other pages (like Wikipedia links), so the AI can follow a trail of related notes. This also works with the popular note-taking app [Obsidian](https://obsidian.md/), if you want a visual way to browse the same notes yourself.
 - **Everything is just plain text files** — every note is a normal Markdown file you can open and read yourself, no special database required. There's also a small search-index file, but that's just a helper that can always be regenerated from the notes if needed.
 - **The AI writes; the tool just checks and organizes** — searching, finding related notes, and checking notes are written correctly are all simple, predictable operations with no AI involved. Deciding what's worth writing down, and writing it well, is the AI's job.
+- **It captures preferences as it goes** — mention a coding convention or correction in passing during ordinary work, and the AI records it (in the wiki, or its own rules file) without being told to "remember this" or "update the wiki." You shouldn't have to keep saying that for a tool to be worth using.
 
 ## Install
 

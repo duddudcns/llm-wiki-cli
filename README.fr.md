@@ -14,6 +14,7 @@ Beaucoup d'outils IA fonctionnent en collant un gros bloc d'instructions et de d
 - **Des notes qui se relient entre elles** — les pages peuvent renvoyer vers d'autres pages (un peu comme sur Wikipédia), pour que l'IA puisse suivre une piste de notes liées entre elles. Cela fonctionne aussi avec l'application de prise de notes très connue [Obsidian](https://obsidian.md/), si vous voulez parcourir ces mêmes notes vous-même, de façon visuelle.
 - **Tout n'est que du texte brut** — chaque note est un simple fichier Markdown que vous pouvez ouvrir et lire vous-même, sans base de données particulière. Il y a aussi un petit fichier d'index de recherche, mais ce n'est qu'un fichier d'appoint qu'on peut toujours régénérer à partir des notes si besoin.
 - **L'IA écrit ; l'outil se contente de vérifier et de ranger** — chercher, retrouver des notes liées, et vérifier que les notes sont bien écrites sont toutes des opérations simples et prévisibles, sans aucune IA impliquée. Décider ce qui vaut la peine d'être noté, et bien l'écrire, c'est le travail de l'IA.
+- **Elle retient les préférences au fil de l'eau** — mentionnez une convention de code ou une correction en passant pendant que vous travaillez, et l'IA l'enregistre (dans le wiki, ou dans son propre fichier de règles) sans qu'on lui dise « souviens-toi de ça » ou « mets à jour le wiki ». S'il faut le répéter à chaque fois pour que l'outil serve à quelque chose, ce n'est pas un bon outil.
 
 ## Installation
 

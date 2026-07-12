@@ -16,7 +16,9 @@ Use this skill when:
 - You need to ingest a source document
 - You need to answer from persistent project knowledge
 - You are about to make or revise an architectural/design decision
-- You finish a task that creates stable knowledge worth remembering
+- You finish a task that creates stable knowledge worth remembering —
+  including a preference, convention, or correction the user stated in
+  passing, not just a formal decision
 
 ## Core workflow
 
@@ -32,6 +34,13 @@ Use this skill when:
    whole page.
 7. Prefer `llmw archive` over deleting a page.
 8. Run `llmw lint --brief` after major wiki changes.
+9. Capture a stated preference or convention the moment it comes up,
+   without waiting to be asked: a small always-apply rule (comment
+   style, naming, "always use X") goes into `.claude/rules/` as a plain
+   file edit — not wiki-guarded, no `llmw` wrapper needed; a decision
+   with a "why," or one-off history, goes into the wiki via `llmw
+   write`/`edit`, same as step 5. Mention briefly what got recorded —
+   that's not a request for permission, just context.
 
 ## Output discipline
 

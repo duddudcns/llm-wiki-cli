@@ -14,6 +14,7 @@ Muchas herramientas de IA funcionan metiendo un montón de instrucciones y datos
 - **Notas que se enlazan entre sí** — las páginas pueden enlazar a otras páginas (como los enlaces de Wikipedia), para que la IA pueda seguir un rastro de notas relacionadas. Esto también funciona con la popular app de notas [Obsidian](https://obsidian.md/), por si quieres una forma visual de explorar esas mismas notas tú mismo.
 - **Todo son simples archivos de texto** — cada nota es un archivo Markdown normal que puedes abrir y leer tú mismo, sin que haga falta ninguna base de datos especial. También hay un pequeño archivo de índice de búsqueda, pero es solo un ayudante que siempre se puede volver a generar a partir de las notas si hace falta.
 - **La IA escribe; la herramienta solo revisa y organiza** — buscar, encontrar notas relacionadas y comprobar que las notas estén bien escritas son operaciones simples y predecibles, sin ninguna IA de por medio. Decidir qué vale la pena anotar, y escribirlo bien, es trabajo de la IA.
+- **Recoge preferencias sobre la marcha** — mencionás una convención de código o una corrección de pasada mientras trabajás, y la IA la registra (en la wiki, o en su propio archivo de reglas) sin que le digas "acordate de esto" o "actualizá la wiki". Si tenés que estar diciendo eso todo el tiempo, la herramienta no vale mucho la pena.
 
 ## Instalación
 

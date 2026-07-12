@@ -25,6 +25,26 @@ changed source without a matching wiki update pauses once with the same
 reminder. Not every change needs an entry — routine edits with nothing
 surprising don't — but making that call is the point, not skipping it.
 
+## Capturing preferences and conventions as they come up
+
+Treat a coding convention, style preference, or correction the user
+states during ordinary work — even briefly, without "remember this" or
+"update the wiki" — as worth recording, not as a one-off instruction to
+forget after this turn:
+
+- **Small, always-apply conventions** (comment style, naming, "always
+  use X for Y") — add or update a line directly in this file, this is a
+  plain file edit, not under `wiki/`, no `llmw` wrapper needed — so
+  every future session picks it up automatically.
+- **Decisions with a "why," or one-off history** — write it to the wiki
+  via `llmw write`/`edit`, same as above.
+
+Do this without asking first. Asking turns a two-second update into a
+round-trip the user has to approve, and the point is that this project
+keeps organizing itself as it's used, not that someone has to remember
+to say "add this to rules" every time. A brief one-line mention
+afterward is context, not a permission request.
+
 ## Commands
 
 `llmw search "<query>"`, `llmw read <page>`, `llmw related <page>`,
