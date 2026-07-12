@@ -20,6 +20,14 @@ ajoutez `--no-claude-plugin` en lançant `llmw init` pour éviter de créer
 cette copie en plus — sinon vous vous retrouveriez avec deux copies des
 mêmes instructions, ce qui est redondant et peut créer de la confusion.
 
+`llmw init` écrit aussi toujours `.claude/rules/llm-wiki.md`, que vous
+utilisiez `--no-claude-plugin` ou non. Un manifeste de plugin Claude Code
+peut distribuer des hooks et des skills, mais n'a aucun moyen de
+distribuer du contenu `.claude/rules/` — c'est donc le seul chemin qui
+charge automatiquement, à chaque session, le rappel « chercher avant /
+mettre à jour après », sans aucune copie côté marketplace avec laquelle
+faire doublon.
+
 ## Ce que cet outil ne fait volontairement pas (pour l'instant)
 
 Par choix, cela reste hors du périmètre pour l'instant : se connecter

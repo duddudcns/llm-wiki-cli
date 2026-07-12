@@ -14,6 +14,7 @@ llmw init --layout ai-wiki
 ai-wiki/
   raw/ wiki/ .llmw/            # 中身は同じ。ただ1段階下に入っているだけ
 .claude/skills/llm-wiki/       # これはどちらのやり方でもプロジェクトの一番上に置かれる
+.claude/rules/llm-wiki.md      # これもどちらのやり方でもプロジェクトの一番上に置かれる
 .claude-plugin/plugin.json     # これはどちらのやり方でもプロジェクトの一番上に置かれる
 ```
 

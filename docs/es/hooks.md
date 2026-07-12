@@ -3,7 +3,7 @@
 [English](../en/hooks.md) · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · **Español** · [Français](../fr/hooks.md)
 
 Instalar el plugin de Claude Code (mira [installation.md](installation.md))
-activa tres funciones de seguridad automáticas. Ninguna de las tres es
+activa cuatro funciones de seguridad automáticas. Ninguna de las cuatro es
 obligatoria para usar `llmw` — son solo comodidades extra sobre una
 herramienta que ya se protege sola de todas formas.
 
@@ -74,11 +74,56 @@ propia IA. (Un mensaje muy corto, como "ok" o "gracias", no lleva el
 recordatorio — ahí no hay ningún trabajo real que empiece como para
 revisar la wiki.)
 
-Esto es solo un recordatorio — nunca bloquea ni retrasa tu solicitud, y
-de ninguna manera puede impedir que la IA continúe. Es un empujoncito, no
-una barrera.
+Por sí solo, ese recordatorio es solo un empujoncito — nunca bloquea ni
+retrasa tu solicitud, y de ninguna manera puede impedir que la IA
+continúe. En la práctica, ver la misma línea en cada turno también hace
+que sea fácil ignorarlo con el tiempo.
 
-## Función 3: mantener actualizada la herramienta de línea de comandos
+Por eso hay una segunda capa, más fuerte, debajo de esta: la primera vez
+en una sesión que la IA intenta editar un archivo real del proyecto (no
+una nota de la wiki en sí) sin haber buscado todavía, esa edición se
+pausa una vez y se le pide que busque primero o que decida
+explícitamente que la tarea no lo necesita. Esto se dispara como máximo
+una vez por sesión — en cuanto se ejecuta una búsqueda (aunque sea
+puntual), o justo después de esta única comprobación, la edición vuelve
+a la normalidad. Sigue sin ser un bloqueo total: la IA puede confirmar y
+continuar sin llegar a buscar nunca. Lo que consigues con esto es un
+momento de decisión forzado, en vez de un recordatorio fácil de pasar
+por alto.
+
+```toml
+[hooks]
+search_gate = "ask"  # opción por defecto: pausa la primera edición real de una sesión hasta que se busque o se confirme
+# search_gate = "off"  # desactiva este chequeo para este proyecto
+```
+
+## Función 3: recordarle a la IA que actualice la wiki una vez terminado el trabajo
+
+Una wiki solo sigue siendo útil si se mantiene al día con lo que
+realmente pasó — y de la misma forma en que una IA puede olvidarse de
+revisar la wiki antes de empezar, también puede terminar un trabajo real
+y nunca dejar nada escrito, incluso con las mejores intenciones al
+comenzar.
+
+Para detectar esto, `llmw` lleva la cuenta, por sesión, de si los
+archivos del proyecto cambiaron desde la última vez que se tocó la wiki
+(mediante `llmw write`/`edit`/`patch`/`archive`). Si la IA intenta
+terminar su turno con eso todavía pendiente, se la detiene una vez y se
+le pide que registre qué cambió y por qué, o que decida explícitamente
+que ese cambio en particular no amerita una actualización de la wiki.
+Igual que el chequeo de búsqueda de arriba, esto se dispara como máximo
+una vez por turno — la propia protección contra bucles de Claude Code
+garantiza que nunca se pueda convertir en un reintento atascado — así
+que vuelve a recordarlo al final del turno *siguiente* si la wiki
+todavía no se puso al día, en vez de insistir en cada mensaje.
+
+```toml
+[hooks]
+update_gate = "ask"  # opción por defecto: pausa una vez por turno cuando el código cambió pero la wiki no
+# update_gate = "off"  # desactiva este chequeo para este proyecto
+```
+
+## Función 4: mantener actualizada la herramienta de línea de comandos
 
 El plugin incluye un pequeño programa auxiliar, pero el trabajo de verdad
 lo hace una copia aparte de `llmw` instalada en tu computadora. Actualizar

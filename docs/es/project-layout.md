@@ -17,6 +17,7 @@ llmw init --layout ai-wiki
 ai-wiki/
   raw/ wiki/ .llmw/            # las mismas carpetas de antes, solo que un nivel más adentro
 .claude/skills/llm-wiki/       # esto igual va en la carpeta principal de tu proyecto
+.claude/rules/llm-wiki.md      # esto también va igual en la carpeta principal de tu proyecto
 .claude-plugin/plugin.json     # esto igual va en la carpeta principal de tu proyecto
 ```
 

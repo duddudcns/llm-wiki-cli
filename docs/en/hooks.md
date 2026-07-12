@@ -3,7 +3,7 @@
 **English** · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · [Español](../es/hooks.md) · [Français](../fr/hooks.md)
 
 Installing the Claude Code plugin (see [installation.md](installation.md))
-turns on three automatic safety features. None of them are required to use
+turns on four automatic safety features. None of them are required to use
 `llmw` — they're just extra convenience on top of a tool that already
 protects itself either way.
 
@@ -69,11 +69,51 @@ actual searching) to the AI itself. (A very short message, like "ok" or
 "thanks", skips the reminder — there's no real work starting there to
 check the wiki against.)
 
-This is only a reminder — it never blocks or slows down your request,
-and it can't stop the AI from proceeding either way. It's a nudge, not a
-gate.
+On its own, that reminder is only a nudge — it never blocks or slows down
+your request, and it can't stop the AI from proceeding either way. In
+practice, seeing the identical line every turn also makes it easy to
+tune out.
 
-## Feature 3: keeping the command-line tool itself up to date
+So there's a second, stronger layer underneath it: the first time in a
+session the AI tries to edit an actual project file (not a wiki note
+itself) without having searched yet, that edit is paused once and it's
+asked to either search first or explicitly decide the task doesn't need
+it. This fires at most once per session — the moment a search runs (even
+a one-off one), or right after this single check, normal editing
+resumes. It's still not a hard lock: the AI can confirm and proceed
+without ever actually searching. What it buys you is a forced moment of
+judgment instead of a reminder that's easy to scroll past.
+
+```toml
+[hooks]
+search_gate = "ask"  # default: pause the first real edit of a session until searched or confirmed
+# search_gate = "off"  # turn this check off for this project
+```
+
+## Feature 3: reminding the AI to update the wiki once the work is done
+
+A wiki only stays useful if it keeps up with what actually happened —
+and the same way an AI can forget to check the wiki before starting,
+it can just as easily finish real work and never write any of it down,
+even with the best intentions going in.
+
+To catch that, `llmw` keeps track, per session, of whether project files
+changed since the wiki was last touched (via `llmw write`/`edit`/
+`patch`/`archive`). If the AI tries to end its turn with that still true,
+it's stopped once and asked to either record what changed and why, or
+explicitly decide this particular change doesn't warrant a wiki update.
+Like the search check above, this fires at most once per turn — Claude
+Code's own loop protection guarantees it can never turn into a stuck
+retry loop — so it nudges again at the end of the *next* turn if the
+wiki still hasn't caught up, rather than nagging on every single message.
+
+```toml
+[hooks]
+update_gate = "ask"  # default: pause once per turn when source changed but the wiki didn't
+# update_gate = "off"  # turn this check off for this project
+```
+
+## Feature 4: keeping the command-line tool itself up to date
 
 The plugin includes a small helper program, but the real work is done by
 a separate copy of `llmw` installed on your computer. Updating the plugin

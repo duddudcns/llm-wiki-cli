@@ -18,6 +18,13 @@ add `--no-claude-plugin` when running `llmw init` to skip creating this
 extra copy — otherwise you'd end up with two copies of the same
 instructions, which is redundant and can confuse things.
 
+`llmw init` also always writes `.claude/rules/llm-wiki.md`, regardless
+of `--no-claude-plugin`. A Claude Code plugin manifest can ship hooks
+and skills but has no way to ship `.claude/rules/` content, so this is
+the only path that gets the search-before/update-after guidance loaded
+into every session automatically, with no marketplace-plugin
+alternative to deduplicate against.
+
 ## What this tool intentionally doesn't do (yet)
 
 By design, this stays out of scope for now: connecting to AI models

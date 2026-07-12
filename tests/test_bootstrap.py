@@ -23,6 +23,7 @@ def test_init_creates_expected_structure(tmp_path: Path) -> None:
     assert (paths.claude_skill_dir / "reference.md").is_file()
     assert (paths.claude_skill_dir / "examples.md").is_file()
     assert (paths.claude_plugin_dir / "plugin.json").is_file()
+    assert (paths.claude_rules_dir / "llm-wiki.md").is_file()
 
 
 def test_init_no_claude_plugin_skips_skill_and_plugin_scaffold(tmp_path: Path) -> None:
@@ -35,6 +36,48 @@ def test_init_no_claude_plugin_skips_skill_and_plugin_scaffold(tmp_path: Path) -
     assert paths.wiki.is_dir()
     assert paths.llmw_dir.is_dir()
     assert (paths.wiki / "index.md").is_file()
+    # Unlike the skill/plugin.json copies, the rules file has no
+    # marketplace-plugin equivalent to deduplicate against — a Claude Code
+    # plugin manifest cannot ship `.claude/rules/` content at all — so it's
+    # always created regardless of `claude_plugin`.
+    assert (paths.claude_rules_dir / "llm-wiki.md").is_file()
+
+
+def test_init_rules_file_mentions_search_and_wiki_path(tmp_path: Path) -> None:
+    paths = init_project(tmp_path)
+
+    content = (paths.claude_rules_dir / "llm-wiki.md").read_text(encoding="utf-8")
+    assert "llmw search" in content
+    assert "llmw write" in content
+    assert "wiki/" in content
+    # No `paths:` frontmatter — must load unconditionally every session,
+    # not only when Claude happens to touch a matching file.
+    assert not content.startswith("---")
+
+
+def test_init_ai_wiki_layout_rules_file_points_at_nested_wiki(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, layout="ai-wiki")
+
+    content = (paths.claude_rules_dir / "llm-wiki.md").read_text(encoding="utf-8")
+    assert "ai-wiki/wiki/" in content
+    # .claude/ (and therefore rules/) stays at the real project root.
+    assert paths.claude_rules_dir == tmp_path.resolve() / ".claude" / "rules"
+
+
+def test_init_adopt_still_creates_rules_file(tmp_path: Path) -> None:
+    paths = init_project(tmp_path, adopt=True)
+
+    assert (paths.claude_rules_dir / "llm-wiki.md").is_file()
+
+
+def test_init_force_refreshes_rules_file(tmp_path: Path) -> None:
+    paths = init_project(tmp_path)
+    rules_file = paths.claude_rules_dir / "llm-wiki.md"
+    rules_file.write_text("hand-edited\n", encoding="utf-8")
+
+    init_project(tmp_path, force=True)
+
+    assert "llmw search" in rules_file.read_text(encoding="utf-8")
 
 
 def test_init_twice_without_force_raises(tmp_path: Path) -> None:
@@ -78,6 +121,7 @@ def test_init_writes_lf_only_even_on_windows(tmp_path: Path) -> None:
         assert b"\r\n" not in raw, f"{fs_path} contains CRLF"
     assert b"\r\n" not in paths.config_path.read_bytes()
     assert b"\r\n" not in (paths.claude_skill_dir / "SKILL.md").read_bytes()
+    assert b"\r\n" not in (paths.claude_rules_dir / "llm-wiki.md").read_bytes()
 
 
 def test_init_ai_wiki_layout_nests_wiki_data_under_ai_wiki(tmp_path: Path) -> None:
