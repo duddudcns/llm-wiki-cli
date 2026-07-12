@@ -54,6 +54,7 @@ wiki/                         # the AI's own notes, which it keeps updating
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
 .llmw/                        # behind-the-scenes search index (can be rebuilt anytime)
 .claude/skills/llm-wiki/      # teaches Claude Code how to use this tool
+.claude/rules/llm-wiki.md     # nudges Claude Code to search before/update after work, automatically
 .claude-plugin/plugin.json    # optional plugin info for this project
 ```
 

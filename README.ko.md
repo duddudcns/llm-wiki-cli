@@ -54,6 +54,7 @@ wiki/                         # AI가 계속 고쳐 쓰는 자기 메모
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
 .llmw/                        # 뒤에서 돌아가는 검색 인덱스(언제든 다시 만들 수 있음)
 .claude/skills/llm-wiki/      # Claude Code에게 이 도구 쓰는 법을 알려줌
+.claude/rules/llm-wiki.md     # 작업 전 검색·후 업데이트를 자동으로 유도하는 규칙
 .claude-plugin/plugin.json    # 이 프로젝트를 위한 선택적 플러그인 정보
 ```
 

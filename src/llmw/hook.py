@@ -1,6 +1,7 @@
 """Logic behind `llmw hook pretooluse` / `llmw hook session-start` /
-`llmw hook userpromptsubmit` — the Claude Code plugin's PreToolUse,
-SessionStart, and UserPromptSubmit hooks (see `plugin/hooks/hooks.json`).
+`llmw hook userpromptsubmit` / `llmw hook stop` — the Claude Code plugin's
+PreToolUse, SessionStart, UserPromptSubmit, and Stop hooks (see
+`plugin/hooks/hooks.json`).
 
 Claude Code's native Edit/Write/NotebookEdit tools know nothing about
 `llmw`: they can silently overwrite `raw/` (meant to be immutable) or
@@ -10,22 +11,41 @@ validation, or automatic backup that `llmw write`/`edit`/`patch` provide.
 commands instead; `evaluate_sessionstart` and `evaluate_userpromptsubmit`
 just remind the agent the wiki exists and is worth checking.
 
-`evaluate_pretooluse` fails open: anything that isn't a mutation of
-`wiki/*.md` or `raw/**` inside a real llmw project (including "no `.llmw`
-project found at all") returns `None` ("no opinion") — never a decision.
-The guard can only ever fire for a native edit aimed at a real llmw
-project's `wiki/*.md` or `raw/`.
+`evaluate_pretooluse` also carries two session-scoped soft gates, tracked
+via `llmw.hook_state`:
+
+- **Search-before-work**: the first real source-file edit (outside
+  `wiki/`/`raw/`/`.llmw/`) in a session that hasn't run `llmw search` yet
+  gets a one-time "ask" permission response instead of silently
+  proceeding. The agent can confirm and continue — this is a nudge that
+  forces a moment of judgment, not a hard block.
+- **Update-after-work**: every real source-file edit marks the session
+  "dirty"; a Bash call running `llmw write`/`edit`/`patch`/`archive`
+  clears it. `evaluate_stop` (the Stop hook) uses this to remind the
+  agent to update the wiki before ending a turn that changed source but
+  never touched the wiki.
+
+`evaluate_pretooluse`'s wiki/raw guard fails open: anything that isn't a
+mutation of `wiki/*.md` or `raw/**` inside a real llmw project (including
+"no `.llmw` project found at all") returns `None` from that part of the
+logic. The two soft gates above fail open the same way outside a real
+llmw project, and can each be turned off independently via
+`.llmw/config.toml`.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+from llmw.hook_state import read_session_state, write_session_state
 from llmw.indexer import load_project_config
 from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
 from llmw.status import build_status
 
 _GUARDED_TOOLS = {"Edit", "Write", "NotebookEdit"}
+_LLMW_SEARCH_RE = re.compile(r"(?<![\w-])llmw\s+search(?![\w-])")
+_LLMW_MUTATE_RE = re.compile(r"(?<![\w-])llmw\s+(write|edit|patch|archive)(?![\w-])")
 
 
 def _permission_output(decision: str, reason: str) -> dict:
@@ -70,8 +90,22 @@ def _raw_ask_message(rel_path: str) -> str:
     )
 
 
+_SEARCH_GATE_MESSAGE = (
+    "You haven't run `llmw search` yet this session. Before this edit, "
+    "search the wiki for prior context on this topic "
+    '(`llmw search "<topic>"`) — or if you\'ve already judged this task '
+    "has no wiki-relevant history, confirm that and proceed. Project "
+    'owners can disable this: set search_gate = "off" under [hooks] in '
+    ".llmw/config.toml."
+)
+
+
 def evaluate_pretooluse(payload: dict) -> dict | None:
     tool_name = payload.get("tool_name")
+
+    if tool_name == "Bash":
+        return _evaluate_bash_pretooluse(payload)
+
     if tool_name not in _GUARDED_TOOLS:
         return None
 
@@ -92,20 +126,64 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
     paths = ProjectPaths.for_project_root(root)
     config = load_project_config(paths)
     guard = config.hooks_wiki_guard
-    if guard == "off":
+
+    is_raw = paths.is_inside_raw(fs_path)
+    is_wiki_md = paths.is_inside_wiki(fs_path) and fs_path.suffix.lower() == ".md"
+
+    if guard != "off":
+        if is_raw:
+            rel = paths.rel(fs_path)
+            if tool_name == "Write" and not fs_path.exists():
+                return _permission_output("ask", _raw_ask_message(rel))
+            return _permission_output("deny", _raw_deny_message(rel))
+
+        if is_wiki_md:
+            rel = paths.rel(fs_path)
+            decision = "ask" if guard == "ask" else "deny"
+            return _permission_output(decision, _wiki_edit_message(rel))
+
+    if is_raw or paths.is_inside_wiki(fs_path) or paths.is_inside_llmw(fs_path):
         return None
 
-    if paths.is_inside_raw(fs_path):
-        rel = paths.rel(fs_path)
-        if tool_name == "Write" and not fs_path.exists():
-            return _permission_output("ask", _raw_ask_message(rel))
-        return _permission_output("deny", _raw_deny_message(rel))
+    return _track_source_edit(payload, paths, config)
 
-    if paths.is_inside_wiki(fs_path) and fs_path.suffix.lower() == ".md":
-        rel = paths.rel(fs_path)
-        decision = "ask" if guard == "ask" else "deny"
-        return _permission_output(decision, _wiki_edit_message(rel))
 
+def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | None:
+    """A real source-file edit outside wiki/raw/.llmw: mark the session
+    dirty (for the Stop-hook update reminder) and, on the first such edit
+    of a session that hasn't searched yet, ask once before proceeding."""
+    session_id = payload.get("session_id")
+    state = write_session_state(paths, session_id, dirty=True)
+
+    if config.hooks_search_gate == "off":
+        return None
+    if state.get("searched") or state.get("search_gate_shown"):
+        return None
+
+    write_session_state(paths, session_id, search_gate_shown=True)
+    return _permission_output("ask", _SEARCH_GATE_MESSAGE)
+
+
+def _evaluate_bash_pretooluse(payload: dict) -> None:
+    """Bash calls are never gated here — only watched for `llmw search`
+    (marks the session searched) and `llmw write`/`edit`/`patch`/`archive`
+    (marks the session's wiki as caught up with its source edits)."""
+    command = (payload.get("tool_input") or {}).get("command")
+    if not command or not isinstance(command, str) or "llmw" not in command:
+        return None
+
+    try:
+        root = find_project_root(Path(payload.get("cwd") or "."))
+    except ProjectNotFoundError:
+        return None
+
+    paths = ProjectPaths.for_project_root(root)
+    session_id = payload.get("session_id")
+
+    if _LLMW_SEARCH_RE.search(command):
+        write_session_state(paths, session_id, searched=True)
+    if _LLMW_MUTATE_RE.search(command):
+        write_session_state(paths, session_id, dirty=False)
     return None
 
 
@@ -188,3 +266,39 @@ def evaluate_userpromptsubmit(payload: dict) -> str | None:
         return None
 
     return _PROMPT_REMINDER
+
+
+_UPDATE_GATE_MESSAGE = (
+    "Source files changed this turn but the wiki hasn't been touched "
+    "since. Before finishing, run `llmw write`/`edit`/`patch` to record "
+    "what changed and why — or explicitly decide this change doesn't "
+    'warrant a wiki update. Project owners can disable this: set '
+    'update_gate = "off" under [hooks] in .llmw/config.toml.'
+)
+
+
+def evaluate_stop(payload: dict) -> dict | None:
+    """Stop hook: fires at the end of every agent turn. If source files
+    changed this session since the wiki was last touched, blocks the stop
+    once with a reminder — relies on Claude Code's `stop_hook_active` flag
+    (set on the forced-continuation retry) to fire at most once per turn
+    rather than looping. Fails open outside a real llmw project or once
+    the update gate is turned off."""
+    if payload.get("stop_hook_active"):
+        return None
+
+    try:
+        root = find_project_root(Path(payload.get("cwd") or "."))
+    except ProjectNotFoundError:
+        return None
+
+    paths = ProjectPaths.for_project_root(root)
+    config = load_project_config(paths)
+    if config.hooks_update_gate == "off":
+        return None
+
+    state = read_session_state(paths, payload.get("session_id"))
+    if not state.get("dirty"):
+        return None
+
+    return {"decision": "block", "reason": _UPDATE_GATE_MESSAGE}

@@ -24,7 +24,7 @@ def test_codex_marketplace_points_to_valid_plugin() -> None:
     server = mcp["mcpServers"]["llm-wiki"]
     assert server["type"] == "stdio"
     assert server["command"] == "uvx"
-    assert any("@v0.1.17" in arg for arg in server["args"])
+    assert any("@v0.1.18" in arg for arg in server["args"])
 
 
 def test_codex_skill_is_discoverable_from_plain_wiki_intent() -> None:

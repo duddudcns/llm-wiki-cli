@@ -19,6 +19,13 @@ Si ya instalaste el plugin de Claude Code desde el marketplace, agrega
 extra — de lo contrario terminarías con dos copias de las mismas
 instrucciones, lo cual es redundante y puede generar confusión.
 
+`llmw init` también escribe siempre `.claude/rules/llm-wiki.md`, sin
+importar `--no-claude-plugin`. Un manifiesto de plugin de Claude Code
+puede distribuir hooks y skills, pero no tiene forma de distribuir
+contenido de `.claude/rules/`, así que este es el único camino que mete
+automáticamente la guía de "buscar antes / actualizar después" en cada
+sesión, sin ninguna copia del marketplace con la que duplicarse.
+
 ## Lo que esta herramienta todavía no hace, a propósito
 
 Por diseño, esto se queda fuera del alcance por ahora: conectarse

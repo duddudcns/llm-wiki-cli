@@ -20,6 +20,7 @@ from llmw.health import check_health
 from llmw.hook import (
     evaluate_pretooluse,
     evaluate_sessionstart,
+    evaluate_stop,
     evaluate_userpromptsubmit,
 )
 from llmw.indexer import index_changed, rebuild as rebuild_index
@@ -700,6 +701,23 @@ def hook_userpromptsubmit() -> None:
         return
     if context:
         print(context)
+
+
+@hook_app.command("stop")
+def hook_stop() -> None:
+    """Stop hook: reads the turn payload from stdin and, if source files
+    changed this session without a corresponding `llmw write`/`edit`/
+    `patch`/`archive` call since, prints a block decision reminding the
+    agent to update the wiki (relies on Claude Code's `stop_hook_active`
+    to fire at most once per turn). Always exits 0 — a hook must never
+    crash a turn."""
+    try:
+        payload = jsonlib.loads(sys.stdin.read() or "{}")
+        result = evaluate_stop(payload)
+    except Exception:  # noqa: BLE001 - a hook must never crash a turn
+        return
+    if result is not None:
+        print(jsonlib.dumps(result))
 
 
 if __name__ == "__main__":

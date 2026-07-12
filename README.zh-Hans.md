@@ -45,6 +45,7 @@ wiki/                         # AI 自己的笔记,会不断更新
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
 .llmw/                        # 后台用的搜索索引(随时可以重新生成)
 .claude/skills/llm-wiki/      # 教 Claude Code 怎么用这个工具
+.claude/rules/llm-wiki.md     # 自动提醒开工前搜索、收工后更新 wiki 的规则
 .claude-plugin/plugin.json    # 这个项目的可选插件信息
 ```
 

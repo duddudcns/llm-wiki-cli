@@ -3,7 +3,7 @@
 [English](../en/hooks.md) · [한국어](../ko/hooks.md) · [日本語](../ja/hooks.md) · [简体中文](../zh-Hans/hooks.md) · [Español](../es/hooks.md) · **Français**
 
 Installer le plugin Claude Code (voir [installation.md](installation.md))
-active trois fonctionnalités de sécurité automatiques. Aucune d'elles
+active quatre fonctionnalités de sécurité automatiques. Aucune d'elles
 n'est indispensable pour utiliser `llmw` — ce sont juste des commodités en
 plus d'un outil qui se protège déjà tout seul de toute façon.
 
@@ -76,11 +76,57 @@ l'IA. (Un message très court, comme « ok » ou « merci », ne déclenche pas
 le rappel — il n'y a pas vraiment de travail qui commence là pour le
 confronter au wiki.)
 
-Ce n'est qu'un rappel — il ne bloque jamais votre demande et ne la
-ralentit pas non plus, et il ne peut pas empêcher l'IA de continuer de
-toute façon. C'est un coup de pouce, pas une barrière.
+À lui seul, ce rappel n'est qu'un coup de pouce léger — il ne bloque
+jamais votre demande et ne la ralentit pas non plus, et il ne peut pas
+empêcher l'IA de continuer de toute façon. En pratique, voir la même
+ligne à chaque tour la rend aussi facile à ignorer avec le temps.
 
-## Fonctionnalité 3 : garder l'outil en ligne de commande lui-même à jour
+Il y a donc en dessous une deuxième couche, plus forte : la première
+fois, au cours d'une session, que l'IA essaie de modifier un vrai
+fichier du projet (pas une note du wiki elle-même) sans avoir encore
+fait de recherche, cette modification est mise en pause une fois, et on
+lui demande soit de chercher d'abord, soit de décider explicitement que
+cette tâche n'en a pas besoin. Cela ne se déclenche qu'une fois par
+session au maximum — dès qu'une recherche est lancée (même ponctuelle),
+ou juste après cette unique vérification, les modifications reprennent
+normalement. Ce n'est toujours pas un verrou total : l'IA peut confirmer
+et continuer sans jamais avoir réellement cherché. Ce que cela apporte,
+c'est un moment de décision forcé, au lieu d'un rappel qu'on peut
+facilement faire défiler sans y penser.
+
+```toml
+[hooks]
+search_gate = "ask"  # par défaut : met en pause la première vraie modification d'une session jusqu'à ce qu'on cherche ou confirme
+# search_gate = "off"   # désactive cette vérification pour ce projet
+```
+
+## Fonctionnalité 3 : rappeler à l'IA de mettre le wiki à jour une fois le travail terminé
+
+Un wiki ne reste utile que s'il suit vraiment ce qui s'est passé — et
+tout comme une IA peut oublier de consulter le wiki avant de commencer,
+elle peut tout aussi bien terminer un vrai travail sans jamais en
+laisser de trace écrite, même avec les meilleures intentions au départ.
+
+Pour repérer ça, `llmw` garde la trace, par session, du fait que des
+fichiers du projet ont changé depuis la dernière fois que le wiki a été
+touché (via `llmw write`/`edit`/`patch`/`archive`). Si l'IA essaie de
+terminer son tour alors que c'est toujours le cas, elle est arrêtée une
+fois et on lui demande soit de noter ce qui a changé et pourquoi, soit
+de décider explicitement que ce changement précis ne mérite pas de mise
+à jour du wiki. Comme la vérification de recherche ci-dessus, cela se
+déclenche au maximum une fois par tour — la propre protection
+anti-boucle de Claude Code garantit que ça ne peut jamais devenir une
+boucle de réessai bloquée — donc ça relance le rappel à la fin du tour
+*suivant* si le wiki n'a toujours pas rattrapé son retard, plutôt que
+d'insister à chaque message.
+
+```toml
+[hooks]
+update_gate = "ask"  # par défaut : met en pause une fois par tour quand le code a changé mais pas le wiki
+# update_gate = "off"   # désactive cette vérification pour ce projet
+```
+
+## Fonctionnalité 4 : garder l'outil en ligne de commande lui-même à jour
 
 Le plugin comprend un petit programme d'appoint, mais le vrai travail est
 fait par une copie séparée de `llmw` installée sur votre ordinateur.

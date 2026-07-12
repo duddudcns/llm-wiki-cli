@@ -45,6 +45,7 @@ wiki/                         # las notas propias de la IA, que ella va actualiz
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
 .llmw/                        # índice de búsqueda interno (se puede reconstruir cuando quieras)
 .claude/skills/llm-wiki/      # le enseña a Claude Code cómo usar esta herramienta
+.claude/rules/llm-wiki.md     # empuja a Claude Code a buscar antes y actualizar después, automáticamente
 .claude-plugin/plugin.json    # información opcional del plugin para este proyecto
 ```
 

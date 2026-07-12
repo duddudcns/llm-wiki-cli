@@ -17,6 +17,10 @@ SCHEMA_VERSION = 1
 DEFAULT_LINT_REQUIRED_FRONTMATTER = ["type", "status", "created", "updated"]
 DEFAULT_WIKI_GUARD = "deny"
 _VALID_WIKI_GUARD_VALUES = {"deny", "ask", "off"}
+DEFAULT_SEARCH_GATE = "ask"
+_VALID_SEARCH_GATE_VALUES = {"ask", "off"}
+DEFAULT_UPDATE_GATE = "ask"
+_VALID_UPDATE_GATE_VALUES = {"ask", "off"}
 
 
 @dataclass(frozen=True)
@@ -42,6 +46,15 @@ class Config:
     # naming the llmw equivalent, "ask" prompts the user instead, "off"
     # disables the guard for this project entirely.
     hooks_wiki_guard: str = DEFAULT_WIKI_GUARD
+    # Controls the PreToolUse soft gate on the first real source-file edit
+    # of a session: "ask" asks the agent to confirm/search once if `llmw
+    # search` hasn't run yet this session, "off" disables it.
+    hooks_search_gate: str = DEFAULT_SEARCH_GATE
+    # Controls the Stop hook that nudges the agent to update the wiki when
+    # source files changed this turn but no `llmw write`/`edit`/`patch`/
+    # `archive` ran since: "ask" blocks the stop once with a reminder,
+    # "off" disables it.
+    hooks_update_gate: str = DEFAULT_UPDATE_GATE
 
     def to_toml(self) -> str:
         return (
@@ -62,6 +75,8 @@ class Config:
             "\n"
             "[hooks]\n"
             f'wiki_guard = "{self.hooks_wiki_guard}"\n'
+            f'search_gate = "{self.hooks_search_gate}"\n'
+            f'update_gate = "{self.hooks_update_gate}"\n'
         )
 
 
@@ -80,6 +95,12 @@ def load_config(config_path: Path) -> Config:
     wiki_guard = hooks.get("wiki_guard", DEFAULT_WIKI_GUARD)
     if wiki_guard not in _VALID_WIKI_GUARD_VALUES:
         wiki_guard = DEFAULT_WIKI_GUARD
+    search_gate = hooks.get("search_gate", DEFAULT_SEARCH_GATE)
+    if search_gate not in _VALID_SEARCH_GATE_VALUES:
+        search_gate = DEFAULT_SEARCH_GATE
+    update_gate = hooks.get("update_gate", DEFAULT_UPDATE_GATE)
+    if update_gate not in _VALID_UPDATE_GATE_VALUES:
+        update_gate = DEFAULT_UPDATE_GATE
     return Config(
         schema_version=llmw.get("schema_version", SCHEMA_VERSION),
         created=llmw.get("created", ""),
@@ -91,6 +112,8 @@ def load_config(config_path: Path) -> Config:
             lint.get("required_frontmatter", DEFAULT_LINT_REQUIRED_FRONTMATTER)
         ),
         hooks_wiki_guard=wiki_guard,
+        hooks_search_gate=search_gate,
+        hooks_update_gate=update_gate,
     )
 
 

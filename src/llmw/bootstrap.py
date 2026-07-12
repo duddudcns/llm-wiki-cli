@@ -85,6 +85,7 @@ def init_project(
         paths.cache_dir,
         paths.backups_dir,
         paths.locks_dir,
+        paths.claude_rules_dir,
     ]
     if not adopt:
         dirs += [
@@ -158,5 +159,17 @@ def init_project(
             encoding="utf-8",
             newline="\n",
         )
+
+    # Independent of `claude_plugin`: a Claude Code plugin manifest can ship
+    # hooks and skills, but not `.claude/rules/` content, so this is the only
+    # way projects get the search-before/update-after guidance into context
+    # automatically — refreshed every init (like the skill files above) so it
+    # always matches the installed llmw version's actual hook behavior.
+    wiki_rel = paths.wiki.relative_to(paths.project_root).as_posix()
+    (paths.claude_rules_dir / "llm-wiki.md").write_text(
+        _render("claude_rules_llm_wiki.md", wiki_rel=wiki_rel),
+        encoding="utf-8",
+        newline="\n",
+    )
 
     return paths

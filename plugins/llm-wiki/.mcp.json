@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/duddudcns/llm-wiki-cli.git@v0.1.17",
+        "git+https://github.com/duddudcns/llm-wiki-cli.git@v0.1.18",
         "llmw-mcp"
       ]
     }

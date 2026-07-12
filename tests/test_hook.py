@@ -8,8 +8,10 @@ from llmw.config import Config, save_config
 from llmw.hook import (
     evaluate_pretooluse,
     evaluate_sessionstart,
+    evaluate_stop,
     evaluate_userpromptsubmit,
 )
+from llmw.hook_state import read_session_state, write_session_state
 from llmw.indexer import rebuild
 
 
@@ -23,15 +25,29 @@ def _run_hook(cwd: Path, *args: str, stdin: str) -> subprocess.CompletedProcess:
     )
 
 
-def _edit_payload(file_path: Path, old="a", new="b") -> dict:
+def _edit_payload(file_path: Path, old="a", new="b", session_id="test-session") -> dict:
     return {
         "tool_name": "Edit",
         "tool_input": {"file_path": str(file_path), "old_string": old, "new_string": new},
+        "session_id": session_id,
     }
 
 
-def _write_payload(file_path: Path, content="x") -> dict:
-    return {"tool_name": "Write", "tool_input": {"file_path": str(file_path), "content": content}}
+def _write_payload(file_path: Path, content="x", session_id="test-session") -> dict:
+    return {
+        "tool_name": "Write",
+        "tool_input": {"file_path": str(file_path), "content": content},
+        "session_id": session_id,
+    }
+
+
+def _bash_payload(command: str, cwd: Path, session_id="test-session") -> dict:
+    return {
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+        "cwd": str(cwd),
+        "session_id": session_id,
+    }
 
 
 def test_pretooluse_denies_edit_on_wiki_md(tmp_path: Path):
@@ -113,12 +129,107 @@ def test_pretooluse_ignores_files_under_llmw_dir(tmp_path: Path):
     assert evaluate_pretooluse(_edit_payload(target)) is None
 
 
-def test_pretooluse_ignores_source_files_outside_wiki_and_raw(tmp_path: Path):
+def test_pretooluse_asks_search_gate_on_first_source_edit(tmp_path: Path):
     paths = init_project(tmp_path)
     target = paths.root / "README.md"
     target.write_text("hello\n", encoding="utf-8")
 
-    assert evaluate_pretooluse(_edit_payload(target)) is None
+    result = evaluate_pretooluse(_edit_payload(target, session_id="sess-a"))
+    assert result is not None
+    out = result["hookSpecificOutput"]
+    assert out["permissionDecision"] == "ask"
+    assert "llmw search" in out["permissionDecisionReason"]
+
+
+def test_pretooluse_search_gate_fires_only_once_per_session(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    first = evaluate_pretooluse(_edit_payload(target, session_id="sess-b"))
+    second = evaluate_pretooluse(_edit_payload(target, old="b", new="c", session_id="sess-b"))
+    assert first is not None
+    assert second is None
+
+
+def test_pretooluse_search_gate_skipped_once_session_has_searched(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+    write_session_state(paths, "sess-c", searched=True)
+
+    assert evaluate_pretooluse(_edit_payload(target, session_id="sess-c")) is None
+
+
+def test_pretooluse_search_gate_off_never_asks(tmp_path: Path):
+    paths = init_project(tmp_path)
+    save_config(paths.config_path, Config(hooks_search_gate="off"))
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    assert evaluate_pretooluse(_edit_payload(target, session_id="sess-d")) is None
+
+
+def test_pretooluse_source_edit_marks_session_dirty(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_edit_payload(target, session_id="sess-e"))
+    assert read_session_state(paths, "sess-e").get("dirty") is True
+
+
+def test_pretooluse_bash_llmw_search_marks_session_searched(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload('llmw search "topic"', tmp_path, session_id="sess-f")
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-f").get("searched") is True
+
+
+def test_pretooluse_bash_search_prevents_subsequent_edit_gate(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_bash_payload("llmw search topic", tmp_path, session_id="sess-g"))
+    assert evaluate_pretooluse(_edit_payload(target, session_id="sess-g")) is None
+
+
+def test_pretooluse_bash_llmw_write_clears_dirty_flag(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_edit_payload(target, session_id="sess-h"))
+    assert read_session_state(paths, "sess-h").get("dirty") is True
+
+    evaluate_pretooluse(
+        _bash_payload('llmw write wiki/x.md --reason "r" --stdin', tmp_path, session_id="sess-h")
+    )
+    assert read_session_state(paths, "sess-h").get("dirty") is False
+
+
+def test_pretooluse_bash_never_gates_even_when_dirty(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload('llmw edit wiki/x.md --reason "r" --old "a" --new "b"', tmp_path, session_id="sess-i")
+    )
+    assert result is None
+
+
+def test_pretooluse_bash_ignores_commands_without_llmw(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    assert evaluate_pretooluse(_bash_payload("git status", tmp_path, session_id="sess-j")) is None
+    assert read_session_state(paths, "sess-j") == {}
+
+
+def test_pretooluse_bash_outside_project_returns_none(tmp_path: Path):
+    assert evaluate_pretooluse(_bash_payload("llmw search x", tmp_path, session_id="sess-k")) is None
 
 
 def test_pretooluse_ignores_non_guarded_tools(tmp_path: Path):
@@ -321,3 +432,74 @@ def test_hook_cli_userpromptsubmit_emits_context(tmp_path: Path):
     result = _run_hook(tmp_path, "userpromptsubmit", stdin=payload)
     assert result.returncode == 0
     assert "llmw" in result.stdout
+
+
+def test_stop_returns_none_when_nothing_is_dirty(tmp_path: Path):
+    init_project(tmp_path)
+
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-a"}) is None
+
+
+def test_stop_blocks_when_source_changed_without_wiki_update(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "stop-b", dirty=True)
+
+    result = evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-b"})
+    assert result is not None
+    assert result["decision"] == "block"
+    assert "llmw write" in result["reason"]
+
+
+def test_stop_respects_stop_hook_active_to_avoid_looping(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "stop-c", dirty=True)
+
+    result = evaluate_stop(
+        {"cwd": str(tmp_path), "session_id": "stop-c", "stop_hook_active": True}
+    )
+    assert result is None
+
+
+def test_stop_respects_update_gate_off(tmp_path: Path):
+    paths = init_project(tmp_path)
+    save_config(paths.config_path, Config(hooks_update_gate="off"))
+    write_session_state(paths, "stop-d", dirty=True)
+
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-d"}) is None
+
+
+def test_stop_ignores_outside_llmw_project(tmp_path: Path):
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-e"}) is None
+
+
+def test_stop_clears_after_llmw_write_via_bash(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_edit_payload(target, session_id="stop-f"))
+    evaluate_pretooluse(
+        _bash_payload('llmw write wiki/x.md --reason "r" --stdin', tmp_path, session_id="stop-f")
+    )
+
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-f"}) is None
+
+
+def test_hook_cli_stop_emits_block_decision(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "stop-cli", dirty=True)
+    payload = json.dumps({"cwd": str(tmp_path), "session_id": "stop-cli"})
+
+    result = _run_hook(tmp_path, "stop", stdin=payload)
+    assert result.returncode == 0
+    out = json.loads(result.stdout)
+    assert out["decision"] == "block"
+
+
+def test_hook_cli_stop_silent_when_not_dirty(tmp_path: Path):
+    init_project(tmp_path)
+    payload = json.dumps({"cwd": str(tmp_path), "session_id": "stop-cli-2"})
+
+    result = _run_hook(tmp_path, "stop", stdin=payload)
+    assert result.returncode == 0
+    assert result.stdout == ""
