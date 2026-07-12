@@ -15,11 +15,12 @@ the recommended path and needs no separate `pip`/`uv`/`pipx` step:
 (non-interactive equivalents: `claude plugin marketplace add duddudcns/llm-wiki-cli`
 and `claude plugin install llm-wiki@llm-wiki-cli`)
 
-This also installs three safety nets: one keeps the command-line tool
+This also installs four safety nets: one keeps the command-line tool
 itself up to date automatically, one keeps the AI from skipping the wiki
-and editing files directly, and one reminds the AI to search the wiki
-before starting new work — see [hooks.md](hooks.md) for exactly what they
-do and how to turn them off if you don't want them. If you'd rather
+and editing files directly, and two remind the AI to search the wiki
+before starting new work and to update it once work is done — see
+[hooks.md](hooks.md) for exactly what they do and how to turn them off
+if you don't want them. If you'd rather
 install the command-line tool yourself and manage updates by hand, skip
 this and use one of the methods below instead — they don't conflict, you
 can install both.
@@ -33,7 +34,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-Verify it with `codex plugin list`. The plugin exposes native wiki tools through an MCP server and uses `uvx` to fetch its pinned GitHub release automatically. Install [uv](https://docs.astral.sh/uv/) first if `uvx --version` is unavailable. A separate CLI install is only needed for direct terminal use. Codex does not run the Claude Code hook files.
+Verify it with `codex plugin list`. The plugin exposes native wiki tools through an MCP server and uses `uvx` to fetch its pinned GitHub release automatically. Install [uv](https://docs.astral.sh/uv/) first if `uvx --version` is unavailable. Codex does not run the Claude Code plugin's hook files — it has its own, separate PreToolUse/Stop hooks (same search-before/update-after nudges, ported to Codex's tool surface), which self-install a pinned `llmw` CLI in the background on first use so a manual CLI install is still only needed for direct terminal use.
 
 ## Command-line tool (without the plugin)
 

@@ -24,7 +24,27 @@ def test_codex_marketplace_points_to_valid_plugin() -> None:
     server = mcp["mcpServers"]["llm-wiki"]
     assert server["type"] == "stdio"
     assert server["command"] == "uvx"
-    assert any("@v0.1.18" in arg for arg in server["args"])
+    assert any("@v0.1.19" in arg for arg in server["args"])
+
+
+def test_codex_plugin_ships_hooks_at_default_path() -> None:
+    plugin = ROOT / "plugins/llm-wiki"
+    manifest = json.loads((plugin / ".codex-plugin/plugin.json").read_text())
+    # Codex checks `./hooks/hooks.json` automatically; a manifest `hooks`
+    # entry is only needed for a non-default location.
+    assert "hooks" not in manifest
+
+    hooks = json.loads((plugin / "hooks/hooks.json").read_text())
+    assert hooks["hooks"]["SessionStart"][0]["hooks"][0]["command"] == (
+        "${PLUGIN_ROOT}/hooks/session-start.sh"
+    )
+    pretooluse = hooks["hooks"]["PreToolUse"][0]
+    assert "apply_patch" in pretooluse["matcher"]
+    assert "mcp__llm-wiki__llmw_search" in pretooluse["matcher"]
+    assert "mcp__llm-wiki__llmw_write" in pretooluse["matcher"]
+    assert pretooluse["hooks"][0]["command"] == "llmw hook codex-pretooluse"
+    assert hooks["hooks"]["Stop"][0]["hooks"][0]["command"] == "llmw hook codex-stop"
+    assert (plugin / "hooks/session-start.sh").is_file()
 
 
 def test_codex_skill_is_discoverable_from_plain_wiki_intent() -> None:

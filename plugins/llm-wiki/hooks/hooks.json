@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PLUGIN_ROOT}/hooks/session-start.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|mcp__llm-wiki__llmw_search|mcp__llm-wiki__llmw_write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "llmw hook codex-pretooluse",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "llmw hook codex-stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

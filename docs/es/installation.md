@@ -14,7 +14,7 @@ Si vas a usar `llmw` desde Claude Code, instálalo como plugin — es el camino 
 (el equivalente para usar sin interacción: `claude plugin marketplace add duddudcns/llm-wiki-cli`
 y `claude plugin install llm-wiki@llm-wiki-cli`)
 
-Esto también instala tres redes de seguridad: una mantiene actualizada por su cuenta la herramienta de línea de comandos, otra evita que la IA se salte la wiki y edite los archivos directamente, y otra le recuerda a la IA que busque en la wiki antes de empezar un trabajo nuevo — mira [hooks.md](hooks.md) para ver exactamente qué hace cada una y cómo desactivarlas si no las quieres. Si prefieres instalar tú mismo la herramienta de línea de comandos y encargarte de las actualizaciones a mano, sáltate esto y usa uno de los métodos de abajo — no chocan entre sí, puedes instalar las dos cosas.
+Esto también instala cuatro redes de seguridad: una mantiene actualizada por su cuenta la herramienta de línea de comandos, otra evita que la IA se salte la wiki y edite los archivos directamente, y las otras dos le recuerdan a la IA que busque en la wiki antes de empezar un trabajo nuevo y que la actualice una vez terminado — mira [hooks.md](hooks.md) para ver exactamente qué hace cada una y cómo desactivarlas si no las quieres. Si prefieres instalar tú mismo la herramienta de línea de comandos y encargarte de las actualizaciones a mano, sáltate esto y usa uno de los métodos de abajo — no chocan entre sí, puedes instalar las dos cosas.
 
 ## Herramienta de línea de comandos (sin el plugin)
 
