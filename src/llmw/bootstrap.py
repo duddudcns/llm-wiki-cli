@@ -86,6 +86,7 @@ def init_project(
         paths.backups_dir,
         paths.locks_dir,
         paths.claude_rules_dir,
+        paths.codex_rules_dir,
     ]
     if not adopt:
         dirs += [
@@ -164,10 +165,20 @@ def init_project(
     # hooks and skills, but not `.claude/rules/` content, so this is the only
     # way projects get the search-before/update-after guidance into context
     # automatically — refreshed every init (like the skill files above) so it
-    # always matches the installed llmw version's actual hook behavior.
+    # always matches the installed llmw version's actual hook behavior. The
+    # same reasoning applies to Codex's `.codex/rules/`: its plugin manifest
+    # can ship hooks but not rules either. Both are written unconditionally
+    # (regardless of which agent actually calls `init`) since an unused rules
+    # file for a platform nobody uses on this project is inert, whereas a
+    # mixed-tooling team benefits from having both ready.
     wiki_rel = paths.wiki.relative_to(paths.project_root).as_posix()
     (paths.claude_rules_dir / "llm-wiki.md").write_text(
         _render("claude_rules_llm_wiki.md", wiki_rel=wiki_rel),
+        encoding="utf-8",
+        newline="\n",
+    )
+    (paths.codex_rules_dir / "llm-wiki.md").write_text(
+        _render("codex_rules_llm_wiki.md", wiki_rel=wiki_rel),
         encoding="utf-8",
         newline="\n",
     )

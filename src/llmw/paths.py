@@ -111,6 +111,10 @@ class ProjectPaths:
         return self.project_root / ".claude" / "rules"
 
     @property
+    def codex_rules_dir(self) -> Path:
+        return self.project_root / ".codex" / "rules"
+
+    @property
     def claude_plugin_dir(self) -> Path:
         return self.project_root / ".claude-plugin"
 

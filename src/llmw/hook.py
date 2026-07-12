@@ -48,7 +48,7 @@ _LLMW_SEARCH_RE = re.compile(r"(?<![\w-])llmw\s+search(?![\w-])")
 _LLMW_MUTATE_RE = re.compile(r"(?<![\w-])llmw\s+(write|edit|patch|archive)(?![\w-])")
 
 
-def _permission_output(decision: str, reason: str) -> dict:
+def permission_output(decision: str, reason: str) -> dict:
     return {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -134,13 +134,13 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
         if is_raw:
             rel = paths.rel(fs_path)
             if tool_name == "Write" and not fs_path.exists():
-                return _permission_output("ask", _raw_ask_message(rel))
-            return _permission_output("deny", _raw_deny_message(rel))
+                return permission_output("ask", _raw_ask_message(rel))
+            return permission_output("deny", _raw_deny_message(rel))
 
         if is_wiki_md:
             rel = paths.rel(fs_path)
             decision = "ask" if guard == "ask" else "deny"
-            return _permission_output(decision, _wiki_edit_message(rel))
+            return permission_output(decision, _wiki_edit_message(rel))
 
     if is_raw or paths.is_inside_wiki(fs_path) or paths.is_inside_llmw(fs_path):
         return None
@@ -161,7 +161,7 @@ def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | Non
         return None
 
     write_session_state(paths, session_id, search_gate_shown=True)
-    return _permission_output("ask", _SEARCH_GATE_MESSAGE)
+    return permission_output("ask", _SEARCH_GATE_MESSAGE)
 
 
 def _evaluate_bash_pretooluse(payload: dict) -> None:

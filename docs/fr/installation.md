@@ -16,10 +16,11 @@ la solution recommandée, et elle ne demande aucune étape séparée avec
 (équivalents non interactifs : `claude plugin marketplace add duddudcns/llm-wiki-cli`
 et `claude plugin install llm-wiki@llm-wiki-cli`)
 
-Cela installe aussi trois filets de sécurité : l'un garde automatiquement
+Cela installe aussi quatre filets de sécurité : l'un garde automatiquement
 l'outil en ligne de commande à jour, l'autre empêche l'IA de sauter
-l'étape du wiki pour modifier des fichiers directement, et le dernier lui
-rappelle de chercher dans le wiki avant de commencer un nouveau travail —
+l'étape du wiki pour modifier des fichiers directement, et les deux
+derniers lui rappellent de chercher dans le wiki avant de commencer un
+nouveau travail et de le mettre à jour une fois le travail terminé —
 voir [hooks.md](hooks.md) pour savoir exactement ce qu'ils font et comment
 les désactiver si vous n'en voulez pas. Si vous préférez installer vous-même l'outil en ligne de
 commande et gérer les mises à jour à la main, passez cette étape et

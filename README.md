@@ -33,7 +33,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-The Codex plugin supplies intent-discoverable skills and five native MCP tools: `llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, and `llmw_write`. It starts the pinned package through `uvx`, so [uv](https://docs.astral.sh/uv/) must be available but a separate `llmw` installation is not required. Claude-specific hooks remain Claude-only.
+The Codex plugin supplies intent-discoverable skills, five native MCP tools (`llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`), and its own PreToolUse/Stop hooks that nudge searching before edits and updating the wiki after them — separate from Claude Code's hooks, not run by them. The MCP server starts through `uvx`, so [uv](https://docs.astral.sh/uv/) must be available; the hooks self-install a pinned `llmw` CLI in the background the same way Claude Code's do, so nothing here needs a manual install either.
 
 Want to install the command-line tool directly instead (for example, to use it outside of Claude Code)? See [docs/en/installation.md](docs/en/installation.md) for step-by-step instructions for Windows, macOS, and Linux. You can install both — they don't get in each other's way.
 
