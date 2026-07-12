@@ -24,7 +24,7 @@ def test_codex_marketplace_points_to_valid_plugin() -> None:
     server = mcp["mcpServers"]["llm-wiki"]
     assert server["type"] == "stdio"
     assert server["command"] == "uvx"
-    assert any("@v0.1.20" in arg for arg in server["args"])
+    assert any("@v0.1.21" in arg for arg in server["args"])
 
 
 def test_codex_plugin_ships_hooks_at_default_path() -> None:
@@ -55,6 +55,7 @@ def test_codex_skill_is_discoverable_from_plain_wiki_intent() -> None:
     assert "llmw_status" in text
     assert "llmw_write" in text
     assert "without waiting to be asked" in text
+    assert "Mechanism, not narrative" in text
 
 
 def test_codex_and_package_versions_match() -> None:

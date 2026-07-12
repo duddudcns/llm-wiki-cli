@@ -27,6 +27,7 @@ def test_init_creates_expected_structure(tmp_path: Path) -> None:
     assert (paths.codex_rules_dir / "llm-wiki.md").is_file()
     skill_text = (paths.claude_skill_dir / "SKILL.md").read_text(encoding="utf-8")
     assert "without waiting to be asked" in skill_text
+    assert "Mechanism, not narrative" in skill_text
 
 
 def test_init_no_claude_plugin_skips_skill_and_plugin_scaffold(tmp_path: Path) -> None:
@@ -63,6 +64,9 @@ def test_init_rules_file_mentions_search_and_wiki_path(tmp_path: Path) -> None:
     # without waiting to be asked first.
     assert "Capturing preferences" in content
     assert "without asking first" in content
+    # Content-quality guidance: mechanism over narrative, so a future
+    # request can skip re-deriving a flow from the code.
+    assert "Mechanism, not narrative" in content
 
 
 def test_init_ai_wiki_layout_rules_file_points_at_nested_wiki(tmp_path: Path) -> None:
@@ -84,6 +88,7 @@ def test_init_codex_rules_file_mentions_mcp_tools_and_wiki_path(tmp_path: Path) 
     assert not content.startswith("---")
     assert "Capturing preferences" in content
     assert "without asking first" in content
+    assert "Mechanism, not narrative" in content
 
 
 def test_init_ai_wiki_layout_codex_rules_file_points_at_nested_wiki(tmp_path: Path) -> None:

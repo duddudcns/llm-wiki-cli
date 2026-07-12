@@ -25,6 +25,29 @@ changed source without a matching wiki update pauses once with the same
 reminder. Not every change needs an entry — routine edits with nothing
 surprising don't — but making that call is the point, not skipping it.
 
+## What actually makes an entry useful later
+
+An entry only pays off if it lets a future request skip re-deriving
+something from the code. Two tests before writing:
+
+- **Mechanism, not narrative.** If a result comes out of a chain of
+  steps that isn't obvious from any single file (A calls B calls C to
+  produce D), write down the actual chain — which file/function does
+  what, in what order — not just that a decision was made. "There's a
+  bug somewhere between C and D, check it" only gets faster if the page
+  names exactly where to look, instead of sending the next reader back
+  through the same discovery process.
+- **Specific enough to answer "what was that, exactly?"** If an area
+  has several similar features, record precisely which one this
+  touched and what it did — not a vague "updated the parser." "I think
+  I changed something in the parser a while back, what was it?" should
+  resolve from a search, not from memory.
+
+Prefer extending the existing page for a subsystem over always spawning
+a new one — a page that accumulates "how this actually works" plus its
+own change history is more useful over time than scattered notes that
+never get cross-referenced.
+
 ## Capturing preferences and conventions as they come up
 
 Treat a coding convention, style preference, or correction the user

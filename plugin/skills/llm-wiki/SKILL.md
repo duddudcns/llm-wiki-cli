@@ -29,6 +29,11 @@ Use this skill when:
 3. Read only relevant pages: `llmw read <path> --brief`.
 4. Use `--full` only when brief output is insufficient.
 5. Update wiki pages when stable knowledge changes.
+   Mechanism, not narrative: if a result comes from a chain of steps not
+   obvious from any single file (A calls B calls C to produce D), name
+   the actual chain — which file/function, in what order — so a later
+   "check the bug between C and D" can start at the right place instead
+   of re-deriving the flow from scratch.
 6. Prefer `llmw edit` for a small, exact-text change; `llmw patch` for a
    structural (multi-line/context) diff; `llmw write --force` to replace a
    whole page.
