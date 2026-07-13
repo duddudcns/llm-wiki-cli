@@ -189,6 +189,30 @@ def test_pretooluse_bash_llmw_search_marks_session_searched(tmp_path: Path):
     assert read_session_state(paths, "sess-f").get("searched") is True
 
 
+def test_pretooluse_bash_llmw_search_with_root_flag_marks_session_searched(tmp_path: Path):
+    # `llmw --root <path> search ...` (documented in project-layout.md)
+    # used to be missed since the search-detection regex required "llmw"
+    # and "search" to be directly adjacent.
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload(f'llmw --root "{tmp_path}" search "topic"', tmp_path, session_id="sess-root")
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-root").get("searched") is True
+
+
+def test_pretooluse_bash_python_module_search_marks_session_searched(tmp_path: Path):
+    # `python -m llmw.cli search ...` — another documented invocation form.
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload("python -m llmw.cli search topic", tmp_path, session_id="sess-mod")
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-mod").get("searched") is True
+
+
 def test_pretooluse_bash_search_prevents_subsequent_edit_gate(tmp_path: Path):
     paths = init_project(tmp_path)
     target = paths.root / "README.md"

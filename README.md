@@ -75,7 +75,7 @@ llmw lint --brief
 
 ## All commands
 
-Every command supports `--json` if you want the output in a format a program can read. Most "read" commands show a short summary by default (add `--full`/`--no-brief` to see everything).
+Most commands support `--json` if you want the output in a format a program can read — the exceptions are `write`/`edit`/`patch`/`archive`/`ingest`, which report success or failure as plain text only. Most "read" commands show a short summary by default (add `--full`/`--no-brief` to see everything).
 
 | Command | What it does |
 |---|---|

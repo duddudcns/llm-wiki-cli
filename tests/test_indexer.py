@@ -171,6 +171,37 @@ def test_index_changed_removes_deleted_file(tmp_path: Path):
     assert count == 0
 
 
+def test_index_changed_drops_stale_row_when_previously_indexed_page_fails_to_reparse(
+    tmp_path: Path,
+):
+    # A page that WAS indexed but is edited into invalid frontmatter must
+    # not keep serving its old content via search/links/lint — the stale
+    # DB row must be dropped, not left describing content that no longer
+    # matches what's on disk.
+    paths = init_project(tmp_path)
+    fs_path = _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n")
+    rebuild(paths)
+
+    conn = sqlite3.connect(paths.index_db)
+    before = conn.execute(
+        "SELECT COUNT(*) FROM pages WHERE path = 'wiki/concepts/a.md'"
+    ).fetchone()[0]
+    conn.close()
+    assert before == 1
+
+    time.sleep(0.05)
+    fs_path.write_text("---\ntitle: [unterminated\n---\nbody\n", encoding="utf-8")
+    stats = index_changed(paths)
+    assert any(rel == "wiki/concepts/a.md" for rel, _err in stats.errors)
+
+    conn = sqlite3.connect(paths.index_db)
+    after = conn.execute(
+        "SELECT COUNT(*) FROM pages WHERE path = 'wiki/concepts/a.md'"
+    ).fetchone()[0]
+    conn.close()
+    assert after == 0
+
+
 def test_mdlink_resolves_relative_to_source_directory(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/a.md", "[link](other.md)\n")

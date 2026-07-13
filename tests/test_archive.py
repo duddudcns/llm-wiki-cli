@@ -88,6 +88,35 @@ def test_archive_default_tombstone_does_not_fail_lint(tmp_path: Path):
     assert report.pages_without_type == []
 
 
+def test_archive_rolls_back_copy_when_original_side_mutation_fails(tmp_path: Path, monkeypatch):
+    # If the destination copy lands but the tombstone write (or unlink)
+    # fails, the copy must be rolled back — otherwise the original page
+    # is left untouched *and* a duplicate archive copy exists, and a
+    # retry would create yet another uniquely-suffixed duplicate.
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/old.md", "---\ntitle: Old\n---\nbody\n", reason="seed")
+
+    from pathlib import Path as PathType
+
+    real_write_text = PathType.write_text
+
+    def failing_write_text(self, *args, **kwargs):
+        if self.name == "old.md" and "wiki/archived" not in self.as_posix():
+            raise OSError("simulated disk failure")
+        return real_write_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(PathType, "write_text", failing_write_text)
+
+    with pytest.raises(OSError):
+        archive_page(paths, "wiki/concepts/old.md", reason="cleanup")
+
+    archived_dir = paths.root / "wiki" / "archived"
+    leftover_copies = list(archived_dir.rglob("old.md")) if archived_dir.is_dir() else []
+    assert leftover_copies == [], f"orphaned archive copy left behind: {leftover_copies}"
+    original = paths.root / "wiki" / "concepts" / "old.md"
+    assert original.is_file()
+
+
 def test_archive_twice_raises_already_archived(tmp_path: Path):
     paths = init_project(tmp_path)
     write_page(paths, "wiki/concepts/old.md", "---\ntitle: Old\n---\nbody\n", reason="seed")

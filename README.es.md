@@ -75,7 +75,7 @@ llmw lint --brief
 
 ## Todos los comandos
 
-Todos los comandos aceptan `--json` si quieres la salida en un formato que un programa pueda leer. La mayoría de los comandos de "lectura" muestran un resumen corto por defecto (agrega `--full`/`--no-brief` para ver todo).
+La mayoría de los comandos aceptan `--json` si quieres la salida en un formato que un programa pueda leer — las excepciones son `write`/`edit`/`patch`/`archive`/`ingest`, que solo informan éxito o error como texto plano. La mayoría de los comandos de "lectura" muestran un resumen corto por defecto (agrega `--full`/`--no-brief` para ver todo).
 
 | Comando | Qué hace |
 |---|---|

@@ -75,7 +75,7 @@ llmw lint --brief
 
 ## Toutes les commandes
 
-Chaque commande accepte `--json` si vous voulez un résultat dans un format lisible par un programme. La plupart des commandes de « lecture » affichent par défaut un résumé court (ajoutez `--full`/`--no-brief` pour tout voir).
+La plupart des commandes acceptent `--json` si vous voulez un résultat dans un format lisible par un programme — les exceptions sont `write`/`edit`/`patch`/`archive`/`ingest`, qui ne rapportent le succès ou l'échec qu'en texte brut. La plupart des commandes de « lecture » affichent par défaut un résumé court (ajoutez `--full`/`--no-brief` pour tout voir).
 
 | Commande | Ce qu'elle fait |
 |---|---|

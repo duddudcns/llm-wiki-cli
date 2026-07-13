@@ -384,6 +384,13 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
             page.mtime = mtime
         except Exception as exc:  # noqa: BLE001 - one bad file must not abort the rebuild
             stats.errors.append((rel_path, str(exc)))
+            if prior is not None:
+                # A page that WAS indexed but now fails to reparse (e.g.
+                # frontmatter was edited into something invalid) must not
+                # keep serving its old, now-stale content via search/
+                # links/lint — drop it rather than leave the DB claiming
+                # content that no longer matches what's on disk.
+                _delete_page(conn, prior[0])
             continue
 
         if prior is not None:
