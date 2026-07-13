@@ -42,12 +42,9 @@ Pick this if you want to use `llmw` outside of Claude Code — in a script,
 in an automated pipeline, or with another editor/tool.
 
 `llmw` needs **Python 3.11 or later**. It isn't published to a public
-package index yet, so it installs directly from this GitHub repository
-instead. **This repository is currently private** — installing it (any
-method below) requires your own GitHub login to be set up for `git` (for
-example, already logged in via `gh auth login`, or an SSH key added to
-your GitHub account). Without that, the install will fail with a clear
-error instead of installing something broken.
+package index yet, so it installs directly from this public GitHub
+repository instead — no GitHub login or SSH key setup needed, since the
+repository is public.
 
 Every method below gives you an `llmw` command you can run from anywhere,
 without affecting any other Python project on your computer.

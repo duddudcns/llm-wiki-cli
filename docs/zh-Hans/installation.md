@@ -16,11 +16,22 @@
 
 这样装还会附带四个安全保障机制：一个负责自动让命令行工具本身保持最新,一个负责防止 AI 绕开 wiki、直接改文件,另外两个会提醒 AI 在开始新工作前先去搜一搜 wiki、做完之后再去更新 wiki——具体是怎么做的、以及不想要的话怎么关掉,可以看 [hooks.md](hooks.md)。如果你更想自己安装命令行工具、自己手动管理更新,可以跳过这一步,改用下面的方法——两者不会冲突,你可以两个都装。
 
+## Codex 插件
+
+先装好 [uv](https://docs.astral.sh/uv/)(包含 `uvx`),然后运行下面的命令：
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+```
+
+用 `codex plugin list` 验证一下。插件通过 `uvx` 从固定的 GitHub 版本自动启动 MCP 服务器,这样就不用另外安装 `llmw` CLI 了。如果 `uvx --version` 不行的话,先装 uv。Codex 不会运行 Claude Code 插件的钩子文件——它有自己独立的 PreToolUse/Stop 钩子(把同样的"编辑前搜索、编辑后更新"的提醒改为适配 Codex 的工具界面),这些钩子会在第一次使用时在后台自动安装一个固定版本的 `llmw` CLI,所以只有在你需要直接在终端里使用 `llmw` 时,才需要另外再做下面的 CLI 安装步骤。
+
 ## 单独安装命令行工具(不装插件)
 
 如果你想在 Claude Code 之外使用 `llmw`——比如写脚本、搭自动化流程,或者配合别的编辑器/工具——就选这个方式。
 
-`llmw` 需要 **Python 3.11 或更高版本**。它目前还没有发布到公共的包索引上,所以是直接从这个 GitHub 仓库安装的。**这个仓库目前是私有的**——不管用下面哪种方法安装,都需要你自己的 GitHub 账号已经给 `git` 配置好了(比如已经用 `gh auth login` 登录过,或者给你的 GitHub 账号加了 SSH key)。如果没配置好,安装会直接报一个清楚的错误,而不会装出一个坏掉的东西。
+`llmw` 需要 **Python 3.11 或更高版本**。它目前还没有发布到公共的包索引上,所以是直接从这个公开的 GitHub 仓库安装的——仓库是公开的,不需要额外配置 GitHub 登录或 SSH key。
 
 下面每一种方法安装完,你都会得到一个随处可用的 `llmw` 命令,而且不会影响你电脑上其他的 Python 项目。
 

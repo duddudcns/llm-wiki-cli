@@ -90,6 +90,22 @@ def test_related_term_overlap_with_korean_particle_in_title(tmp_path: Path):
     assert "term-overlap" in other_result.reasons
 
 
+def test_related_page_title_containing_fts5_keyword_does_not_raise(tmp_path: Path):
+    # related() builds an FTS query from the target page's *title* — a
+    # title containing a bare FTS5 operator keyword (AND/OR/NOT) used to
+    # raise sqlite3.OperationalError before the query terms were quoted.
+    paths = init_project(tmp_path)
+    _write(
+        tmp_path,
+        "wiki/decisions/find-and-fix.md",
+        "---\ntitle: Find AND Fix\n---\nA decision page whose title is a boolean phrase.\n",
+    )
+    rebuild(paths)
+
+    results = related(paths, "Find AND Fix", by=("terms",))
+    assert results == []
+
+
 def test_related_respects_limit(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\ntags:\n  - infra\n---\nbody\n")

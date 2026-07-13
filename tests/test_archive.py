@@ -5,6 +5,7 @@ import yaml
 
 from llmw.archive import PageNotFoundForArchiveError, archive_page
 from llmw.bootstrap import init_project
+from llmw.config import ConfigError
 from llmw.indexer import rebuild
 from llmw.safety import PathNotAllowedError, ReasonRequiredError
 from llmw.writer import write_page
@@ -69,6 +70,32 @@ def test_archive_twice_raises_already_archived(tmp_path: Path):
 
     with pytest.raises(PathNotAllowedError):
         archive_page(paths, paths.rel(dest), reason="again")
+
+
+def test_archive_tombstone_is_valid_yaml_for_odd_filename(tmp_path: Path):
+    # A stem starting with "[" or containing ":" etc. used to be spliced
+    # into the tombstone frontmatter as a raw, unescaped scalar (unlike
+    # the archived copy, which already used yaml.safe_dump) — producing
+    # invalid YAML that llmw itself would then flag as broken.
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/[weird] name.md", "---\ntitle: Old\n---\nbody\n", reason="seed")
+
+    archive_page(paths, "wiki/concepts/[weird] name.md", reason="cleanup")
+
+    original_path = paths.root / "wiki/concepts/[weird] name.md"
+    fm = yaml.safe_load(original_path.read_text(encoding="utf-8").split("---")[1])
+    assert fm["title"] == "[weird] name"
+    assert fm["status"] == "archived"
+    assert fm["moved_to"].startswith("wiki/archived/")
+
+
+def test_archive_raises_clear_config_error_on_malformed_toml(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_page(paths, "wiki/concepts/old.md", "---\ntitle: Old\n---\nbody\n", reason="seed")
+    paths.config_path.write_text("[llmw\nnot valid toml", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        archive_page(paths, "wiki/concepts/old.md", reason="cleanup")
 
 
 def test_archive_updates_log_and_index(tmp_path: Path):

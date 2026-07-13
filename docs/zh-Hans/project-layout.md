@@ -15,6 +15,7 @@ ai-wiki/
   raw/ wiki/ .llmw/            # 和之前一样的文件夹,只是往下嵌套了一层
 .claude/skills/llm-wiki/       # 不管哪种方式,这个都还是放在你的主项目文件夹里
 .claude/rules/llm-wiki.md      # 不管哪种方式,这个也还是放在你的主项目文件夹里
+.codex/rules/llm-wiki.md       # 不管哪种方式,这个也还是放在你的主项目文件夹里
 .claude-plugin/plugin.json     # 不管哪种方式,这个都还是放在你的主项目文件夹里
 ```
 

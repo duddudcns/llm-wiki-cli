@@ -20,6 +20,10 @@ class PageNotFoundForArchiveError(RuntimeError):
     pass
 
 
+def _dump_frontmatter_block(frontmatter: dict) -> str:
+    return yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True).strip()
+
+
 def _stamp_archive_frontmatter(text: str, reason: str, archived_at: str) -> str:
     try:
         frontmatter, body = split_frontmatter(text)
@@ -32,7 +36,7 @@ def _stamp_archive_frontmatter(text: str, reason: str, archived_at: str) -> str:
     frontmatter["archived_at"] = archived_at
     frontmatter["archive_reason"] = reason
 
-    yaml_block = yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True).strip()
+    yaml_block = _dump_frontmatter_block(frontmatter)
     return f"---\n{yaml_block}\n---\n{body}"
 
 
@@ -83,15 +87,14 @@ def archive_page(
 
         if tombstone:
             rel_dest = paths.rel(dest_path)
-            stub = (
-                "---\n"
-                f"title: {fs_path.stem}\n"
-                "status: archived\n"
-                f"moved_to: {rel_dest}\n"
-                f"archived_at: {now.isoformat(timespec='seconds')}\n"
-                "---\n\n"
-                f"This page was archived. See `{rel_dest}`.\n"
-            )
+            stub_frontmatter = {
+                "title": fs_path.stem,
+                "status": "archived",
+                "moved_to": rel_dest,
+                "archived_at": now.isoformat(timespec="seconds"),
+            }
+            yaml_block = _dump_frontmatter_block(stub_frontmatter)
+            stub = f"---\n{yaml_block}\n---\n\nThis page was archived. See `{rel_dest}`.\n"
             fs_path.write_text(stub, encoding="utf-8", newline="\n")
         else:
             fs_path.unlink()

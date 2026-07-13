@@ -15,6 +15,7 @@ from llmw import __version__
 from llmw.archive import PageNotFoundForArchiveError, archive_page as do_archive
 from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_project
 from llmw.codex_hook import evaluate_codex_pretooluse, evaluate_codex_stop
+from llmw.config import ConfigError
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
@@ -233,7 +234,11 @@ def _report_sync(label: str, stats, json: bool) -> None:
 def rebuild(json: bool = typer.Option(False, "--json")) -> None:
     """Fully re-index wiki/**/*.md from scratch."""
     paths = _require_paths()
-    stats = rebuild_index(paths)
+    try:
+        stats = rebuild_index(paths)
+    except ConfigError as exc:
+        _err(exc)
+        raise typer.Exit(code=1) from exc
     _report_sync("rebuild", stats, json)
 
 
@@ -246,7 +251,11 @@ def index(
 ) -> None:
     """Incrementally re-index wiki/**/*.md (hash/mtime based)."""
     paths = _require_paths()
-    stats = rebuild_index(paths) if not changed else index_changed(paths)
+    try:
+        stats = rebuild_index(paths) if not changed else index_changed(paths)
+    except ConfigError as exc:
+        _err(exc)
+        raise typer.Exit(code=1) from exc
     _report_sync("index", stats, json)
 
 
@@ -440,7 +449,7 @@ def lint(
     paths = _require_paths()
     try:
         report = run_lint(paths)
-    except IndexNotBuiltError as exc:
+    except (IndexNotBuiltError, ConfigError) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
 
@@ -632,6 +641,7 @@ def archive(
         PathNotAllowedError,
         PageNotFoundForArchiveError,
         LockedError,
+        ConfigError,
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc

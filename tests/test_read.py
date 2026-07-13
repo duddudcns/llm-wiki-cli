@@ -28,6 +28,19 @@ def test_read_by_path(tmp_path: Path):
     assert result.full_text is None
 
 
+def test_read_path_traversal_outside_root_is_not_found_not_a_crash(tmp_path: Path):
+    # A real file existing just outside the project root used to raise an
+    # uncaught ValueError from paths.rel()'s relative_to() instead of the
+    # normal PageNotFoundError.
+    paths = init_project(tmp_path)
+    rebuild(paths)
+    outside = tmp_path.parent / "secret.md"
+    outside.write_text("top secret\n", encoding="utf-8")
+
+    with pytest.raises(PageNotFoundError):
+        read_page(paths, "../secret.md")
+
+
 def test_read_by_title(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/foo.md", "---\ntitle: Foo Bar\n---\nbody\n")

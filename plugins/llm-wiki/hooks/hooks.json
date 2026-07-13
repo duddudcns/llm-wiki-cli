@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "llmw hook codex-pretooluse",
+            "command": "${PLUGIN_ROOT}/hooks/pre-tool-use.sh",
             "timeout": 10
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "llmw hook codex-stop",
+            "command": "${PLUGIN_ROOT}/hooks/stop.sh",
             "timeout": 10
           }
         ]

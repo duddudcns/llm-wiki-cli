@@ -16,5 +16,7 @@ for py in python3 python; do
 done
 
 echo "llmw: no 'llmw' executable and no python3/python on PATH." >&2
-echo "Install it first: pip install llmw   (or: uv tool install llmw)" >&2
+echo "Install it first: uv tool install \"git+https://github.com/duddudcns/llm-wiki-cli.git\"" >&2
+echo "(or: pipx install \"git+https://github.com/duddudcns/llm-wiki-cli.git\")" >&2
+echo "llmw isn't published to PyPI, so 'pip install llmw' will not work." >&2
 exit 1

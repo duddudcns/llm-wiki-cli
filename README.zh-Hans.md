@@ -29,11 +29,21 @@
 
 想直接安装命令行工具(比如想在 Claude Code 之外使用)?可以看 [docs/zh-Hans/installation.md](docs/zh-Hans/installation.md),里面有针对 Windows、macOS、Linux 的详细步骤。两种方式可以同时装,互不影响。
 
+**推荐做法：作为 Codex 插件安装** —— 同样只需要两条命令,无需另外装命令行工具：
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+```
+
+Codex 插件提供了一些按关键词可以找到的技能、五个原生 MCP 工具(`llmw_init`、`llmw_status`、`llmw_search`、`llmw_read`、`llmw_write`),以及自己独立的 PreToolUse/Stop 钩子,在编辑前提醒搜索、编辑后提醒更新 wiki —— 这些钩子由 Codex 运行,不由 Claude Code 驱动。MCP 服务器通过 `uvx` 启动,需要先装好 [uv](https://docs.astral.sh/uv/)；钩子会在后台自动装一个固定版本的 `llmw` CLI,跟 Claude Code 的做法一样,所以这边也不用手动装。
+
 ## 快速上手
 
 ```bash
 mkdir my-project && cd my-project
 llmw init
+llmw rebuild
 llmw status --brief
 ```
 
@@ -44,9 +54,10 @@ raw/                          # 原始资料 —— 不会被编辑
 wiki/                         # AI 自己的笔记,会不断更新
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # 后台用的搜索索引(随时可以重新生成)
+.llmw/                        # 后台用的搜索索引(由 `llmw rebuild` 创建,随时可以重新生成)
 .claude/skills/llm-wiki/      # 教 Claude Code 怎么用这个工具
 .claude/rules/llm-wiki.md     # 自动提醒开工前搜索、收工后更新 wiki 的规则
+.codex/rules/llm-wiki.md      # 和上面一样的提醒,但给 Codex 用——每次 init 都会创建,不管你实际用不用这个插件
 .claude-plugin/plugin.json    # 这个项目的可选插件信息
 ```
 

@@ -18,6 +18,7 @@ ai-wiki/
   raw/ wiki/ .llmw/            # 내용은 그대로, 한 단계 아래로 옮겨졌을 뿐
 .claude/skills/llm-wiki/       # 이건 어느 방식이든 메인 프로젝트 폴더에 그대로 들어감
 .claude/rules/llm-wiki.md      # 이것도 어느 방식이든 메인 프로젝트 폴더에 그대로 들어감
+.codex/rules/llm-wiki.md       # 이것도 어느 방식이든 메인 프로젝트 폴더에 그대로 들어감
 .claude-plugin/plugin.json     # 이것도 어느 방식이든 메인 프로젝트 폴더에 그대로 들어감
 ```
 

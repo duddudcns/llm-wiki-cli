@@ -25,6 +25,14 @@ the only path that gets the search-before/update-after guidance loaded
 into every session automatically, with no marketplace-plugin
 alternative to deduplicate against.
 
+`llmw init` writes the same guidance to `.codex/rules/llm-wiki.md` too,
+every time, regardless of which plugin (or neither) you're actually
+using — a Codex plugin manifest has the same "hooks and skills yes,
+rules no" gap as Claude Code's. It's written unconditionally rather than
+gated behind a Codex-specific flag: an unused rules file for a platform
+nobody's using on this project is inert, while a team mixing Claude Code
+and Codex gets both ready without extra setup.
+
 ## What this tool intentionally doesn't do (yet)
 
 By design, this stays out of scope for now: connecting to AI models

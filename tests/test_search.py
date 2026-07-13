@@ -71,8 +71,8 @@ def test_search_no_tokens_returns_empty(tmp_path: Path):
 
 
 def test_build_match_query_extracts_non_ascii_tokens():
-    assert build_match_query("미니맵") == "미니맵*"
-    assert build_match_query("미니맵 레이아웃 에디터") == "미니맵* 레이아웃* 에디터*"
+    assert build_match_query("미니맵") == '"미니맵"*'
+    assert build_match_query("미니맵 레이아웃 에디터") == '"미니맵"* "레이아웃"* "에디터"*'
 
 
 def test_search_finds_korean_query(tmp_path: Path):
@@ -95,8 +95,24 @@ def test_search_finds_korean_query(tmp_path: Path):
 
 
 def test_build_match_query_replaces_korean_particles():
-    assert build_match_query("스탯창을") == "스탯창*"
-    assert build_match_query("포탈에서") == "포탈*"
+    assert build_match_query("스탯창을") == '"스탯창"*'
+    assert build_match_query("포탈에서") == '"포탈"*'
+
+
+def test_build_match_query_quotes_fts5_operator_keywords():
+    # Bare AND/OR/NOT/NEAR are FTS5 boolean operators; unquoted they raise
+    # `sqlite3.OperationalError: fts5: syntax error` instead of matching
+    # literally. Quoting makes them ordinary string-literal prefix terms.
+    assert build_match_query("find AND fix") == '"find"* "AND"* "fix"*'
+
+
+def test_search_query_containing_fts5_keyword_does_not_raise(tmp_path: Path):
+    paths = init_project(tmp_path)
+    _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\n---\nfind and fix the AND bug\n")
+    rebuild(paths)
+
+    response = search(paths, "find AND fix")
+    assert any(r.path == "wiki/concepts/a.md" for r in response.results)
 
 
 def test_search_particle_query_ranks_bare_word_page_first(tmp_path: Path):

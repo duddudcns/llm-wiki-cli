@@ -42,9 +42,20 @@ def test_codex_plugin_ships_hooks_at_default_path() -> None:
     assert "apply_patch" in pretooluse["matcher"]
     assert "mcp__llm-wiki__llmw_search" in pretooluse["matcher"]
     assert "mcp__llm-wiki__llmw_write" in pretooluse["matcher"]
-    assert pretooluse["hooks"][0]["command"] == "llmw hook codex-pretooluse"
-    assert hooks["hooks"]["Stop"][0]["hooks"][0]["command"] == "llmw hook codex-stop"
+    # Routed through a wrapper script, not a bare `llmw hook ...` command:
+    # if `llmw` isn't on PATH yet (before SessionStart's self-install
+    # finishes), the shell fails to spawn it before cli.py's own
+    # never-crash guarantee gets a chance to run — the wrapper's `|| true`
+    # plus trailing `exit 0` is what actually catches that.
+    assert pretooluse["hooks"][0]["command"] == "${PLUGIN_ROOT}/hooks/pre-tool-use.sh"
+    assert hooks["hooks"]["Stop"][0]["hooks"][0]["command"] == "${PLUGIN_ROOT}/hooks/stop.sh"
     assert (plugin / "hooks/session-start.sh").is_file()
+    assert (plugin / "hooks/pre-tool-use.sh").is_file()
+    assert (plugin / "hooks/stop.sh").is_file()
+    for script in ("pre-tool-use.sh", "stop.sh"):
+        text = (plugin / "hooks" / script).read_text()
+        assert "|| true" in text
+        assert "exit 0" in text
 
 
 def test_codex_skill_is_discoverable_from_plain_wiki_intent() -> None:

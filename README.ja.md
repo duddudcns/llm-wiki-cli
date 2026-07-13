@@ -29,11 +29,21 @@ AIコーディングアシスタントに、プロジェクト専用の「メモ
 
 コマンドラインツールそのものを直接インストールしたい場合(たとえばClaude Code以外の場所で使いたい場合)は、[docs/ja/installation.md](docs/ja/installation.md) にWindows・macOS・Linux向けの手順があります。両方インストールしても構いません。お互い邪魔し合うことはありません。
 
+**Codexプラグイン(コマンドラインツール単体のインストール不要)**
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+```
+
+Codexプラグインは、ネイティブMCPツール(`llmw_init`、`llmw_status`、`llmw_search`、`llmw_read`、`llmw_write`)と、編集前の検索・編集後のwiki更新を促す独自のPreToolUse/Stopフックを提供します。Claude Codeのフックとは別個で、Codex側で管理されます。MCPサーバーは `uvx` で起動するため、[uv](https://docs.astral.sh/uv/) が必要です。Claude Codeのフック同様、バックグラウンドで固定バージョンの `llmw` CLI を自動インストールするので、ここでも手動インストール不要です。
+
 ## クイックスタート
 
 ```bash
 mkdir my-project && cd my-project
 llmw init
+llmw rebuild
 llmw status --brief
 ```
 
@@ -44,9 +54,10 @@ raw/                          # 元の資料 — 絶対に編集しない
 wiki/                         # AI自身のメモ。中身は随時更新される
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # 裏側の検索インデックス(いつでも作り直せる)
+.llmw/                        # 裏側の検索インデックス(`llmw rebuild` で作成される。いつでも作り直せる)
 .claude/skills/llm-wiki/      # Claude Codeにこのツールの使い方を教えるファイル
 .claude/rules/llm-wiki.md     # 作業前の検索・作業後の更新を自動で促すルール
+.codex/rules/llm-wiki.md      # Codex向けの同じ促し — どのプラグインを使っていても毎回書き込まれる
 .claude-plugin/plugin.json    # このプロジェクト用のプラグイン情報(任意)
 ```
 
