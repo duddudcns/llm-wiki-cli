@@ -236,6 +236,27 @@ def test_pretooluse_bash_llmw_write_clears_dirty_flag(tmp_path: Path):
     assert read_session_state(paths, "sess-h").get("dirty") is False
 
 
+def test_pretooluse_bash_llmw_exe_write_clears_dirty_flag(tmp_path: Path):
+    # `llmw.exe` (Windows: a venv's Scripts/llmw.exe, no global `llmw` on
+    # PATH) used to be missed since the regex required "llmw" to be
+    # directly followed by whitespace, not the ".exe" suffix.
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_edit_payload(target, session_id="sess-exe"))
+    assert read_session_state(paths, "sess-exe").get("dirty") is True
+
+    evaluate_pretooluse(
+        _bash_payload(
+            './.venv/Scripts/llmw.exe write wiki/x.md --reason "r" --stdin',
+            tmp_path,
+            session_id="sess-exe",
+        )
+    )
+    assert read_session_state(paths, "sess-exe").get("dirty") is False
+
+
 def test_pretooluse_bash_never_gates_even_when_dirty(tmp_path: Path):
     paths = init_project(tmp_path)
 
