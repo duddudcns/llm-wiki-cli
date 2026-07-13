@@ -45,12 +45,13 @@ from llmw.status import build_status
 
 _GUARDED_TOOLS = {"Edit", "Write", "NotebookEdit"}
 # Heuristic, not a real shell parser: matches `llmw <subcommand>` and the
-# `python -m llmw[.cli] <subcommand>` / `--root <path>` variants seen in
-# the docs (an env-var prefix like `LLMW_ROOT=... llmw search` or a
-# wrapper like `uv run llmw search` already matches — the lookbehind only
-# checks the character immediately before this pattern, not the whole
-# prefix).
-_LLMW_INVOCATION = r"(?:llmw|python3?\s+-m\s+llmw(?:\.cli)?)"
+# `llmw.exe <subcommand>` (Windows, e.g. a venv's Scripts/llmw.exe with no
+# global `llmw` on PATH) / `python -m llmw[.cli] <subcommand>` /
+# `--root <path>` variants seen in the docs (an env-var prefix like
+# `LLMW_ROOT=... llmw search` or a wrapper like `uv run llmw search`
+# already matches — the lookbehind only checks the character immediately
+# before this pattern, not the whole prefix).
+_LLMW_INVOCATION = r"(?:llmw(?:\.exe)?|python3?\s+-m\s+llmw(?:\.cli)?)"
 _ROOT_FLAG = r"(?:\s+--root(?:=\S+|\s+\S+))?"
 _LLMW_SEARCH_RE = re.compile(
     rf"(?<![\w-]){_LLMW_INVOCATION}{_ROOT_FLAG}\s+search(?![\w-])"
