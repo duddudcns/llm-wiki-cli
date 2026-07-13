@@ -29,11 +29,21 @@ Esto también activa algunas redes de seguridad útiles que mantienen todo funci
 
 ¿Prefieres instalar la herramienta de línea de comandos directamente (por ejemplo, para usarla fuera de Claude Code)? Mira [docs/es/installation.md](docs/es/installation.md), donde hay instrucciones paso a paso para Windows, macOS y Linux. Puedes instalar ambas cosas — no se estorban entre sí.
 
+**Plugin de Codex (no necesitas instalar la herramienta de línea de comandos):**
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+```
+
+El plugin de Codex te ofrece herramientas nativas de la wiki (cinco en total: `llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`) e habilidades que descubre la IA, además de sus propias redes de seguridad PreToolUse/Stop que empujan a buscar antes de editar y a actualizar la wiki después — separadas de las del plugin de Claude Code, Codex no las ejecuta. El servidor MCP arranca a través de `uvx`, así que necesitas tener [uv](https://docs.astral.sh/uv/) disponible; las redes instalan por su cuenta una versión fija de `llmw` en el fondo igual que lo hace el plugin de Claude Code, así que tampoco hace falta instalar nada a mano.
+
 ## Para empezar rápido
 
 ```bash
 mkdir my-project && cd my-project
 llmw init
+llmw rebuild
 llmw status --brief
 ```
 
@@ -44,9 +54,10 @@ raw/                          # material original — nunca se edita
 wiki/                         # las notas propias de la IA, que ella va actualizando
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # índice de búsqueda interno (se puede reconstruir cuando quieras)
+.llmw/                        # índice de búsqueda interno (se construye al correr `llmw rebuild`, se puede reconstruir cuando quieras)
 .claude/skills/llm-wiki/      # le enseña a Claude Code cómo usar esta herramienta
 .claude/rules/llm-wiki.md     # empuja a Claude Code a buscar antes y actualizar después, automáticamente
+.codex/rules/llm-wiki.md      # mismo empujón, para Codex — se escribe en cada init sin importar cuál plugin uses
 .claude-plugin/plugin.json    # información opcional del plugin para este proyecto
 ```
 

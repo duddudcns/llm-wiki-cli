@@ -18,6 +18,7 @@ ai-wiki/
   raw/ wiki/ .llmw/            # same folders as before, just nested one level down
 .claude/skills/llm-wiki/       # this still goes in your main project folder either way
 .claude/rules/llm-wiki.md      # this still goes in your main project folder either way
+.codex/rules/llm-wiki.md       # this still goes in your main project folder either way
 .claude-plugin/plugin.json     # this still goes in your main project folder either way
 ```
 

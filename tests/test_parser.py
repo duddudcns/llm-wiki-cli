@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from llmw.frontmatter import InvalidFrontmatterError, split_frontmatter
@@ -328,3 +330,57 @@ def test_markdown_link_url_decodes_spaces_and_unicode():
     masked = mask_non_prose(text)
     md_links, _ = extract_markdown_links(masked)
     assert md_links[0].target_raw == "wiki/overview/Project Profile.md"
+
+
+# --- ReDoS regressions: a malicious or accidentally pathological page must
+# mask in well under a second, not hang the CLI/MCP server for minutes. ---
+
+_REDOS_BUDGET_SECONDS = 2.0
+
+
+def test_mask_non_prose_long_backtick_run_does_not_hang():
+    text = "`" * 8000
+    start = time.monotonic()
+    masked = mask_non_prose(text)
+    assert time.monotonic() - start < _REDOS_BUDGET_SECONDS
+    assert len(masked) == len(text)
+
+
+def test_mask_non_prose_many_unclosed_wikilinks_does_not_hang():
+    text = "[[" * 20000
+    start = time.monotonic()
+    masked = mask_non_prose(text)
+    assert time.monotonic() - start < _REDOS_BUDGET_SECONDS
+    assert len(masked) == len(text)
+
+
+def test_mask_non_prose_many_unclosed_fences_does_not_hang():
+    text = "\n".join(f"```{i}" for i in range(8000))
+    start = time.monotonic()
+    masked = mask_non_prose(text)
+    assert time.monotonic() - start < _REDOS_BUDGET_SECONDS
+    assert len(masked) == len(text)
+
+
+def test_mask_non_prose_inline_code_still_masks_wikilinks_inside():
+    text = "See `[[Hidden]]` but not [[Visible]]."
+    masked = mask_non_prose(text)
+    links = extract_wikilinks(masked)
+    assert [l.target_raw for l in links] == ["Visible"]
+
+
+def test_mask_non_prose_double_backtick_span_containing_single_backtick():
+    text = "code with ``a ` backtick`` inside, then [[Visible]]"
+    masked = mask_non_prose(text)
+    links = extract_wikilinks(masked)
+    assert [l.target_raw for l in links] == ["Visible"]
+
+
+def test_mask_non_prose_fence_masks_middle_marker_like_line_as_body():
+    # A stray fence-marker-shaped line between an open and its real closer
+    # is swallowed as body (matches original lazy-body-scan semantics),
+    # not treated as a fresh open.
+    text = "```open\nmid ```other line\n```\n[[Visible]]\n"
+    masked = mask_non_prose(text)
+    links = extract_wikilinks(masked)
+    assert [l.target_raw for l in links] == ["Visible"]

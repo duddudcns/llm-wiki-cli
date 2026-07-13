@@ -35,7 +35,7 @@ def llmw_status(root: str | None = None) -> dict[str, Any]:
 
 
 @mcp.tool()
-def llmw_search(query: str, root: str | None = None, limit: int = 10) -> dict[str, Any]:
+def llmw_search(query: str, root: str | None = None, limit: int = 5) -> dict[str, Any]:
     """Search the indexed project wiki by keywords."""
     return search(_paths(root), query, limit=limit).as_dict()
 

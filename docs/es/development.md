@@ -26,6 +26,15 @@ contenido de `.claude/rules/`, así que este es el único camino que mete
 automáticamente la guía de "buscar antes / actualizar después" en cada
 sesión, sin ninguna copia del marketplace con la que duplicarse.
 
+`llmw init` también escribe lo mismo en `.codex/rules/llm-wiki.md` cada
+vez, sin importar cuál plugin (o ninguno) estés usando realmente — un
+manifiesto de plugin de Codex tiene la misma brecha "hooks y skills sí,
+rules no" que el de Claude Code. Se escribe sin condiciones, no detrás de
+un flag específico de Codex: un archivo de rules que nadie usa porque en
+tu proyecto no usás esa plataforma no molesta a nadie, pero un equipo que
+usa Claude Code y Codex a la vez se encuentra con ambos listos para usar
+sin ninguna configuración extra.
+
 ## Lo que esta herramienta todavía no hace, a propósito
 
 Por diseño, esto se queda fuera del alcance por ahora: conectarse

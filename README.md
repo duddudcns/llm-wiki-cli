@@ -43,6 +43,7 @@ Want to install the command-line tool directly instead (for example, to use it o
 ```bash
 mkdir my-project && cd my-project
 llmw init
+llmw rebuild
 llmw status --brief
 ```
 
@@ -53,9 +54,10 @@ raw/                          # original source material — never edited
 wiki/                         # the AI's own notes, which it keeps updating
   index.md overview.md log.md
   sources/ entities/ concepts/ decisions/ syntheses/ projects/ glossary/ archived/
-.llmw/                        # behind-the-scenes search index (can be rebuilt anytime)
+.llmw/                        # behind-the-scenes search index (built by `llmw rebuild`, can be rebuilt anytime)
 .claude/skills/llm-wiki/      # teaches Claude Code how to use this tool
 .claude/rules/llm-wiki.md     # nudges Claude Code to search before/update after work, automatically
+.codex/rules/llm-wiki.md      # same nudge, for Codex — written every init regardless of which plugin you use
 .claude-plugin/plugin.json    # optional plugin info for this project
 ```
 

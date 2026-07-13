@@ -1,96 +1,64 @@
-# LLM Wiki CLI Reference
+# LLM Wiki MCP Reference (Codex)
 
-All commands accept `--json` for machine-parseable output. Most read
-commands default to a brief, context-cheap output; pass `--full` for more
-detail.
+Codex has no CLI equivalent of `llmw` for the agent to shell out to (the
+`llmw` binary that `SessionStart` self-installs exists only so the
+PreToolUse/Stop hooks can call it quickly — it is not an agent-facing
+surface). All wiki access goes through the `llm-wiki` MCP server's tools.
 
-## Commands
+## Tools
 
-- `llmw init` / `llmw init --force` — scaffold `raw/`, `wiki/`, `.llmw/`,
-  and this skill in the current directory. `--layout ai-wiki` nests
-  everything under an `ai-wiki/` folder instead of the project root;
-  `--adopt` indexes an already-populated wiki without scaffolding over
-  its content; `--no-claude-plugin` skips writing this skill (use when
-  the Claude Code plugin is already installed).
-- `llmw status --brief` / `--json` — page counts, broken links, orphans,
-  last indexed time, dirty pages.
-- `llmw rebuild` — full re-index of `wiki/**/*.md` from scratch.
-- `llmw index --changed` — incremental re-index (hash/mtime based).
-- `llmw search "<query>" [--limit N] [--type TYPE] [--strict] [--json]` —
-  SQLite FTS5 search over title/summary/body. Default limit 5. Natural-
-  language queries are fine: search tries strict AND-of-terms first, then
-  relaxes to drop terms that can't match anything, then falls back to
-  OR-of-all-terms — it never needs keyword-only phrasing. Korean particle
-  suffixes (e.g. `스탯창을`) are stemmed to the bare noun before matching.
-  `--json` output is `{"mode": "strict"|"relaxed"|"any", "dropped_tokens":
-  [...], "results": [...]}`. Pass `--strict` to disable the fallback tiers.
-- `llmw read <path-or-title> [--brief|--full] [--json]` — look up a page
-  by path, title, or alias. `--brief` (default) shows title, type,
-  summary, key points, links, backlink count.
-- `llmw links <path-or-title> [--json]` — outgoing links, with broken
-  status.
-- `llmw backlinks <path-or-title> [--json]` — incoming links.
-- `llmw related <path-or-title> [--limit N] [--by links,tags,terms]
-  [--json]` — deterministic related-page candidates (no model calls).
-- `llmw ingest <file>` — register a `raw/` source (`.md`/`.txt` only in
-  this MVP) as a `wiki/sources/<slug>.md` draft. Does not summarize;
-  leaves a placeholder for the agent to fill in.
-- `llmw write <path> --reason "<reason>" --stdin [--force]` — create a
-  new wiki page from stdin. Fails if the file exists unless `--force`.
-- `llmw edit <path> --old "<text>" --new "<text>" --reason "<reason>"
-  [--all]` — exact-string replace in an existing page, the same old/new
-  semantics as a native Edit tool. Fails if `--old` isn't found, or
-  matches more than once without `--all`. Prefer this over `patch` for a
-  small, exact change — no diff/context-line bookkeeping required.
-- `llmw patch <path> --reason "<reason>" --stdin` — apply a unified diff
-  to an existing wiki page. Creates a backup first; rolls back on
-  failure. Use for structural, multi-line changes.
-- `llmw archive <path> --reason "<reason>" [--tombstone/--no-tombstone]`
-  — move a page to `wiki/archived/YYYY/MM/`, stamp archive frontmatter,
-  leave a tombstone stub at the original path (default; `--no-tombstone`
-  skips it), and log the change.
-- `llmw lint [--brief] [--json]` — broken links, orphans, duplicate
-  titles/aliases, missing/invalid frontmatter, missing summary/type,
-  isolated pages, dangling raw references, active pages linking into
-  `archived/`. Does not auto-fix.
-- `llmw health [--brief]` — system-level checks (config, index db,
-  schema version, directory existence, lock state).
-- `llmw graph build` — regenerate `.llmw/graph.json`.
-- `llmw graph export [--format json|html|both]` — write `graph.json`
-  and/or `graph.html`.
+- `llmw_status(root?)` — page counts, broken links, orphans, last indexed
+  time, dirty pages.
+- `llmw_search(query, root?, limit=5)` — SQLite FTS5 search over
+  title/summary/body. Natural-language queries are fine: search tries
+  strict AND-of-terms first, then relaxes to drop terms that can't match
+  anything, then falls back to OR-of-all-terms. Korean particle suffixes
+  (e.g. `스탯창을`) are stemmed to the bare noun before matching. Returns
+  `{"mode": "strict"|"relaxed"|"any", "dropped_tokens": [...], "results": [...]}`.
+- `llmw_read(target, root?, full=false)` — look up a page by path, title,
+  or alias. `full=false` (default) returns title, type, summary, key
+  points, links, backlink count.
+- `llmw_write(path, content, reason, root?, force=false)` — create or
+  fully replace a wiki page. Fails if the file exists unless `force=true`.
+  `reason` is required and is appended to `wiki/log.md` and the
+  `log_entries` table.
+- `llmw_init(path=".", layout="classic")` — scaffold `raw/`, `wiki/`,
+  `.llmw/` in a project that doesn't have a wiki yet. User-invoked only
+  (see the `llmw-init` skill) — do not call this on your own initiative.
+  Does not accept `force`/`adopt` overrides; if a wiki already partially
+  exists, expect an error and tell the user instead of retrying with
+  different arguments.
+
+## Not available over MCP yet
+
+The standalone CLI (used by the Claude Code plugin) also has
+`edit`/`patch`/`archive`/`lint`/`graph`/`related`/`backlinks`/`links`/`ingest`
+commands, but none of them are exposed as MCP tools here — only the five
+above are. In practice this means: a small exact-text fix or a structural
+multi-line change both go through `llmw_write(force=true)` with the full
+new page content, not a diff; there's no built-in "related pages" or
+"lint" call to reach for. If a task genuinely needs one of these and
+`llmw_write` can't express it, say so rather than guessing at a tool name
+that doesn't exist.
 
 ## Rules
 
-- `raw/` is immutable — `write`/`patch`/`archive` refuse any path inside
-  it.
-- Every `write`/`edit`/`patch`/`archive` call requires `--reason`; the
-  reason is appended to `wiki/log.md` and the `log_entries` table.
-- There is no `delete` command by design — use `archive`.
-- `index.sqlite` and `graph.json` are derived data; `llmw rebuild` always
-  regenerates them from `wiki/*.md`, the source of truth.
-- CLI output is brief by default to save context; do not assume `--full`
-  or `--json` output unless you asked for it.
+- `raw/` is immutable — never write there.
+- Every `llmw_write` call requires a meaningful `reason`.
+- There is no delete — write an archived-style page by convention if you
+  need to retire content (see `archive` guidance on the CLI side, which
+  isn't exposed here; a plain content edit noting the page is superseded
+  is the practical substitute).
+- `index.sqlite` and `graph.json` are derived data owned by the MCP
+  server's host project, not something this skill manages directly.
 - A page's `related:` frontmatter (list of paths/titles) counts as links,
-  same as inline `[[wikilinks]]`. If this wiki already used `related:` as
-  its cross-reference convention before `llmw`, you don't need to also add
-  inline wikilinks.
-- If this project keeps `index.md`/`log.md`/schema-style files outside
-  `wiki/`, or uses different required frontmatter fields (e.g.
-  `last_updated` instead of `created`/`updated`), check
-  `.llmw/config.toml` for `extra_root_pages` / `[lint] required_frontmatter`
-  overrides before assuming those files are being ignored or that lint
-  findings are real gaps.
+  same as inline `[[wikilinks]]`.
 
-## Native Edit/Write are guarded
+## No wiki/raw write guard on Codex
 
-When installed as a Claude Code plugin, a `PreToolUse` hook denies (or
-asks, per config) native `Edit`/`Write`/`NotebookEdit` calls targeting
-`wiki/*.md` or `raw/**` — the denial message names the exact `llmw`
-command to run instead. This is enforced by the harness, not just this
-skill's advice, so it applies even if another skill's instructions never
-mention `llmw`. A project can change or disable it via `.llmw/config.toml`:
-
-```toml
-[hooks]
-wiki_guard = "deny"  # default. Also: "ask" (prompt instead), "off" (disable)
-```
+Unlike the Claude Code plugin, there is **no** `PreToolUse` guard here
+that blocks a native file-edit tool from touching `wiki/*.md` or `raw/**`
+— nothing enforces the "use `llmw_write`, not a raw edit" rule but this
+skill's own instructions. Treat `wiki/*.md` as off-limits to `apply_patch`
+and any other file-edit tool; go through `llmw_write` instead so
+validation, locking, and the audit log stay active.

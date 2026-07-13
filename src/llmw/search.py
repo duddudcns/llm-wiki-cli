@@ -91,11 +91,25 @@ def _extract_terms(query: str) -> list[str]:
     return terms
 
 
+def _fts5_prefix_term(term: str) -> str:
+    """Render a term as an FTS5 string-literal prefix query.
+
+    Quoting is required, not cosmetic: an unquoted bare term that happens to
+    collide with an FTS5 operator keyword (AND, OR, NOT, NEAR — case
+    sensitive) raises `sqlite3.OperationalError: fts5: syntax error`
+    instead of matching literally. A query like "find AND fix", or a page
+    *title* containing one of those words (reached via `related()`), would
+    otherwise crash the search/related commands and the MCP search tool.
+    """
+    escaped = term.replace('"', '""')
+    return f'"{escaped}"*'
+
+
 def build_match_query(query: str) -> str | None:
     terms = _extract_terms(query)
     if not terms:
         return None
-    return " ".join(f"{t}*" for t in terms)
+    return " ".join(_fts5_prefix_term(t) for t in terms)
 
 
 def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
@@ -116,7 +130,8 @@ def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
 
 def _term_matches_any_page(conn, term: str) -> bool:
     row = conn.execute(
-        "SELECT 1 FROM pages_fts WHERE pages_fts MATCH ? LIMIT 1", (f"{term}*",)
+        "SELECT 1 FROM pages_fts WHERE pages_fts MATCH ? LIMIT 1",
+        (_fts5_prefix_term(term),),
     ).fetchone()
     return row is not None
 
@@ -159,7 +174,7 @@ def search(
         if not terms:
             return SearchResponse(results=[], mode="strict")
 
-        and_query = " ".join(f"{t}*" for t in terms)
+        and_query = " ".join(_fts5_prefix_term(t) for t in terms)
         rows = _rows_for(conn, and_query, type_filter, limit)
         mode = "strict"
         dropped: list[str] = []
@@ -167,7 +182,7 @@ def search(
         if not rows and not strict:
             survivors = [t for t in terms if _term_matches_any_page(conn, t)]
             if survivors and len(survivors) < len(terms):
-                relaxed_query = " ".join(f"{t}*" for t in survivors)
+                relaxed_query = " ".join(_fts5_prefix_term(t) for t in survivors)
                 relaxed_rows = _rows_for(conn, relaxed_query, type_filter, limit)
                 if relaxed_rows:
                     rows = relaxed_rows
@@ -175,7 +190,7 @@ def search(
                     dropped = [t for t in terms if t not in survivors]
 
         if not rows and not strict:
-            or_query = " OR ".join(f"{t}*" for t in terms)
+            or_query = " OR ".join(_fts5_prefix_term(t) for t in terms)
             or_rows = _rows_for(conn, or_query, type_filter, limit)
             if or_rows:
                 rows = or_rows

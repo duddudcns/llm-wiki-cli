@@ -27,6 +27,17 @@ commande et gérer les mises à jour à la main, passez cette étape et
 utilisez plutôt l'une des méthodes ci-dessous — elles ne se gênent pas,
 vous pouvez installer les deux.
 
+## Plugin Codex
+
+Installez [uv](https://docs.astral.sh/uv/) d'abord (si `uvx --version` n'est pas disponible), puis installez la marketplace et le plugin :
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+```
+
+Vérifiez avec `codex plugin list`. Le plugin expose les outils du wiki de manière native par un serveur MCP, qu'il lance automatiquement avec `uvx` en utilisant votre version épinglée depuis GitHub — il n'y a donc pas besoin d'installer l'outil en ligne de commande `llmw` séparément. Codex n'exécute pas les fichiers de filets de sécurité du plugin Claude Code — il dispose de ses propres filets de sécurité PreToolUse/Stop séparés (mêmes rappels de chercher avant et de mettre à jour après, adaptés à la surface des outils de Codex), qui installent automatiquement une version épinglée de `llmw` en arrière-plan à la première utilisation. Une installation manuelle de l'outil en ligne de commande n'est encore nécessaire que si vous voulez l'utiliser directement en terminal ou dans un script automatisé.
+
 ## Outil en ligne de commande (sans le plugin)
 
 Choisissez cette option si vous voulez utiliser `llmw` en dehors de
@@ -35,12 +46,8 @@ autre éditeur/outil.
 
 `llmw` nécessite **Python 3.11 ou une version plus récente**. Il n'est pas
 encore publié sur un dépôt public de paquets, donc il s'installe
-directement depuis ce dépôt GitHub. **Ce dépôt est actuellement privé** —
-pour l'installer (peu importe la méthode ci-dessous), il faut que votre
-propre compte GitHub soit configuré pour `git` (par exemple déjà connecté
-via `gh auth login`, ou une clé SSH ajoutée à votre compte GitHub). Sans
-ça, l'installation échouera avec un message d'erreur clair, plutôt que
-d'installer quelque chose de cassé.
+directement depuis ce dépôt GitHub public — comme le dépôt est public,
+aucune connexion GitHub ni clé SSH n'est nécessaire.
 
 Chaque méthode ci-dessous vous donne une commande `llmw` que vous pouvez
 utiliser depuis n'importe où, sans toucher aux autres projets Python sur

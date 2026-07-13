@@ -1,38 +1,28 @@
-# LLM Wiki CLI — Worked Examples
+# LLM Wiki MCP — Worked Examples (Codex)
+
+These call the `llm-wiki` MCP server's tools directly — there is no `llmw`
+CLI surface on the Codex side (see reference.md). Only the search and
+write calls are visible to this plugin's search/update soft gates;
+`apply_patch` on non-wiki source files is what triggers the "you haven't
+searched yet" reminder.
 
 ## Starting a work session
 
-```bash
-llmw status --brief
-llmw search "authentication redesign" --limit 5
-llmw read wiki/decisions/auth-redesign.md --brief
-```
-
-## Ingesting a new source and writing a page
-
-```bash
-llmw ingest raw/inbox/meeting-notes-2026-07-03.md
-llmw read wiki/sources/meeting-notes-2026-07-03.md --full
-# agent reads the source, then fills in the draft:
-cat <<'EOF' | llmw patch wiki/sources/meeting-notes-2026-07-03.md \
-  --reason "summarized after reading raw source" --stdin
---- a/wiki/sources/meeting-notes-2026-07-03.md
-+++ b/wiki/sources/meeting-notes-2026-07-03.md
-@@ -10,4 +10,7 @@
- ## Agent summary
-
--TODO: The agent should read the source and summarize it.
-+The team decided to move session storage out of the auth middleware to
-+comply with the new token-handling policy. See [[Auth Redesign]].
-EOF
-```
+1. `llmw_status()` — confirm the wiki exists and see dirty/orphan counts.
+2. `llmw_search(query="authentication redesign", limit=5)` — check for
+   prior context before starting non-trivial work.
+3. `llmw_read(target="wiki/decisions/auth-redesign.md")` — read anything
+   relevant the search turned up.
 
 ## Recording a decision
 
-```bash
-cat <<'EOF' | llmw write wiki/decisions/auth-redesign.md \
-  --reason "capture decision from 2026-07-03 meeting" --stdin
----
+Call `llmw_write` with the full page content and a concise `reason`:
+
+```
+llmw_write(
+    path="wiki/decisions/auth-redesign.md",
+    reason="capture decision from 2026-07-03 meeting",
+    content="""---
 title: Auth Redesign
 type: decision
 status: active
@@ -54,31 +44,25 @@ Session tokens move out of the auth middleware for compliance reasons.
 ## Related
 
 - [[Meeting Notes 2026-07-03]]
-EOF
+"""
+)
 ```
 
-## Fixing a small mistake with llmw edit
+## Fixing a small mistake
 
-```bash
-# A native Edit/Write on this file would be denied by the PreToolUse guard —
-# use llmw edit instead of hand-writing a diff for a one-line fix.
-llmw edit wiki/decisions/auth-redesign.md \
-  --old "Session tokens move out of the auth middleware for compliance reasons." \
-  --new "Session tokens move out of the auth middleware for compliance reasons (see policy v2)." \
-  --reason "add policy version reference"
-```
+There's no exact-string `edit` or diff-based `patch` tool over MCP —
+`llmw_write` always replaces the whole page. Read the page first, make
+the change in the full content, then write it back with `force=true`:
 
-## Cleaning up after a merge
+1. `llmw_read(target="wiki/decisions/auth-redesign.md", full=true)` —
+   get the current content.
+2. `llmw_write(path="wiki/decisions/auth-redesign.md", force=true,
+   reason="add policy version reference", content=<full page with the
+   one line changed>)`.
 
-```bash
-llmw archive wiki/concepts/old-auth-notes.md \
-  --reason "merged into [[Auth Redesign]]"
-llmw lint --brief
-```
+## Checking your work
 
-## Checking the knowledge graph
-
-```bash
-llmw graph build
-llmw related "Auth Redesign" --limit 10
-```
+`llmw_status()` again shows updated page counts and whether anything is
+still flagged dirty. There's no `lint`/`graph`/`related` MCP tool to
+follow up with (see reference.md) — a search for the page's title/topic
+is the practical way to spot-check that it's discoverable.

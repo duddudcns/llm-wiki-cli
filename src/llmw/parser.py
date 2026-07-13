@@ -19,14 +19,19 @@ from llmw.models import ExternalLinkRef, Heading, LinkRef, Page
 # --- masking: hide fenced code / inline code / HTML comments from link and
 # heading scanners, while preserving text length and newlines so downstream
 # character offsets stay valid against the original body. ---
+#
+# Fence and inline-code spans are matched by *pairing up* candidate marker
+# lines/runs found with a single linear regex scan (safe: no backreference,
+# no nested quantifiers), rather than a single backreference-driven regex
+# that re-scans the remaining text from every candidate position. The naive
+# regex form is quadratic-to-catastrophic on adversarial input (e.g. one
+# long run of backticks, or many unclosed fence lines) since a wiki page's
+# content is untrusted input that runs through this on every index/read.
 
-_FENCE_RE = re.compile(
-    r"(?P<indent>[ \t]{0,3})(?P<fence>`{3,}|~{3,})[^\n]*\n"
-    r"(?P<body>(?:.*\n)*?)"
-    r"(?P=indent)(?P=fence)[ \t]*(?=\n|\Z)"
-)
 _COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
-_INLINE_CODE_RE = re.compile(r"(`+)([^\n]*?)\1")
+
+_FENCE_MARKER_RE = re.compile(r"^([ \t]{0,3})(`{3,}|~{3,})([^\n]*)$", re.MULTILINE)
+_BACKTICK_RUN_RE = re.compile(r"`+")
 
 
 def _blank(match: re.Match) -> str:
@@ -37,15 +42,97 @@ def _mask_matches(text: str, pattern: re.Pattern) -> str:
     return pattern.sub(_blank, text)
 
 
+def _nearest_closer_indices(items, key_fn, is_closer_fn) -> list[int | None]:
+    """For each item, the index of the nearest later item that shares its
+    key and is itself closer-shaped — or None. One linear backward pass."""
+    closer_for: list[int | None] = [None] * len(items)
+    last_closer_at: dict = {}
+    for i in range(len(items) - 1, -1, -1):
+        closer_for[i] = last_closer_at.get(key_fn(items[i]))
+        if is_closer_fn(items[i]):
+            last_closer_at[key_fn(items[i])] = i
+    return closer_for
+
+
+def _mask_fences(text: str) -> str:
+    """Blank fenced code blocks (```/~~~, 3+ chars, matching indent+fence).
+
+    A candidate marker line opens a block; the block closes at the nearest
+    later marker line with the same indent+fence and no trailing content.
+    Anything between (including other marker-shaped lines) is swallowed as
+    body, matching how the original backreference regex's lazy body scan
+    behaved — but found in one linear pass instead of one scan per
+    candidate.
+    """
+    candidates = list(_FENCE_MARKER_RE.finditer(text))
+    if not candidates:
+        return text
+
+    closer_for = _nearest_closer_indices(
+        candidates,
+        key_fn=lambda m: (m.group(1), m.group(2)),
+        is_closer_fn=lambda m: m.group(3).strip() == "",
+    )
+
+    chars = list(text)
+    changed = False
+    i = 0
+    while i < len(candidates):
+        j = closer_for[i]
+        if j is None:
+            i += 1
+            continue
+        start, end = candidates[i].start(), candidates[j].end()
+        for k in range(start, end):
+            if chars[k] != "\n":
+                chars[k] = " "
+        changed = True
+        i = j + 1
+    return "".join(chars) if changed else text
+
+
+def _mask_inline_code_line(line: str) -> str:
+    runs = [(m.start(), m.end()) for m in _BACKTICK_RUN_RE.finditer(line)]
+    if len(runs) < 2:
+        return line
+
+    closer_for = _nearest_closer_indices(
+        runs,
+        key_fn=lambda run: run[1] - run[0],
+        is_closer_fn=lambda _run: True,
+    )
+
+    chars = list(line)
+    changed = False
+    i = 0
+    while i < len(runs):
+        j = closer_for[i]
+        if j is None:
+            i += 1
+            continue
+        start, end = runs[i][0], runs[j][1]
+        for k in range(start, end):
+            chars[k] = " "
+        changed = True
+        i = j + 1
+    return "".join(chars) if changed else line
+
+
+def _mask_inline_code(text: str) -> str:
+    if "`" not in text:
+        return text
+    return "\n".join(_mask_inline_code_line(line) for line in text.split("\n"))
+
+
 def mask_non_prose(text: str) -> str:
     """Blank out fenced code blocks, inline code spans, and HTML comments.
 
     Length and newline positions are preserved so callers can still slice
     the *original* text using offsets computed against the masked text.
     """
-    text = _mask_matches(text, _FENCE_RE)
+    text = _mask_fences(text)
     text = _mask_matches(text, _COMMENT_RE)
-    text = _mask_matches(text, _INLINE_CODE_RE)
+    text = _mask_inline_code(text)
     return text
 
 
@@ -142,8 +229,15 @@ def extract_summary(frontmatter: dict, original_body: str, masked_body: str) -> 
 # --- wikilinks: [[Page]], [[Page|Alias]], [[Page#Heading]],
 # [[Page#Heading|Alias]], [[#Heading]], ![[Embed]] ---
 
+# Possessive quantifiers (Python 3.11+) plus a generous-but-bounded length
+# cap keep this O(n) even against adversarial input (e.g. thousands of
+# unmatched "[[") — an unbounded greedy `*` here is quadratic: at every
+# "[[" position, the target/heading/alias groups re-scan the rest of the
+# text looking for a close that never comes. No real wikilink component
+# is anywhere near 500 chars.
 _WIKILINK_RE = re.compile(
-    r"(?P<embed>!)?\[\[(?P<target>[^\]|#]*)(?:#(?P<heading>[^\]|]*))?(?:\|(?P<alias>[^\]]*))?\]\]"
+    r"(?P<embed>!)?\[\[(?P<target>[^\]|#]{0,500}+)"
+    r"(?:#(?P<heading>[^\]|]{0,500}+))?(?:\|(?P<alias>[^\]]{0,500}+))?\]\]"
 )
 
 

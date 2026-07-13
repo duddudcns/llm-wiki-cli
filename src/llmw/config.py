@@ -85,8 +85,19 @@ def _toml_string_array(values: list[str]) -> str:
     return f"[{escaped}]"
 
 
+class ConfigError(RuntimeError):
+    pass
+
+
 def load_config(config_path: Path) -> Config:
-    data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    try:
+        data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(
+            f"{config_path} is not valid TOML: {exc}. Run `llmw health` for "
+            "details, or fix/delete the file (llmw falls back to defaults "
+            "when it's absent)."
+        ) from exc
     llmw = data.get("llmw", {})
     paths = data.get("paths", {})
     defaults = data.get("defaults", {})

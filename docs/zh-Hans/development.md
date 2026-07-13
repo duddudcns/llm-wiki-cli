@@ -12,6 +12,8 @@
 
 不管加没加 `--no-claude-plugin`,`llmw init` 都会一直写入 `.claude/rules/llm-wiki.md`。Claude Code 的插件清单能分发 hooks 和 skills,却没办法分发 `.claude/rules/` 里的内容,所以这是唯一能把"开工前搜索、收工后更新"这条提醒自动加载进每次会话上下文的途径,也不会跟应用市场版插件产生重复。
 
+`llmw init` 同样也会在 `.codex/rules/llm-wiki.md` 里写入相同的指导,每次都写,不管你实际用不用这个插件(或者两个都不用)——Codex 的插件清单跟 Claude Code 一样,也是能分发 hooks 和 skills 但没办法分发 `.codex/rules/` 里的内容。这个文件是无条件创建的,而不是被某个只针对 Codex 的开关控制:一个项目里没人用的平台的空规则文件是无害的,而一个同时用 Claude Code 和 Codex 的团队可以一次初始化就把两个都配好,不用额外折腾。
+
 ## 这个工具目前刻意不做的事
 
 按照设计,以下这些暂时都不在这个工具的范围之内：直接连接 AI 模型、自动监控文件变化、AI 驱动的语义搜索、直接读取 PDF/Word 文件、图形界面应用,以及任何自动合并/删除/解决笔记冲突的功能。

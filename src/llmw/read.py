@@ -64,7 +64,13 @@ def _resolve_path(paths: ProjectPaths, target: str) -> str | None:
     normalized = target.replace("\\", "/")
     candidate = paths.root / normalized
     if candidate.is_file():
-        return paths.rel(candidate)
+        try:
+            return paths.rel(candidate)
+        except ValueError:
+            # candidate resolves to a real file outside the project root
+            # (e.g. target="../secret.md") — not a wiki page, so this is
+            # "not found", not a crash.
+            return None
     return None
 
 

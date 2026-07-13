@@ -48,7 +48,6 @@ def test_write_creates_new_page_and_updates_index(tmp_path: Path):
         paths, "wiki/concepts/new.md", "---\ntitle: New\n---\nbody\n", reason="added new concept"
     )
     assert fs_path.is_file()
-    assert "duddudcnsgns" not in paths.wiki_log.read_text(encoding="utf-8")  # sanity: no secrets
     assert "added new concept" in paths.wiki_log.read_text(encoding="utf-8")
 
 

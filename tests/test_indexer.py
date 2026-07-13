@@ -2,8 +2,10 @@ import sqlite3
 import time
 from pathlib import Path
 
+import pytest
+
 from llmw.bootstrap import init_project
-from llmw.config import Config, save_config
+from llmw.config import Config, ConfigError, save_config
 from llmw.indexer import index_changed, rebuild
 
 
@@ -12,6 +14,20 @@ def _write(paths_root: Path, rel: str, content: str) -> Path:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content, encoding="utf-8")
     return p
+
+
+def test_rebuild_raises_clear_config_error_on_malformed_toml(tmp_path: Path):
+    paths = init_project(tmp_path)
+    paths.config_path.write_text("[llmw\nnot valid toml", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        rebuild(paths)
+
+
+def test_index_changed_raises_clear_config_error_on_malformed_toml(tmp_path: Path):
+    paths = init_project(tmp_path)
+    paths.config_path.write_text("[llmw\nnot valid toml", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        index_changed(paths)
 
 
 def test_rebuild_indexes_all_pages_and_resolves_links(tmp_path: Path):

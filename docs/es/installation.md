@@ -16,11 +16,22 @@ y `claude plugin install llm-wiki@llm-wiki-cli`)
 
 Esto también instala cuatro redes de seguridad: una mantiene actualizada por su cuenta la herramienta de línea de comandos, otra evita que la IA se salte la wiki y edite los archivos directamente, y las otras dos le recuerdan a la IA que busque en la wiki antes de empezar un trabajo nuevo y que la actualice una vez terminado — mira [hooks.md](hooks.md) para ver exactamente qué hace cada una y cómo desactivarlas si no las quieres. Si prefieres instalar tú mismo la herramienta de línea de comandos y encargarte de las actualizaciones a mano, sáltate esto y usa uno de los métodos de abajo — no chocan entre sí, puedes instalar las dos cosas.
 
+## Plugin de Codex
+
+Instala el marketplace directamente desde GitHub, después instala el plugin:
+
+```powershell
+codex plugin marketplace add duddudcns/llm-wiki-cli
+codex plugin add llm-wiki@llm-wiki-cli
+```
+
+Verificalo con `codex plugin list`. El plugin expone herramientas nativas de la wiki a través de un servidor MCP y usa `uvx` para obtener automáticamente su versión fija de GitHub. Instala [uv](https://docs.astral.sh/uv/) primero si `uvx --version` no funciona. Codex no ejecuta los archivos de redes del plugin de Claude Code — tiene sus propias redes PreToolUse/Stop, separadas (mantienen los mismos recordatorios de buscar-antes/actualizar-después, adaptados a la superficie de herramientas de Codex), que instalan por su cuenta una versión fija de `llmw` en el fondo la primera vez que las usas. Así que solo necesitas instalar la herramienta de línea de comandos manualmente si quieres usarla directamente desde la terminal.
+
 ## Herramienta de línea de comandos (sin el plugin)
 
 Elige esta opción si quieres usar `llmw` fuera de Claude Code — en un script, en un proceso automatizado, o con otro editor u otra herramienta.
 
-`llmw` necesita **Python 3.11 o más reciente**. Todavía no está publicada en un índice de paquetes público, así que se instala directamente desde este repositorio de GitHub. **Este repositorio es privado por ahora** — para instalarla (con cualquiera de los métodos de abajo) necesitas tener tu propia cuenta de GitHub conectada a `git` (por ejemplo, ya haber iniciado sesión con `gh auth login`, o tener una llave SSH agregada a tu cuenta de GitHub). Sin eso, la instalación va a fallar con un error claro, en vez de instalar algo a medias.
+`llmw` necesita **Python 3.11 o más reciente**. Todavía no está publicada en un índice de paquetes público, así que se instala directamente desde este repositorio público de GitHub — como el repositorio es público, no necesitas configurar un inicio de sesión de GitHub ni una llave SSH.
 
 Cualquiera de estos métodos te deja con un comando `llmw` que puedes usar desde donde sea, sin afectar ningún otro proyecto de Python que tengas en tu computadora.
 

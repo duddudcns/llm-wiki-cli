@@ -28,6 +28,8 @@ charge automatiquement, à chaque session, le rappel « chercher avant /
 mettre à jour après », sans aucune copie côté marketplace avec laquelle
 faire doublon.
 
+De la même manière, `llmw init` écrit aussi le même contenu dans `.codex/rules/llm-wiki.md`, à chaque fois, peu importe quel plugin (ou aucun) vous utilisez réellement — un manifeste de plugin Codex a exactement le même gap que celui de Claude Code : « des hooks et des skills oui, du contenu `.codex/rules/` non ». C'est écrit inconditionnellement plutôt que d'être gâté derrière un drapeau propre à Codex : un fichier de règles inutilisé pour une plateforme que personne n'utilise sur ce projet est inoffensif, tandis qu'une équipe qui mélange Claude Code et Codex les récupère tous les deux déjà configurés sans travail supplémentaire.
+
 ## Ce que cet outil ne fait volontairement pas (pour l'instant)
 
 Par choix, cela reste hors du périmètre pour l'instant : se connecter

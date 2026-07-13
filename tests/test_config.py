@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from llmw.config import Config, load_config, save_config
+import pytest
+
+from llmw.config import Config, ConfigError, load_config, save_config
 
 
 def test_default_wiki_guard_is_deny():
@@ -33,3 +35,13 @@ def test_missing_hooks_section_defaults_to_deny(tmp_path: Path):
     config_path = tmp_path / "config.toml"
     config_path.write_text("[llmw]\nschema_version = 1\ncreated = \"\"\n", encoding="utf-8")
     assert load_config(config_path).hooks_wiki_guard == "deny"
+
+
+def test_malformed_toml_raises_clear_config_error_not_raw_toml_exception(tmp_path: Path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[llmw\nthis is not valid toml", encoding="utf-8")
+    with pytest.raises(ConfigError) as excinfo:
+        load_config(config_path)
+    message = str(excinfo.value)
+    assert "config.toml" in message or str(config_path) in message
+    assert "llmw health" in message

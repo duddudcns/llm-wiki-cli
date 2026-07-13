@@ -1,8 +1,18 @@
 import asyncio
+import inspect
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+from llmw import mcp_server
+
+
+def test_llmw_search_default_limit_matches_cli_and_docs() -> None:
+    # mcp_server.llmw_search used to default to limit=10 while the CLI's
+    # `llmw search` and every doc describing it default to 5 — same query,
+    # different result-count depending on which surface answered it.
+    assert inspect.signature(mcp_server.llmw_search).parameters["limit"].default == 5
 
 
 def test_mcp_initialize_list_and_meaningful_call(tmp_path: Path) -> None:
