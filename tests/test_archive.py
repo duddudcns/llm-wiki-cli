@@ -7,6 +7,7 @@ from llmw.archive import PageNotFoundForArchiveError, archive_page
 from llmw.bootstrap import init_project
 from llmw.config import ConfigError
 from llmw.indexer import rebuild
+from llmw.lint import run_lint
 from llmw.safety import PathNotAllowedError, ReasonRequiredError
 from llmw.writer import write_page
 
@@ -61,6 +62,30 @@ def test_archive_without_tombstone_removes_original(tmp_path: Path):
     archive_page(paths, "wiki/concepts/old.md", reason="cleanup", tombstone=False)
 
     assert not (paths.root / "wiki/concepts/old.md").is_file()
+
+
+def test_archive_default_tombstone_does_not_fail_lint(tmp_path: Path):
+    # A tombstone stub is a system-generated redirect notice, not real
+    # content — it must not permanently trip missing-field/summary/type
+    # lint checks just because an ordinary `llmw archive` ran.
+    paths = init_project(tmp_path)
+    write_page(
+        paths,
+        "wiki/concepts/old.md",
+        (
+            "---\ntitle: Old\ntype: concept\nstatus: active\n"
+            'created: "2026-01-01"\nupdated: "2026-01-01"\n'
+            "summary: a thing\n---\nbody\n"
+        ),
+        reason="seed",
+    )
+
+    archive_page(paths, "wiki/concepts/old.md", reason="cleanup")
+
+    report = run_lint(paths)
+    assert report.missing_frontmatter == []
+    assert report.pages_without_summary == []
+    assert report.pages_without_type == []
 
 
 def test_archive_twice_raises_already_archived(tmp_path: Path):

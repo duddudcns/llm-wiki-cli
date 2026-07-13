@@ -57,3 +57,20 @@ def test_write_graph_html_is_self_contained(tmp_path: Path):
 def test_render_graph_html_embeds_node_count():
     html = render_graph_html({"nodes": [{"id": "a"}], "edges": []})
     assert "1 nodes" in html
+
+
+def test_render_graph_html_escapes_script_breakout_in_page_title():
+    # A page title (agent-written, possibly derived from untrusted raw/
+    # material) containing "</script>" must not be able to break out of
+    # the embedded JSON literal and inject arbitrary script content into
+    # the exported graph.html.
+    malicious_title = "</script><script>alert(1)</script>"
+    graph = {
+        "nodes": [
+            {"id": "a.md", "title": malicious_title, "type": "note", "tags": [], "degree": 0}
+        ],
+        "edges": [],
+    }
+    html = render_graph_html(graph)
+    assert "</script><script>alert" not in html
+    assert malicious_title.replace("</", "<\\/") in html

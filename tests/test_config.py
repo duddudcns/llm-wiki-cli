@@ -45,3 +45,15 @@ def test_malformed_toml_raises_clear_config_error_not_raw_toml_exception(tmp_pat
     message = str(excinfo.value)
     assert "config.toml" in message or str(config_path) in message
     assert "llmw health" in message
+
+
+def test_scalar_section_raises_clear_config_error_not_attribute_error(tmp_path: Path):
+    # Valid TOML, wrong shape: `hooks = "off"` parses fine but is a string,
+    # not a table, so hooks.get(...) would previously raise AttributeError.
+    config_path = tmp_path / "config.toml"
+    config_path.write_text('hooks = "off"\n', encoding="utf-8")
+    with pytest.raises(ConfigError) as excinfo:
+        load_config(config_path)
+    message = str(excinfo.value)
+    assert "hooks" in message
+    assert "llmw health" in message

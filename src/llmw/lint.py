@@ -94,18 +94,28 @@ def _lint_frontmatter(paths: ProjectPaths, config: Config, report: LintReport) -
     """
     for fs_path in iter_wiki_files(paths, config):
         rel_path = paths.rel(fs_path)
-        text = fs_path.read_text(encoding="utf-8")
+        try:
+            text = fs_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            report.invalid_frontmatter.append({"path": rel_path, "error": str(exc)})
+            continue
         try:
             frontmatter, _body = split_frontmatter(text)
         except InvalidFrontmatterError as exc:
             report.invalid_frontmatter.append({"path": rel_path, "error": str(exc)})
             continue
 
-        missing = [
-            f for f in config.lint_required_frontmatter if not _has_field(frontmatter, f)
-        ]
-        if missing:
-            report.missing_frontmatter.append({"path": rel_path, "missing": missing})
+        # A tombstone stub (identified by its `moved_to` field, which only
+        # `llmw archive` writes) is a system-generated redirect notice, not
+        # real content — it deliberately carries none of the required
+        # fields, so it shouldn't permanently fail lint the way a genuine
+        # incomplete page would.
+        if not _has_field(frontmatter, "moved_to"):
+            missing = [
+                f for f in config.lint_required_frontmatter if not _has_field(frontmatter, f)
+            ]
+            if missing:
+                report.missing_frontmatter.append({"path": rel_path, "missing": missing})
 
         raw_refs: list[str] = []
         _iter_raw_path_strings(frontmatter, raw_refs)
@@ -176,9 +186,16 @@ def run_lint(paths: ProjectPaths) -> LintReport:
             alias: paths_ for alias, paths_ in alias_groups.items() if len(paths_) > 1
         }
 
-        for row in conn.execute("SELECT path FROM pages WHERE summary IS NULL"):
+        # Exclude archived pages (status='archived' covers both the real
+        # archived copy, which already retains its original type/summary,
+        # and the tombstone stub, which deliberately has neither).
+        for row in conn.execute(
+            "SELECT path FROM pages WHERE summary IS NULL AND (status IS NULL OR status != 'archived')"
+        ):
             report.pages_without_summary.append(row["path"])
-        for row in conn.execute("SELECT path FROM pages WHERE type IS NULL"):
+        for row in conn.execute(
+            "SELECT path FROM pages WHERE type IS NULL AND (status IS NULL OR status != 'archived')"
+        ):
             report.pages_without_type.append(row["path"])
 
         for row in conn.execute(

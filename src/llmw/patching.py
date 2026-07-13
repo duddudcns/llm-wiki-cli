@@ -34,10 +34,35 @@ def _parse_hunks(diff_text: str) -> list[dict]:
             continue
         old_start = int(match.group("old_start"))
         old_len = int(match.group("old_len")) if match.group("old_len") is not None else 1
+        new_len = int(match.group("new_len")) if match.group("new_len") is not None else 1
         body: list[str] = []
         i += 1
-        while i < len(lines) and not lines[i].startswith("@@") and not lines[i].startswith("--- "):
-            body.append(lines[i])
+        # Bound the body by the declared old/new line counts rather than by
+        # scanning for a "@@"/"--- " marker line: a deleted/added line whose
+        # *content* starts with "-- " or "@@ " (a SQL/Lua comment, a decorator
+        # line) renders as "--- ..."/"@@+ ..." in the body and would
+        # otherwise be misread as the next hunk/file header, truncating the
+        # hunk silently.
+        old_count = 0
+        new_count = 0
+        while i < len(lines):
+            body_line = lines[i]
+            if body_line == _NO_NEWLINE_MARKER:
+                body.append(body_line)
+                i += 1
+                continue
+            if old_count >= old_len and new_count >= new_len:
+                break
+            if body_line.startswith(" ") or body_line == "":
+                old_count += 1
+                new_count += 1
+            elif body_line.startswith("-"):
+                old_count += 1
+            elif body_line.startswith("+"):
+                new_count += 1
+            else:
+                break
+            body.append(body_line)
             i += 1
         hunks.append({"old_start": old_start, "old_len": old_len, "body": body})
 

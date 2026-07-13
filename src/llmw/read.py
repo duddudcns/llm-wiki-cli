@@ -63,7 +63,7 @@ def _resolve_path(paths: ProjectPaths, target: str) -> str | None:
 
     normalized = target.replace("\\", "/")
     candidate = paths.root / normalized
-    if candidate.is_file():
+    if candidate.is_file() and paths.is_inside_wiki(candidate):
         try:
             return paths.rel(candidate)
         except ValueError:
@@ -88,7 +88,13 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
             f"Page indexed but missing on disk: {rel_path}. Run `llmw rebuild`."
         )
 
-    text = fs_path.read_text(encoding="utf-8")
+    try:
+        text = fs_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise PageNotFoundError(
+            f"{rel_path} is not valid UTF-8 text and can't be read as a wiki "
+            f"page: {exc}"
+        ) from exc
     page = parse_page(text, rel_path)
     masked = mask_non_prose(page.body)
     key_points = extract_key_points(page.body, masked)

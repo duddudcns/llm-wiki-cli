@@ -76,3 +76,47 @@ def test_acquire_lock_is_atomic_create_not_check_then_write(tmp_path: Path, monk
     with pytest.raises(LockedError):
         with acquire_lock(paths, "index"):
             pass
+
+
+def test_concurrent_stale_lock_takeover_only_one_winner(tmp_path: Path, monkeypatch):
+    # Two processes both observe the *same* stale lock and both attempt
+    # takeover. Each individual unlink()+create() pair is atomic, but the
+    # pair-of-pairs isn't: process A can finish writing its fresh lock only
+    # to have process B (racing off the same stale observation) unlink A's
+    # fresh lock and install its own right before A verifies it still owns
+    # what it wrote. A must detect the mismatch and raise LockedError
+    # instead of proceeding alongside B.
+    import os as os_module
+
+    paths = init_project(tmp_path)
+    paths.locks_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = paths.locks_dir / "index.lock"
+    lock_path.write_text("stale", encoding="utf-8")
+    stale_time = time.time() - 120
+    os_module.utime(lock_path, (stale_time, stale_time))
+
+    import llmw.locks as locks_module
+
+    real_read_token = locks_module._read_lock_token
+    state = {"b_has_raced": False}
+
+    def racing_read_token(path):
+        # This is called exactly once by A, right after A wrote its own
+        # token, to verify it still owns the lock. Inject B's full
+        # concurrent takeover at this exact point, before A's read.
+        if not state["b_has_raced"]:
+            state["b_has_raced"] = True
+            path.unlink(missing_ok=True)
+            fd_b = locks_module._create_lock_file(path)
+            with os_module.fdopen(fd_b, "w", encoding="utf-8", newline="\n") as f:
+                f.write("B-token")
+        return real_read_token(path)
+
+    monkeypatch.setattr(locks_module, "_read_lock_token", racing_read_token)
+
+    with pytest.raises(LockedError):
+        with acquire_lock(paths, "index"):
+            pytest.fail("A must not believe it holds the lock after losing the race")
+
+    # B's lock must survive — A's loss must not delete the winner's lock.
+    assert lock_path.read_text(encoding="utf-8") == "B-token"

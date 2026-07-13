@@ -59,6 +59,28 @@ def test_rebuild_indexes_all_pages_and_resolves_links(tmp_path: Path):
         conn.close()
 
 
+def test_rebuild_records_error_and_continues_for_non_utf8_file(tmp_path: Path):
+    # A single legacy-encoded file (common for --adopt'd wikis) must not
+    # abort the whole rebuild with an uncaught UnicodeDecodeError.
+    paths = init_project(tmp_path)
+    _write(tmp_path, "wiki/concepts/good.md", "---\ntitle: Good\n---\nbody\n")
+    bad = tmp_path / "wiki" / "concepts" / "bad.md"
+    bad.parent.mkdir(parents=True, exist_ok=True)
+    bad.write_bytes("\xc1\xd1\xb8\xa9".encode("latin-1"))
+
+    stats = rebuild(paths)
+
+    assert any(rel == "wiki/concepts/bad.md" for rel, _err in stats.errors)
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM pages WHERE path = 'wiki/concepts/good.md'"
+        ).fetchone()
+        assert row is not None
+    finally:
+        conn.close()
+
+
 def test_index_changed_skips_unmodified_files(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n")

@@ -69,6 +69,25 @@ def test_long_json_value_is_not_line_wrapped(tmp_path: Path):
     assert any(r["summary"] == long_value for r in payload["results"])
 
 
+def test_read_full_does_not_line_wrap_long_body_lines(tmp_path: Path):
+    # A round-trip hazard: an agent reads `--full`, edits the text, then
+    # feeds it back via `llmw edit --old`/`llmw write --force`. If the CLI
+    # soft-wraps a long body line (rich defaults to 80 columns when piped),
+    # the round-tripped content no longer matches the original page.
+    run(tmp_path, "init")
+    (tmp_path / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)
+    long_line = "z" * 200
+    (tmp_path / "wiki" / "concepts" / "long.md").write_text(
+        f"---\ntitle: Long\n---\n{long_line}\n", encoding="utf-8"
+    )
+    run(tmp_path, "rebuild")
+
+    result = run(tmp_path, "read", "wiki/concepts/long.md", "--full")
+    assert result.returncode == 0, result.stderr
+    assert long_line in result.stdout
+    assert (long_line + "\n") in result.stdout or result.stdout.rstrip("\n").endswith(long_line)
+
+
 def test_lint_json_output_is_valid_even_with_bracket_content(tmp_path: Path):
     run(tmp_path, "init")
     (tmp_path / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)
