@@ -1,8 +1,13 @@
 import json
+import tomllib
 from pathlib import Path
 
 
 ROOT = Path(__file__).parents[1]
+
+
+def _package_version() -> str:
+    return tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
 
 
 def test_codex_marketplace_points_to_valid_plugin() -> None:
@@ -24,7 +29,7 @@ def test_codex_marketplace_points_to_valid_plugin() -> None:
     server = mcp["mcpServers"]["llm-wiki"]
     assert server["type"] == "stdio"
     assert server["command"] == "uvx"
-    assert any("@v0.1.21" in arg for arg in server["args"])
+    assert any(f"@v{_package_version()}" in arg for arg in server["args"])
 
 
 def test_codex_plugin_ships_hooks_at_default_path() -> None:
@@ -70,10 +75,7 @@ def test_codex_skill_is_discoverable_from_plain_wiki_intent() -> None:
 
 
 def test_codex_and_package_versions_match() -> None:
-    import tomllib
-
-    package = tomllib.loads((ROOT / "pyproject.toml").read_text())
     manifest = json.loads(
         (ROOT / "plugins/llm-wiki/.codex-plugin/plugin.json").read_text()
     )
-    assert manifest["version"] == package["project"]["version"]
+    assert manifest["version"] == _package_version()

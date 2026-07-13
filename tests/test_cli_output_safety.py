@@ -88,6 +88,25 @@ def test_read_full_does_not_line_wrap_long_body_lines(tmp_path: Path):
     assert (long_line + "\n") in result.stdout or result.stdout.rstrip("\n").endswith(long_line)
 
 
+def test_ingest_reports_locked_error_cleanly_instead_of_a_traceback(tmp_path: Path):
+    # `write`/`edit`/`patch`/`archive` all catch LockedError and report it
+    # as a normal error exit; `ingest` (which also calls into write_page
+    # under the same lock) used to be missing that except-clause and let
+    # it surface as an uncaught traceback instead.
+    run(tmp_path, "init")
+    (tmp_path / "raw" / "inbox").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "raw" / "inbox" / "note.md").write_text("content", encoding="utf-8")
+    lock_dir = tmp_path / ".llmw" / "locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    (lock_dir / "write.lock").write_text("held", encoding="utf-8")
+
+    result = run(tmp_path, "ingest", "raw/inbox/note.md")
+
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "locked" in result.stderr.lower()
+
+
 def test_lint_json_output_is_valid_even_with_bracket_content(tmp_path: Path):
     run(tmp_path, "init")
     (tmp_path / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)

@@ -85,19 +85,27 @@ def archive_page(
         )
         dest_path.write_text(stamped, encoding="utf-8", newline="\n")
 
-        if tombstone:
-            rel_dest = paths.rel(dest_path)
-            stub_frontmatter = {
-                "title": fs_path.stem,
-                "status": "archived",
-                "moved_to": rel_dest,
-                "archived_at": now.isoformat(timespec="seconds"),
-            }
-            yaml_block = _dump_frontmatter_block(stub_frontmatter)
-            stub = f"---\n{yaml_block}\n---\n\nThis page was archived. See `{rel_dest}`.\n"
-            fs_path.write_text(stub, encoding="utf-8", newline="\n")
-        else:
-            fs_path.unlink()
+        try:
+            if tombstone:
+                rel_dest = paths.rel(dest_path)
+                stub_frontmatter = {
+                    "title": fs_path.stem,
+                    "status": "archived",
+                    "moved_to": rel_dest,
+                    "archived_at": now.isoformat(timespec="seconds"),
+                }
+                yaml_block = _dump_frontmatter_block(stub_frontmatter)
+                stub = f"---\n{yaml_block}\n---\n\nThis page was archived. See `{rel_dest}`.\n"
+                fs_path.write_text(stub, encoding="utf-8", newline="\n")
+            else:
+                fs_path.unlink()
+        except OSError:
+            # The copy at dest_path landed but the original-side mutation
+            # didn't — roll the copy back so the original page is left
+            # exactly as it was, and a retry doesn't create yet another
+            # uniquely-suffixed duplicate copy in wiki/archived/.
+            dest_path.unlink(missing_ok=True)
+            raise
 
         append_log(
             paths, "archive", paths.rel(dest_path), reason, detail=f"from {rel_path}"

@@ -12,11 +12,19 @@ class IndexNotBuiltError(RuntimeError):
 
 
 def open_ro(paths: ProjectPaths) -> sqlite3.Connection | None:
-    """Open the index DB read-only, or return None if it hasn't been built."""
+    """Open the index DB read-only, or return None if it hasn't been built
+    — or is corrupt enough that it can't be read at all, since the
+    caller's "run `llmw rebuild`" advice fixes both cases the same way.
+    """
     if not paths.index_db.exists():
         return None
-    conn = sqlite3.connect(paths.index_db)
-    conn.row_factory = sqlite3.Row
+    uri = f"{paths.index_db.resolve().as_uri()}?mode=ro"
+    try:
+        conn = sqlite3.connect(uri, uri=True)
+        conn.row_factory = sqlite3.Row
+        conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
+    except sqlite3.DatabaseError:
+        return None
     return conn
 
 

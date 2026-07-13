@@ -119,3 +119,21 @@ def test_related_respects_limit(tmp_path: Path):
 
     results = related(paths, "A", by=("tags",), limit=2)
     assert len(results) == 2
+
+
+def test_related_negative_limit_does_not_return_unbounded_results(tmp_path: Path):
+    # Python's results[:limit] with a negative limit drops from the end
+    # rather than truncating to a bounded count — same class of bug as
+    # search()'s SQL LIMIT -1, fixed the same way (clamp to >= 1).
+    paths = init_project(tmp_path)
+    _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\ntags:\n  - infra\n---\nbody\n")
+    for i in range(5):
+        _write(
+            tmp_path,
+            f"wiki/concepts/p{i}.md",
+            f"---\ntitle: P{i}\ntags:\n  - infra\n---\nbody\n",
+        )
+    rebuild(paths)
+
+    results = related(paths, "A", by=("tags",), limit=-1)
+    assert len(results) == 1

@@ -664,6 +664,8 @@ def ingest(source: str = typer.Argument(..., help="Path under raw/ to register."
         SourceNotInRawError,
         UnsupportedSourceTypeError,
         SourceAlreadyIngestedError,
+        InvalidFrontmatterError,
+        LockedError,
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc

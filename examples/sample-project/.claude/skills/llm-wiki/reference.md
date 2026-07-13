@@ -1,8 +1,9 @@
 # LLM Wiki CLI Reference
 
-All commands accept `--json` for machine-parseable output. Most read
-commands default to a brief, context-cheap output; pass `--full` for more
-detail.
+Most commands accept `--json` for machine-parseable output —
+`write`/`edit`/`patch`/`archive`/`ingest` report success or failure as
+plain text only. Most read commands default to a brief, context-cheap
+output; pass `--full` for more detail.
 
 ## Commands
 

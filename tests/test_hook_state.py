@@ -29,6 +29,44 @@ def test_read_missing_session_returns_empty_dict(tmp_path: Path):
     assert read_session_state(paths, "never-written") == {}
 
 
+def test_concurrent_writes_to_same_session_do_not_lose_an_update(tmp_path: Path, monkeypatch):
+    # Two hook invocations for the same session (e.g. a Stop hook racing a
+    # lingering Bash-backed PreToolUse hook) each do a read-modify-write of
+    # different keys. Without mutual exclusion, both can read the same
+    # initial state and whichever writes last silently drops the other's
+    # key. A small delay inside the locked critical section widens the
+    # window so the race would be deterministic if unlocked; with the
+    # session lock, the second call can't start its read until the first
+    # has fully written and released, so both updates must survive.
+    import threading
+
+    import llmw.hook_state as hook_state_module
+
+    paths = init_project(tmp_path)
+    real_read = hook_state_module.read_session_state
+
+    def slow_read(paths_arg, session_id):
+        result = real_read(paths_arg, session_id)
+        time.sleep(0.05)
+        return result
+
+    monkeypatch.setattr(hook_state_module, "read_session_state", slow_read)
+
+    def run(**updates):
+        write_session_state(paths, "race-session", **updates)
+
+    t1 = threading.Thread(target=run, kwargs={"searched": True})
+    t2 = threading.Thread(target=run, kwargs={"dirty": True})
+    t1.start()
+    t2.start()
+    t1.join(timeout=5)
+    t2.join(timeout=5)
+
+    final_state = real_read(paths, "race-session")
+    assert final_state.get("searched") is True
+    assert final_state.get("dirty") is True
+
+
 def test_read_write_ignore_none_session_id(tmp_path: Path):
     paths = init_project(tmp_path)
 

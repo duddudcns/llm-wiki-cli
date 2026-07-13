@@ -21,6 +21,15 @@ def test_wiki_guard_off_round_trips(tmp_path: Path):
     assert load_config(config_path).hooks_wiki_guard == "off"
 
 
+def test_extra_root_pages_with_control_chars_round_trips_through_toml(tmp_path: Path):
+    # A literal newline/quote/backslash embedded raw in a TOML basic
+    # string produces a file tomllib can't parse back — must be escaped.
+    config_path = tmp_path / "config.toml"
+    values = ["weird\nname.md", 'quote"file.md', "back\\slash.md", "tab\ttab.md"]
+    save_config(config_path, Config(extra_root_pages=values))
+    assert load_config(config_path).extra_root_pages == values
+
+
 def test_invalid_wiki_guard_value_falls_back_to_default(tmp_path: Path):
     config_path = tmp_path / "config.toml"
     config_path.write_text(

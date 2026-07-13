@@ -80,8 +80,35 @@ class Config:
         )
 
 
+_TOML_BASIC_ESCAPES = {
+    "\\": "\\\\",
+    '"': '\\"',
+    "\b": "\\b",
+    "\t": "\\t",
+    "\n": "\\n",
+    "\f": "\\f",
+    "\r": "\\r",
+}
+
+
+def _toml_escape_string(value: str) -> str:
+    # TOML basic strings can't contain a literal control character (only
+    # the escape sequences below, or \uXXXX for anything else) — a raw
+    # newline or other control char embedded here would write a
+    # config.toml that tomllib can't parse back.
+    out = []
+    for ch in value:
+        if ch in _TOML_BASIC_ESCAPES:
+            out.append(_TOML_BASIC_ESCAPES[ch])
+        elif ord(ch) < 0x20 or ord(ch) == 0x7F:
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def _toml_string_array(values: list[str]) -> str:
-    escaped = ", ".join('"' + v.replace('\\', '\\\\').replace('"', '\\"') + '"' for v in values)
+    escaped = ", ".join('"' + _toml_escape_string(v) + '"' for v in values)
     return f"[{escaped}]"
 
 

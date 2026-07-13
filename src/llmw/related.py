@@ -44,6 +44,8 @@ def related(
     if conn is None:
         raise IndexNotBuiltError("Index not built yet. Run `llmw rebuild` first.")
 
+    limit = max(1, limit)
+
     try:
         page_row = find_page_row(conn, target)
         if page_row is None:
