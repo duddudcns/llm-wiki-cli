@@ -164,10 +164,16 @@ loop();
 
 
 def render_graph_html(graph: dict) -> str:
+    # Page titles/tags come from wiki content (frontmatter an agent wrote,
+    # possibly derived from untrusted raw/ material) and land verbatim in
+    # this JSON blob. Without escaping "</", a title containing
+    # "</script><script>..." would break out of the literal and execute in
+    # whatever opens the exported graph.html.
+    graph_json = jsonlib.dumps(graph).replace("</", "<\\/")
     return (
         _HTML_TEMPLATE.replace("__NODE_COUNT__", str(len(graph["nodes"])))
         .replace("__EDGE_COUNT__", str(len(graph["edges"])))
-        .replace("__GRAPH_JSON__", jsonlib.dumps(graph))
+        .replace("__GRAPH_JSON__", graph_json)
     )
 
 

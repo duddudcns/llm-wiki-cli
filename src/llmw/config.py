@@ -98,6 +98,14 @@ def load_config(config_path: Path) -> Config:
             "details, or fix/delete the file (llmw falls back to defaults "
             "when it's absent)."
         ) from exc
+    for section_name in ("llmw", "paths", "defaults", "lint", "hooks"):
+        if section_name in data and not isinstance(data[section_name], dict):
+            raise ConfigError(
+                f"{config_path}: [{section_name}] must be a TOML table, got "
+                f"{type(data[section_name]).__name__}. Run `llmw health` for "
+                "details, or fix/delete the file (llmw falls back to defaults "
+                "when it's absent)."
+            )
     llmw = data.get("llmw", {})
     paths = data.get("paths", {})
     defaults = data.get("defaults", {})

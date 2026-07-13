@@ -356,11 +356,19 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
         stats.files_scanned += 1
 
         prior = existing.get(rel_path)
-        mtime = fs_path.stat().st_mtime
+        try:
+            mtime = fs_path.stat().st_mtime
+        except OSError as exc:  # noqa: BLE001 - one bad file must not abort the rebuild
+            stats.errors.append((rel_path, str(exc)))
+            continue
         if not force and prior is not None and prior[2] == mtime:
             continue
 
-        text = fs_path.read_text(encoding="utf-8")
+        try:
+            text = fs_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            stats.errors.append((rel_path, str(exc)))
+            continue
         if not force and prior is not None:
             content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
             if prior[1] == content_hash:

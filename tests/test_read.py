@@ -41,6 +41,33 @@ def test_read_path_traversal_outside_root_is_not_found_not_a_crash(tmp_path: Pat
         read_page(paths, "../secret.md")
 
 
+def test_read_refuses_files_outside_wiki_but_inside_project_root(tmp_path: Path):
+    # A file that exists on disk inside the project root but outside
+    # wiki/ (e.g. .env, raw/ originals, pyproject.toml) must not be
+    # readable through llmw read / the MCP llmw_read tool as if it were
+    # a wiki page.
+    paths = init_project(tmp_path)
+    rebuild(paths)
+    _write(tmp_path, ".env", "SECRET_KEY=topsecret\n")
+    _write(tmp_path, "raw/private.md", "raw original, not a wiki page\n")
+
+    with pytest.raises(PageNotFoundError):
+        read_page(paths, ".env")
+    with pytest.raises(PageNotFoundError):
+        read_page(paths, "raw/private.md")
+
+
+def test_read_non_utf8_page_raises_clear_error_not_a_crash(tmp_path: Path):
+    paths = init_project(tmp_path)
+    bad = tmp_path / "wiki" / "concepts" / "bad.md"
+    bad.parent.mkdir(parents=True, exist_ok=True)
+    bad.write_bytes("\xc1\xd1\xb8\xa9".encode("latin-1"))
+    rebuild(paths)
+
+    with pytest.raises(PageNotFoundError):
+        read_page(paths, "wiki/concepts/bad.md")
+
+
 def test_read_by_title(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/foo.md", "---\ntitle: Foo Bar\n---\nbody\n")

@@ -51,6 +51,22 @@ def test_search_respects_limit(tmp_path: Path):
     assert len(response.results) == 3
 
 
+def test_search_negative_limit_does_not_return_unbounded_rows(tmp_path: Path):
+    # SQLite treats `LIMIT -1` as "no limit" — a negative limit must not
+    # bypass the page cap and dump the entire matching set.
+    paths = init_project(tmp_path)
+    for i in range(10):
+        _write(
+            tmp_path,
+            f"wiki/concepts/page{i}.md",
+            f"---\ntitle: Page {i}\n---\nshared keyword lookup term\n",
+        )
+    rebuild(paths)
+
+    response = search(paths, "shared keyword", limit=-1)
+    assert len(response.results) == 1
+
+
 def test_search_type_filter(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/a.md", "---\ntitle: A\ntype: concept\n---\nfindme term\n")

@@ -154,6 +154,24 @@ def test_apply_unified_diff_pure_insertion_hunk_at_start():
     assert apply_unified_diff(original, diff) == "NEW\nline1\nline2\n"
 
 
+def test_apply_unified_diff_handles_body_lines_starting_with_triple_dash():
+    # A deleted/added line whose *content* starts with "-- " (a SQL/Lua
+    # comment) renders as "--- ..."/"@@+ ..." in the hunk body — this used
+    # to be misread as the next file header and silently truncated the
+    # hunk, leaving the patch a no-op instead of raising or applying.
+    original = "line1\n-- sql comment\nline3\n"
+    diff = "@@ -1,3 +1,3 @@\n line1\n--- sql comment\n+-- new comment\n line3\n"
+    assert apply_unified_diff(original, diff) == "line1\n-- new comment\nline3\n"
+
+
+def test_apply_unified_diff_handles_body_line_starting_with_at_at():
+    # A context/added line whose content literally starts with "@@ " (e.g.
+    # a decorator-like string) must not be misread as the next hunk header.
+    original = "line1\n@@ decorator\nline3\n"
+    diff = "@@ -1,3 +1,3 @@\n line1\n @@ decorator\n-line3\n+line3 changed\n"
+    assert apply_unified_diff(original, diff) == "line1\n@@ decorator\nline3 changed\n"
+
+
 def test_write_rejects_invalid_frontmatter_and_creates_no_file(tmp_path: Path):
     paths = init_project(tmp_path)
     broken = '---\ntitle: Broken\nsummary: "unterminated and: bad\n---\nbody\n'

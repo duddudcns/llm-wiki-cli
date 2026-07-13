@@ -169,6 +169,8 @@ def search(
     if conn is None:
         raise IndexNotBuiltError("Index not built yet. Run `llmw rebuild` first.")
 
+    limit = max(1, limit)
+
     try:
         terms = _extract_terms(query)
         if not terms:

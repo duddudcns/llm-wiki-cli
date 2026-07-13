@@ -70,6 +70,17 @@ def test_lint_detects_invalid_frontmatter_without_needing_index(tmp_path: Path):
     assert any(item["path"] == "wiki/concepts/bad.md" for item in report.invalid_frontmatter)
 
 
+def test_lint_reports_non_utf8_file_instead_of_crashing(tmp_path: Path):
+    paths = init_project(tmp_path)
+    bad = tmp_path / "wiki" / "concepts" / "bad.md"
+    bad.parent.mkdir(parents=True, exist_ok=True)
+    bad.write_bytes("\xc1\xd1\xb8\xa9".encode("latin-1"))
+    rebuild(paths)
+
+    report = run_lint(paths)
+    assert any(item["path"] == "wiki/concepts/bad.md" for item in report.invalid_frontmatter)
+
+
 def test_lint_detects_missing_frontmatter_fields(tmp_path: Path):
     paths = init_project(tmp_path)
     _write(tmp_path, "wiki/concepts/bare.md", "# Bare\n\nno frontmatter at all\n")

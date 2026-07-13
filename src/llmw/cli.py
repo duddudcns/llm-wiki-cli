@@ -320,7 +320,12 @@ def read(
         return
 
     if full:
-        console.print(result.full_text)
+        # Plain print, not console.print: rich soft-wraps long lines at
+        # terminal width (falling back to 80 columns when piped), which
+        # would inject newlines into the middle of the page's actual
+        # content — corrupting any round-trip through `llmw edit --old`
+        # or `llmw write --force`. Same reasoning as `_print_json`.
+        print(result.full_text)
         return
 
     console.print(f"title:     {result.title}")
