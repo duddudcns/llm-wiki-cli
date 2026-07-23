@@ -19,7 +19,8 @@ of the session.
 
 Before ending a turn that changed something worth remembering — a
 decision, a workaround, a fix for a subtle bug — record it with
-`llmw_write` and a meaningful `reason` (never edit `wiki/*.md` with
+`llmw_write` (or `llmw_edit`/`llmw_patch` for a targeted change to an
+existing page) and a meaningful `reason` (never edit `wiki/*.md` with
 generic file-edit tools; `raw/` is immutable). If the hooks are
 installed, a turn that changed source without a matching wiki update
 pauses once with the same reminder. Not every change needs an entry —
@@ -70,5 +71,8 @@ afterward is context, not a permission request.
 
 ## Tools
 
-`llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`, `llmw_init`. See
-the `llm-wiki` skill for the full workflow.
+Native MCP tools cover the full read/write surface — status, search,
+read, write, edit, patch, archive, related, links, backlinks, lint,
+health, ingest, graph, plus init. See the `llm-wiki` skill's
+`reference.md` for the exact list and signatures, and `examples.md` for
+worked workflows.
