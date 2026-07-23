@@ -36,7 +36,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-Codex 插件提供了一些按关键词可以找到的技能、五个原生 MCP 工具(`llmw_init`、`llmw_status`、`llmw_search`、`llmw_read`、`llmw_write`),以及自己独立的 PreToolUse/Stop 钩子,在编辑前提醒搜索、编辑后提醒更新 wiki —— 这些钩子由 Codex 运行,不由 Claude Code 驱动。MCP 服务器通过 `uvx` 启动,需要先装好 [uv](https://docs.astral.sh/uv/)；钩子会在后台自动装一个固定版本的 `llmw` CLI,跟 Claude Code 的做法一样,所以这边也不用手动装。
+Codex 插件提供了一些按关键词可以找到的技能、覆盖 CLI 全部读写能力的原生 MCP 工具(`llmw_init`、`llmw_status`、`llmw_search`、`llmw_read`、`llmw_write`、`llmw_edit`、`llmw_patch`、`llmw_archive`、`llmw_related`、`llmw_links`、`llmw_backlinks`、`llmw_lint`、`llmw_health`、`llmw_ingest`、`llmw_graph`),以及自己独立的 PreToolUse/Stop 钩子,在编辑前提醒搜索、编辑后提醒更新 wiki —— 这些钩子由 Codex 运行,不由 Claude Code 驱动。MCP 服务器通过 `uvx` 启动,需要先装好 [uv](https://docs.astral.sh/uv/)；钩子会在后台自动装一个固定版本的 `llmw` CLI,跟 Claude Code 的做法一样,所以这边也不用手动装。
 
 ## 快速上手
 

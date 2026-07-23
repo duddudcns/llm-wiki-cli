@@ -36,7 +36,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-Le plugin Codex fournit des compétences détectables par intention, cinq outils MCP natifs (`llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`), et ses propres filets de sécurité PreToolUse/Stop qui poussent à chercher avant les modifications et à mettre à jour le wiki après — séparés des filets de Claude Code, qu'ils ne remplacent pas. Le serveur MCP démarre par `uvx`, donc [uv](https://docs.astral.sh/uv/) doit être disponible ; les filets de sécurité installent automatiquement une version épinglée de `llmw` en arrière-plan, comme ceux de Claude Code le font, donc là non plus aucune installation manuelle n'est nécessaire.
+Le plugin Codex fournit des compétences détectables par intention, des outils MCP natifs couvrant toute la surface lecture/écriture de la CLI (`llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`, `llmw_edit`, `llmw_patch`, `llmw_archive`, `llmw_related`, `llmw_links`, `llmw_backlinks`, `llmw_lint`, `llmw_health`, `llmw_ingest`, `llmw_graph`), et ses propres filets de sécurité PreToolUse/Stop qui poussent à chercher avant les modifications et à mettre à jour le wiki après — séparés des filets de Claude Code, qu'ils ne remplacent pas. Le serveur MCP démarre par `uvx`, donc [uv](https://docs.astral.sh/uv/) doit être disponible ; les filets de sécurité installent automatiquement une version épinglée de `llmw` en arrière-plan, comme ceux de Claude Code le font, donc là non plus aucune installation manuelle n'est nécessaire.
 
 ## Démarrage rapide
 

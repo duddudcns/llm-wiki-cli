@@ -36,7 +36,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-Codex 플러그인은 의도-기반으로 인식되는 스킬, 다섯 개의 네이티브 MCP 도구(`llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`), 그리고 편집 전 검색과 편집 후 위키 업데이트를 상기시켜 주는 자체 PreToolUse/Stop 훅을 제공합니다 — Claude Code의 훅과는 별개이며, 그 훅들에 의해 실행되지도 않습니다. MCP 서버는 `uvx`로 실행되므로 [uv](https://docs.astral.sh/uv/)가 설치되어 있어야 하며, 훅들이 Claude Code 쪽과 마찬가지로 백그라운드에서 고정 버전의 `llmw` CLI를 자동으로 설치해 두므로 여기서도 수동 설치는 필요 없습니다.
+Codex 플러그인은 의도-기반으로 인식되는 스킬, CLI의 읽기/쓰기 기능을 모두 아우르는 네이티브 MCP 도구(`llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`, `llmw_edit`, `llmw_patch`, `llmw_archive`, `llmw_related`, `llmw_links`, `llmw_backlinks`, `llmw_lint`, `llmw_health`, `llmw_ingest`, `llmw_graph`), 그리고 편집 전 검색과 편집 후 위키 업데이트를 상기시켜 주는 자체 PreToolUse/Stop 훅을 제공합니다 — Claude Code의 훅과는 별개이며, 그 훅들에 의해 실행되지도 않습니다. MCP 서버는 `uvx`로 실행되므로 [uv](https://docs.astral.sh/uv/)가 설치되어 있어야 하며, 훅들이 Claude Code 쪽과 마찬가지로 백그라운드에서 고정 버전의 `llmw` CLI를 자동으로 설치해 두므로 여기서도 수동 설치는 필요 없습니다.
 
 ## 빠르게 시작하기
 

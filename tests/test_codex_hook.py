@@ -75,6 +75,27 @@ def test_codex_pretooluse_mcp_write_tool_clears_dirty(tmp_path: Path):
     assert read_session_state(paths, "sess-d").get("dirty") is False
 
 
+def test_codex_pretooluse_mcp_edit_patch_archive_tools_clear_dirty(tmp_path: Path):
+    # llmw_edit/llmw_patch/llmw_archive were added alongside llmw_write —
+    # each must clear the dirty flag the same way, or an agent that
+    # follows the skill docs' "prefer llmw_edit for a small change"
+    # guidance gets nagged by the Stop gate despite having updated the
+    # wiki.
+    paths = init_project(tmp_path)
+
+    for tool, session_id in (
+        ("mcp__llm-wiki__llmw_edit", "sess-edit"),
+        ("mcp__llm-wiki__llmw_patch", "sess-patch"),
+        ("mcp__llm-wiki__llmw_archive", "sess-archive"),
+    ):
+        evaluate_codex_pretooluse(_apply_patch_payload(tmp_path, session_id=session_id))
+        assert read_session_state(paths, session_id).get("dirty") is True
+
+        result = evaluate_codex_pretooluse(_mcp_payload(tool, tmp_path, session_id=session_id))
+        assert result is None
+        assert read_session_state(paths, session_id).get("dirty") is False
+
+
 def test_codex_pretooluse_search_gate_off(tmp_path: Path):
     paths = init_project(tmp_path)
     save_config(paths.config_path, Config(hooks_search_gate="off"))

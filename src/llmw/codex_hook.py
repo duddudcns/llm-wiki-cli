@@ -9,19 +9,20 @@ shapes as [[hook.py]]. What differs is the tool surface: Codex has no CLI
 equivalent of `llmw` for the agent to shell out to, so file edits go
 through the `apply_patch` tool and wiki search/write go through this
 plugin's own MCP tools (`mcp__llm-wiki__llmw_search`,
-`mcp__llm-wiki__llmw_write`) rather than a Bash command containing the
-literal string "llmw". This module ports `hook.py`'s session-scoped
-search-before-work / update-after-work soft gates to that tool surface,
-sharing the same `llmw.hook_state` session store (session ids never
-collide across platforms, so one project can be worked on from both a
-Claude Code and a Codex session without cross-talk).
+`mcp__llm-wiki__llmw_write`, plus the `llmw_edit`/`llmw_patch`/
+`llmw_archive` mutation tools added alongside them) rather than a Bash
+command containing the literal string "llmw". This module ports
+`hook.py`'s session-scoped search-before-work / update-after-work soft
+gates to that tool surface, sharing the same `llmw.hook_state` session
+store (session ids never collide across platforms, so one project can be
+worked on from both a Claude Code and a Codex session without
+cross-talk).
 
 Unlike the Claude Code integration, there is no wiki/raw PreToolUse guard
-here: wiki mutations already only happen through the validated
-`llmw_write` MCP tool in the intended Codex workflow — there's no
-separate `llmw_edit`/`patch`/`archive` MCP tool to guard around — so an
-`apply_patch` call is treated as "real work" for gating purposes without
-inspecting its target path.
+here: wiki mutations already only happen through the validated MCP
+mutation tools in the intended Codex workflow, so an `apply_patch` call
+is treated as "real work" for gating purposes without inspecting its
+target path.
 """
 
 from __future__ import annotations
@@ -35,8 +36,13 @@ from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
 
 _SOURCE_EDIT_TOOLS = {"apply_patch"}
 _SEARCH_TOOL = "mcp__llm-wiki__llmw_search"
-_WRITE_TOOL = "mcp__llm-wiki__llmw_write"
-_WATCHED_TOOLS = _SOURCE_EDIT_TOOLS | {_SEARCH_TOOL, _WRITE_TOOL}
+_MUTATE_TOOLS = {
+    "mcp__llm-wiki__llmw_write",
+    "mcp__llm-wiki__llmw_edit",
+    "mcp__llm-wiki__llmw_patch",
+    "mcp__llm-wiki__llmw_archive",
+}
+_WATCHED_TOOLS = _SOURCE_EDIT_TOOLS | {_SEARCH_TOOL} | _MUTATE_TOOLS
 
 _SEARCH_GATE_MESSAGE = (
     "You haven't called the llm-wiki search tool yet this session. Before "
@@ -48,10 +54,11 @@ _SEARCH_GATE_MESSAGE = (
 
 _UPDATE_GATE_MESSAGE = (
     "Source files changed this turn but the wiki hasn't been touched "
-    "since. Before finishing, call `llmw_write` with a meaningful reason "
-    "to record what changed and why — or explicitly decide this change "
-    'doesn\'t warrant a wiki update. Project owners can disable this: set '
-    'update_gate = "off" under [hooks] in .llmw/config.toml.'
+    "since. Before finishing, call `llmw_write`/`llmw_edit`/`llmw_patch` "
+    "with a meaningful reason to record what changed and why — or "
+    "explicitly decide this change doesn't warrant a wiki update. Project "
+    'owners can disable this: set update_gate = "off" under [hooks] in '
+    ".llmw/config.toml."
 )
 
 
@@ -71,7 +78,7 @@ def evaluate_codex_pretooluse(payload: dict) -> dict | None:
     if tool_name == _SEARCH_TOOL:
         write_session_state(paths, session_id, searched=True)
         return None
-    if tool_name == _WRITE_TOOL:
+    if tool_name in _MUTATE_TOOLS:
         write_session_state(paths, session_id, dirty=False)
         return None
 

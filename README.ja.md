@@ -36,7 +36,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-Codexプラグインは、ネイティブMCPツール(`llmw_init`、`llmw_status`、`llmw_search`、`llmw_read`、`llmw_write`)と、編集前の検索・編集後のwiki更新を促す独自のPreToolUse/Stopフックを提供します。Claude Codeのフックとは別個で、Codex側で管理されます。MCPサーバーは `uvx` で起動するため、[uv](https://docs.astral.sh/uv/) が必要です。Claude Codeのフック同様、バックグラウンドで固定バージョンの `llmw` CLI を自動インストールするので、ここでも手動インストール不要です。
+Codexプラグインは、CLIの読み書き機能を全て網羅するネイティブMCPツール(`llmw_init`、`llmw_status`、`llmw_search`、`llmw_read`、`llmw_write`、`llmw_edit`、`llmw_patch`、`llmw_archive`、`llmw_related`、`llmw_links`、`llmw_backlinks`、`llmw_lint`、`llmw_health`、`llmw_ingest`、`llmw_graph`)と、編集前の検索・編集後のwiki更新を促す独自のPreToolUse/Stopフックを提供します。Claude Codeのフックとは別個で、Codex側で管理されます。MCPサーバーは `uvx` で起動するため、[uv](https://docs.astral.sh/uv/) が必要です。Claude Codeのフック同様、バックグラウンドで固定バージョンの `llmw` CLI を自動インストールするので、ここでも手動インストール不要です。
 
 ## クイックスタート
 

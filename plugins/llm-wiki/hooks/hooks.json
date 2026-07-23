@@ -13,7 +13,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "apply_patch|mcp__llm-wiki__llmw_search|mcp__llm-wiki__llmw_write",
+        "matcher": "apply_patch|mcp__llm-wiki__llmw_search|mcp__llm-wiki__llmw_write|mcp__llm-wiki__llmw_edit|mcp__llm-wiki__llmw_patch|mcp__llm-wiki__llmw_archive",
         "hooks": [
           {
             "type": "command",

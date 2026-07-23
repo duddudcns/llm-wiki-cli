@@ -36,7 +36,7 @@ codex plugin marketplace add duddudcns/llm-wiki-cli
 codex plugin add llm-wiki@llm-wiki-cli
 ```
 
-El plugin de Codex te ofrece herramientas nativas de la wiki (cinco en total: `llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`) e habilidades que descubre la IA, además de sus propias redes de seguridad PreToolUse/Stop que empujan a buscar antes de editar y a actualizar la wiki después — separadas de las del plugin de Claude Code, Codex no las ejecuta. El servidor MCP arranca a través de `uvx`, así que necesitas tener [uv](https://docs.astral.sh/uv/) disponible; las redes instalan por su cuenta una versión fija de `llmw` en el fondo igual que lo hace el plugin de Claude Code, así que tampoco hace falta instalar nada a mano.
+El plugin de Codex te ofrece herramientas nativas de la wiki que cubren toda la superficie de lectura/escritura de la CLI (`llmw_init`, `llmw_status`, `llmw_search`, `llmw_read`, `llmw_write`, `llmw_edit`, `llmw_patch`, `llmw_archive`, `llmw_related`, `llmw_links`, `llmw_backlinks`, `llmw_lint`, `llmw_health`, `llmw_ingest`, `llmw_graph`) e habilidades que descubre la IA, además de sus propias redes de seguridad PreToolUse/Stop que empujan a buscar antes de editar y a actualizar la wiki después — separadas de las del plugin de Claude Code, Codex no las ejecuta. El servidor MCP arranca a través de `uvx`, así que necesitas tener [uv](https://docs.astral.sh/uv/) disponible; las redes instalan por su cuenta una versión fija de `llmw` en el fondo igual que lo hace el plugin de Claude Code, así que tampoco hace falta instalar nada a mano.
 
 ## Para empezar rápido
 
