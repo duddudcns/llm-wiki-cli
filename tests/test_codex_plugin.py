@@ -46,7 +46,8 @@ def test_codex_plugin_ships_hooks_at_default_path() -> None:
     pretooluse = hooks["hooks"]["PreToolUse"][0]
     assert "apply_patch" in pretooluse["matcher"]
     assert "mcp__llm-wiki__llmw_search" in pretooluse["matcher"]
-    assert "mcp__llm-wiki__llmw_write" in pretooluse["matcher"]
+    for tool in ("llmw_write", "llmw_edit", "llmw_patch", "llmw_archive"):
+        assert f"mcp__llm-wiki__{tool}" in pretooluse["matcher"]
     # Routed through a wrapper script, not a bare `llmw hook ...` command:
     # if `llmw` isn't on PATH yet (before SessionStart's self-install
     # finishes), the shell fails to spawn it before cli.py's own
