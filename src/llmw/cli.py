@@ -557,7 +557,10 @@ def write(
     stdin: bool = typer.Option(False, "--stdin", help="Read new page content from stdin."),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing page."),
 ) -> None:
-    """Create a new wiki page from stdin. Fails if it already exists unless --force."""
+    """Create a new wiki page from stdin, or fully replace one with --force.
+    For an existing page, prefer `edit` (small exact-text change) or
+    `patch` (structural diff) over --force unless most of the page is
+    actually changing."""
     paths = _require_paths()
     content = _read_stdin_content(stdin)
     try:
