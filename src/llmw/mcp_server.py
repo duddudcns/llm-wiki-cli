@@ -67,7 +67,11 @@ def llmw_write(
     root: str | None = None,
     force: bool = False,
 ) -> dict[str, Any]:
-    """Safely write a wiki Markdown page with audit reason and index update."""
+    """Create a wiki page, or fully replace an existing one with force=true.
+    For an existing page, prefer llmw_edit (small exact-text change) or
+    llmw_patch (structural diff) over force=true unless most of the page
+    is actually changing — this call requires resending the full content
+    either way."""
     written = write_page(_paths(root), path, content, reason, force=force)
     return {"path": str(written), "written": True}
 
