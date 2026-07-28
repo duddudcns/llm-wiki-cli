@@ -70,7 +70,6 @@ afterward is context, not a permission request.
 
 ## Commands
 
-`llmw search "<query>"`, `llmw read <page>`, `llmw related <page>`,
-`llmw write <page> --reason ... --stdin`, `llmw edit <page> --reason
-... --old ... --new ...`, `llmw patch`, `llmw archive <page> --reason
-...`. See the `llm-wiki` skill for the full reference.
+Full syntax and worked examples live in the `llm-wiki` skill's
+`reference.md`/`examples.md` — this file covers judgment calls, not
+command syntax.
