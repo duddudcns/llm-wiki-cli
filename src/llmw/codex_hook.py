@@ -40,20 +40,13 @@ _SOURCE_EDIT_TOOLS = {"apply_patch"}
 _WATCHED_TOOLS = _SOURCE_EDIT_TOOLS | {_SEARCH_TOOL} | _MUTATE_TOOLS
 
 _SEARCH_GATE_MESSAGE = (
-    "You haven't called the llm-wiki search tool yet this session. Before "
-    "this edit, call `llmw_search` for prior context on this topic — or "
-    "if you've already judged this task has no wiki-relevant history, "
-    'confirm that and proceed. Project owners can disable this: set '
-    'search_gate = "off" under [hooks] in .llmw/config.toml.'
+    "Search first: call `llmw_search`, or explicitly judge this task "
+    "wiki-irrelevant."
 )
 
 _UPDATE_GATE_MESSAGE = (
-    "Source files changed this turn but the wiki hasn't been touched "
-    "since. Before finishing, call `llmw_write`/`llmw_edit`/`llmw_patch` "
-    "with a meaningful reason to record what changed and why — or "
-    "explicitly decide this change doesn't warrant a wiki update. Project "
-    'owners can disable this: set update_gate = "off" under [hooks] in '
-    ".llmw/config.toml."
+    "Source changed: call `llmw_write`/`llmw_edit`/`llmw_patch` with a "
+    "meaningful `reason`, or explicitly decide no wiki update is needed."
 )
 
 
