@@ -102,39 +102,23 @@ def _target_path(tool_input: dict) -> str | None:
 
 def _wiki_edit_message(rel_path: str) -> str:
     return (
-        "Direct edits to wiki pages skip llmw's frontmatter validation, "
-        "backup, and audit log. Rerun the change as:\n"
-        f'llmw edit "{rel_path}" --reason "<why>" --old "<exact old text>" '
-        '--new "<new text>"\n'
-        "(new page / full rewrite: `llmw write <path> --reason ... --stdin`; "
-        "structural diff: `llmw patch`; delete: `llmw archive`.)\n"
-        'Project owners can disable this guard: set wiki_guard = "off" '
-        "under [hooks] in .llmw/config.toml."
+        f'Use `llmw edit "{rel_path}" --reason "<why>" --old "<old>" '
+        '--new "<new>"`; use `llmw write`, `llmw patch`, or `llmw archive` '
+        "when appropriate. Direct `wiki/*.md` edits are blocked."
     )
 
 
 def _raw_deny_message(rel_path: str) -> str:
-    return (
-        f'raw/ is immutable source material ("{rel_path}"); llmw and its '
-        "agents never modify it. If the user explicitly wants this file "
-        "changed, they must do it manually."
-    )
+    return f'raw/ is immutable: do not modify "{rel_path}".'
 
 
 def _raw_ask_message(rel_path: str) -> str:
-    return (
-        f'Creating a new file under raw/ ("{rel_path}", user-curated source '
-        "material) — confirm this was actually requested before proceeding."
-    )
+    return f'Creating raw/ source "{rel_path}" requires user confirmation.'
 
 
 _SEARCH_GATE_MESSAGE = (
-    "You haven't run `llmw search` yet this session. Before this edit, "
-    "search the wiki for prior context on this topic "
-    '(`llmw search "<topic>"`) — or if you\'ve already judged this task '
-    "has no wiki-relevant history, confirm that and proceed. Project "
-    'owners can disable this: set search_gate = "off" under [hooks] in '
-    ".llmw/config.toml."
+    'Search first: `llmw search "<topic>"`, or explicitly judge this task '
+    "wiki-irrelevant."
 )
 
 
@@ -251,9 +235,7 @@ def _evaluate_wiki_mcp_pretooluse(payload: dict, tool_name: str) -> None:
 
 
 _NO_PROJECT_HINT = (
-    "No llmw wiki initialized in this project yet. Run `llmw init` if you "
-    "want persistent, searchable project knowledge (decisions, docs, "
-    "backlinks) tracked here."
+    "No llmw wiki here. Run `llmw init` for persistent project knowledge."
 )
 
 
@@ -275,17 +257,13 @@ def evaluate_sessionstart(cwd: str) -> str | None:
         pages_note = f"{status.wiki_page_count} pages indexed"
 
     return (
-        f"This project has an llmw wiki at {wiki_rel}/ ({pages_note}). "
-        "Search it first (`llmw search`) before answering from memory or "
-        "re-reading everything by hand. Mutate wiki pages only via `llmw "
-        "write`/`edit`/`patch`/`archive` — never native file-edit tools."
+        f"llmw wiki: {wiki_rel}/ ({pages_note}). Search with `llmw search`; "
+        "change wiki only through `llmw write`/`edit`/`patch`/`archive`."
     )
 
 
 _PROMPT_REMINDER = (
-    "Reminder: this project has an llmw wiki. Search it first (`llmw "
-    'search "<topic>"`) before starting this request, in case it touches a '
-    "prior decision, a past mistake, or existing docs."
+    "Project wiki available: run `llmw search` before substantive work if relevant."
 )
 
 # Below this, a prompt is almost certainly a trivial reply ("ok", "thanks",
@@ -332,11 +310,8 @@ def evaluate_userpromptsubmit(payload: dict) -> str | None:
 
 
 _UPDATE_GATE_MESSAGE = (
-    "Source files changed this turn but the wiki hasn't been touched "
-    "since. Before finishing, run `llmw write`/`edit`/`patch` to record "
-    "what changed and why — or explicitly decide this change doesn't "
-    'warrant a wiki update. Project owners can disable this: set '
-    'update_gate = "off" under [hooks] in .llmw/config.toml.'
+    "Source changed: record durable knowledge with `llmw write`/`edit`/"
+    "`patch` and `--reason`, or explicitly decide no wiki update is needed."
 )
 
 

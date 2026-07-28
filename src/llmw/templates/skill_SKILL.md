@@ -1,59 +1,23 @@
 ---
 name: llm-wiki
-description: Search, read, and maintain this project's llmw wiki (raw/ + wiki/ + .llmw/). Use when the task involves project history, prior decisions, source documents, backlinks, or persistent knowledge — and before answering anything the wiki may already answer. All wiki/*.md changes MUST go through llmw write/edit/patch (never native file-edit tools); raw/ is immutable.
+description: Search, read, and maintain this project's llmw wiki. Use for prior decisions, project history, source documents, backlinks, persistent knowledge, and before work the wiki may inform. Change wiki/*.md only through llmw; raw/ is immutable.
 ---
 
-# LLM Wiki Skill
+# LLM Wiki
 
-Use `llmw` instead of reading the whole wiki manually.
+Use `llmw`; do not load the whole wiki manually.
 
-## When to use
+## Workflow
 
-Use this skill when:
+1. Run `llmw status --brief`, then `llmw search "<topic>" --limit 5` before non-trivial work when relevant.
+2. Read only relevant results with `llmw read <path> --brief`; use `--full` only when needed.
+3. Record durable knowledge after work. **Mechanism, not narrative:** name the file/function call chain and order. Prefer `llmw edit` for exact changes, `patch` for diffs, `write --force` for intended replacement, and `archive` over deletion; provide `--reason`.
+4. Capture stated preferences or conventions without waiting to be asked: edit rules for small always-apply rules, or write a wiki entry for a decision with a why. Briefly report it.
+5. Run `llmw lint --brief` after major wiki changes.
 
-- Starting non-trivial work in this project
-- The user references prior decisions, setup, failures, documents, requirements, or project history
-- You need to ingest a source document
-- You need to answer from persistent project knowledge
-- You are about to make or revise an architectural/design decision
-- You finish a task that creates stable knowledge worth remembering —
-  including a preference, convention, or correction the user stated in
-  passing, not just a formal decision
+## Safety
 
-## Core workflow
+- Never modify `raw/` or use native file-edit tools on `wiki/*.md`; use `llmw edit`/`write`/`patch`/`archive`.
+- Keep output brief; use `--json` only for programmatic parsing.
 
-1. Run `llmw status --brief`.
-2. Search first: `llmw search "<query>" --limit 5`. Natural-language queries
-   are fine — search tries strict match first, then relaxes automatically;
-   `mode`/`dropped_tokens` in `--json` output say which tier answered it.
-3. Read only relevant pages: `llmw read <path> --brief`.
-4. Use `--full` only when brief output is insufficient.
-5. Update wiki pages when stable knowledge changes. Mechanism, not narrative:
-   name which file/function calls what, in what order — not just that a
-   decision was made.
-6. Prefer `llmw edit` for a small, exact-text change; `llmw patch` for a
-   structural (multi-line/context) diff; `llmw write --force` to replace a
-   whole page.
-7. Prefer `llmw archive` over deleting a page.
-8. Run `llmw lint --brief` after major wiki changes.
-9. Capture a stated preference or convention the moment it comes up,
-   without waiting to be asked — a rules-file edit for a small
-   always-apply rule, a wiki entry (step 5) for a decision with a "why."
-
-## Output discipline
-
-Keep CLI outputs brief. Do not dump the full wiki into context. Use
-`--json` only when you need to parse fields programmatically.
-
-## Important
-
-- ⛔ Never use your built-in Edit/Write/NotebookEdit tools on `wiki/*.md`
-  or anything under `raw/` — a PreToolUse guard denies it (unless the
-  project opted out via `.llmw/config.toml`). Use `llmw edit`/`write`/
-  `patch`/`archive` instead; the denial message names the exact command.
-- Do not modify files under `raw/` — `llmw write`/`patch`/`archive` will
-  refuse and so should you.
-- The `wiki/` layer is agent-maintained; you are expected to write to it.
-- All destructive or structural changes need a `--reason`.
-- Full command reference: see `reference.md` in this skill folder.
-- Worked examples: see `examples.md` in this skill folder.
+See `reference.md` and `examples.md` for syntax and workflows.
