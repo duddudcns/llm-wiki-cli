@@ -29,19 +29,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from llmw.hook import WIKI_MCP_MUTATE_TOOLS as _MUTATE_TOOLS
+from llmw.hook import WIKI_MCP_SEARCH_TOOL as _SEARCH_TOOL
 from llmw.hook import permission_output
 from llmw.hook_state import read_session_state, write_session_state
 from llmw.indexer import load_project_config
 from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
 
 _SOURCE_EDIT_TOOLS = {"apply_patch"}
-_SEARCH_TOOL = "mcp__llm-wiki__llmw_search"
-_MUTATE_TOOLS = {
-    "mcp__llm-wiki__llmw_write",
-    "mcp__llm-wiki__llmw_edit",
-    "mcp__llm-wiki__llmw_patch",
-    "mcp__llm-wiki__llmw_archive",
-}
 _WATCHED_TOOLS = _SOURCE_EDIT_TOOLS | {_SEARCH_TOOL} | _MUTATE_TOOLS
 
 _SEARCH_GATE_MESSAGE = (
