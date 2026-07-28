@@ -71,8 +71,6 @@ afterward is context, not a permission request.
 
 ## Tools
 
-Native MCP tools cover the full read/write surface — status, search,
-read, write, edit, patch, archive, related, links, backlinks, lint,
-health, ingest, graph, plus init. See the `llm-wiki` skill's
-`reference.md` for the exact list and signatures, and `examples.md` for
-worked workflows.
+Native MCP tools cover the full read/write surface. See the `llm-wiki`
+skill's `reference.md` for the exact list and signatures, and
+`examples.md` for worked workflows.

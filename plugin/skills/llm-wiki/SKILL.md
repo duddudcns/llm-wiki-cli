@@ -28,24 +28,17 @@ Use this skill when:
    `mode`/`dropped_tokens` in `--json` output say which tier answered it.
 3. Read only relevant pages: `llmw read <path> --brief`.
 4. Use `--full` only when brief output is insufficient.
-5. Update wiki pages when stable knowledge changes.
-   Mechanism, not narrative: if a result comes from a chain of steps not
-   obvious from any single file (A calls B calls C to produce D), name
-   the actual chain — which file/function, in what order — so a later
-   "check the bug between C and D" can start at the right place instead
-   of re-deriving the flow from scratch.
+5. Update wiki pages when stable knowledge changes. Mechanism, not narrative:
+   name which file/function calls what, in what order — not just that a
+   decision was made.
 6. Prefer `llmw edit` for a small, exact-text change; `llmw patch` for a
    structural (multi-line/context) diff; `llmw write --force` to replace a
    whole page.
 7. Prefer `llmw archive` over deleting a page.
 8. Run `llmw lint --brief` after major wiki changes.
 9. Capture a stated preference or convention the moment it comes up,
-   without waiting to be asked: a small always-apply rule (comment
-   style, naming, "always use X") goes into `.claude/rules/` as a plain
-   file edit — not wiki-guarded, no `llmw` wrapper needed; a decision
-   with a "why," or one-off history, goes into the wiki via `llmw
-   write`/`edit`, same as step 5. Mention briefly what got recorded —
-   that's not a request for permission, just context.
+   without waiting to be asked — a rules-file edit for a small
+   always-apply rule, a wiki entry (step 5) for a decision with a "why."
 
 ## Output discipline
 
