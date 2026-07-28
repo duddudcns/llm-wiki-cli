@@ -20,10 +20,13 @@ via `llmw.hook_state`:
   proceeding. The agent can confirm and continue — this is a nudge that
   forces a moment of judgment, not a hard block.
 - **Update-after-work**: every real source-file edit marks the session
-  "dirty"; a Bash call running `llmw write`/`edit`/`patch`/`archive`
-  clears it. `evaluate_stop` (the Stop hook) uses this to remind the
-  agent to update the wiki before ending a turn that changed source but
-  never touched the wiki.
+  "dirty"; a Bash/PowerShell call running `llmw write`/`edit`/`patch`/
+  `archive`, or a direct call to this plugin's own
+  `mcp__llm-wiki__llmw_write`/`llmw_edit`/`llmw_patch`/`llmw_archive` MCP
+  tools (a Claude Code session can have that server registered too, not
+  just Codex — see `codex_hook.py`), clears it. `evaluate_stop` (the Stop
+  hook) uses this to remind the agent to update the wiki before ending a
+  turn that changed source but never touched the wiki.
 
 `evaluate_pretooluse`'s wiki/raw guard fails open: anything that isn't a
 mutation of `wiki/*.md` or `raw/**` inside a real llmw project (including
@@ -44,6 +47,28 @@ from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
 from llmw.status import build_status
 
 _GUARDED_TOOLS = {"Edit", "Write", "NotebookEdit"}
+# Both shell tools available in a Claude Code session (Bash, and the
+# PowerShell tool offered on Windows) get the same command-string
+# treatment below — neither is gated, both are only watched for
+# `llmw search`/`llmw write|edit|patch|archive`.
+_SHELL_TOOLS = {"Bash", "PowerShell"}
+
+# This plugin's own MCP server (see `mcp_server.py`) exposes these tools.
+# Nothing in the Claude Code plugin manifest registers that server today,
+# but a project can wire it up itself (or a future release of this plugin
+# could) — if so, calls to it must clear the same session-state flags a
+# shelled-out `llmw write`/`edit`/... does, or `evaluate_stop` nags about
+# an "un-updated" wiki that was in fact just updated through the MCP tool
+# instead of a shell command. `codex_hook.py` imports these two names
+# rather than redefining its own copy, so the two integrations can't drift.
+WIKI_MCP_SEARCH_TOOL = "mcp__llm-wiki__llmw_search"
+WIKI_MCP_MUTATE_TOOLS = {
+    "mcp__llm-wiki__llmw_write",
+    "mcp__llm-wiki__llmw_edit",
+    "mcp__llm-wiki__llmw_patch",
+    "mcp__llm-wiki__llmw_archive",
+}
+
 # Heuristic, not a real shell parser: matches `llmw <subcommand>` and the
 # `llmw.exe <subcommand>` (Windows, e.g. a venv's Scripts/llmw.exe with no
 # global `llmw` on PATH) / `python -m llmw[.cli] <subcommand>` /
@@ -116,8 +141,11 @@ _SEARCH_GATE_MESSAGE = (
 def evaluate_pretooluse(payload: dict) -> dict | None:
     tool_name = payload.get("tool_name")
 
-    if tool_name == "Bash":
-        return _evaluate_bash_pretooluse(payload)
+    if tool_name in _SHELL_TOOLS:
+        return _evaluate_shell_pretooluse(payload)
+
+    if tool_name == WIKI_MCP_SEARCH_TOOL or tool_name in WIKI_MCP_MUTATE_TOOLS:
+        return _evaluate_wiki_mcp_pretooluse(payload, tool_name)
 
     if tool_name not in _GUARDED_TOOLS:
         return None
@@ -177,10 +205,12 @@ def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | Non
     return permission_output("ask", _SEARCH_GATE_MESSAGE)
 
 
-def _evaluate_bash_pretooluse(payload: dict) -> None:
-    """Bash calls are never gated here — only watched for `llmw search`
-    (marks the session searched) and `llmw write`/`edit`/`patch`/`archive`
-    (marks the session's wiki as caught up with its source edits)."""
+def _evaluate_shell_pretooluse(payload: dict) -> None:
+    """Bash/PowerShell calls are never gated here — only watched for
+    `llmw search` (marks the session searched) and `llmw write`/`edit`/
+    `patch`/`archive` (marks the session's wiki as caught up with its
+    source edits). Both shell tools use the same `tool_input.command`
+    shape, so one implementation covers either."""
     command = (payload.get("tool_input") or {}).get("command")
     if not command or not isinstance(command, str) or "llmw" not in command:
         return None
@@ -196,6 +226,26 @@ def _evaluate_bash_pretooluse(payload: dict) -> None:
     if _LLMW_SEARCH_RE.search(command):
         write_session_state(paths, session_id, searched=True)
     if _LLMW_MUTATE_RE.search(command):
+        write_session_state(paths, session_id, dirty=False)
+    return None
+
+
+def _evaluate_wiki_mcp_pretooluse(payload: dict, tool_name: str) -> None:
+    """A direct call to this plugin's own llm-wiki MCP tools rather than a
+    shell-invoked `llmw` command — same session-state bookkeeping as
+    `_evaluate_shell_pretooluse`, keyed off the MCP tool name instead of
+    parsing a command string."""
+    try:
+        root = find_project_root(Path(payload.get("cwd") or "."))
+    except ProjectNotFoundError:
+        return None
+
+    paths = ProjectPaths.for_project_root(root)
+    session_id = payload.get("session_id")
+
+    if tool_name == WIKI_MCP_SEARCH_TOOL:
+        write_session_state(paths, session_id, searched=True)
+    else:
         write_session_state(paths, session_id, dirty=False)
     return None
 

@@ -50,6 +50,19 @@ def _bash_payload(command: str, cwd: Path, session_id="test-session") -> dict:
     }
 
 
+def _powershell_payload(command: str, cwd: Path, session_id="test-session") -> dict:
+    return {
+        "tool_name": "PowerShell",
+        "tool_input": {"command": command},
+        "cwd": str(cwd),
+        "session_id": session_id,
+    }
+
+
+def _mcp_payload(tool_name: str, cwd: Path, session_id="test-session") -> dict:
+    return {"tool_name": tool_name, "tool_input": {}, "cwd": str(cwd), "session_id": session_id}
+
+
 def test_pretooluse_denies_edit_on_wiki_md(tmp_path: Path):
     paths = init_project(tmp_path)
     target = paths.wiki / "concepts" / "a.md"
@@ -275,6 +288,123 @@ def test_pretooluse_bash_ignores_commands_without_llmw(tmp_path: Path):
 
 def test_pretooluse_bash_outside_project_returns_none(tmp_path: Path):
     assert evaluate_pretooluse(_bash_payload("llmw search x", tmp_path, session_id="sess-k")) is None
+
+
+def test_pretooluse_powershell_llmw_search_marks_session_searched(tmp_path: Path):
+    # The PowerShell tool (Windows' primary shell alongside Bash) used to
+    # be invisible to this hook entirely — only "Bash" was recognized as a
+    # shell tool, so `llmw search`/`write`/etc. run via PowerShell never
+    # updated session state.
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _powershell_payload('llmw search "topic"', tmp_path, session_id="sess-ps-search")
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-ps-search").get("searched") is True
+
+
+def test_pretooluse_powershell_llmw_write_clears_dirty_flag(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_edit_payload(target, session_id="sess-ps-write"))
+    assert read_session_state(paths, "sess-ps-write").get("dirty") is True
+
+    evaluate_pretooluse(
+        _powershell_payload(
+            'llmw write wiki/x.md --reason "r" --stdin', tmp_path, session_id="sess-ps-write"
+        )
+    )
+    assert read_session_state(paths, "sess-ps-write").get("dirty") is False
+
+
+def test_pretooluse_powershell_never_gates_even_when_dirty(tmp_path: Path):
+    init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _powershell_payload(
+            'llmw edit wiki/x.md --reason "r" --old "a" --new "b"',
+            tmp_path,
+            session_id="sess-ps-gate",
+        )
+    )
+    assert result is None
+
+
+def test_pretooluse_powershell_ignores_commands_without_llmw(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    assert (
+        evaluate_pretooluse(_powershell_payload("Get-ChildItem", tmp_path, session_id="sess-ps-noop"))
+        is None
+    )
+    assert read_session_state(paths, "sess-ps-noop") == {}
+
+
+def test_pretooluse_mcp_search_tool_marks_session_searched(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _mcp_payload("mcp__llm-wiki__llmw_search", tmp_path, session_id="sess-mcp-search")
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-mcp-search").get("searched") is True
+
+
+def test_pretooluse_mcp_write_tool_clears_dirty_flag(tmp_path: Path):
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    evaluate_pretooluse(_edit_payload(target, session_id="sess-mcp-write"))
+    assert read_session_state(paths, "sess-mcp-write").get("dirty") is True
+
+    result = evaluate_pretooluse(
+        _mcp_payload("mcp__llm-wiki__llmw_write", tmp_path, session_id="sess-mcp-write")
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-mcp-write").get("dirty") is False
+
+
+def test_pretooluse_mcp_edit_patch_archive_tools_clear_dirty(tmp_path: Path):
+    # llmw_edit/llmw_patch/llmw_archive must clear dirty the same way as
+    # llmw_write — matches the Codex integration's coverage in
+    # test_codex_hook.py, since Claude Code sessions can have the same
+    # llm-wiki MCP server registered.
+    paths = init_project(tmp_path)
+    target = paths.root / "README.md"
+    target.write_text("hello\n", encoding="utf-8")
+
+    for tool, session_id in (
+        ("mcp__llm-wiki__llmw_edit", "sess-mcp-edit"),
+        ("mcp__llm-wiki__llmw_patch", "sess-mcp-patch"),
+        ("mcp__llm-wiki__llmw_archive", "sess-mcp-archive"),
+    ):
+        evaluate_pretooluse(_edit_payload(target, session_id=session_id))
+        assert read_session_state(paths, session_id).get("dirty") is True
+
+        result = evaluate_pretooluse(_mcp_payload(tool, tmp_path, session_id=session_id))
+        assert result is None
+        assert read_session_state(paths, session_id).get("dirty") is False
+
+
+def test_pretooluse_ignores_unwatched_mcp_tools(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    assert (
+        evaluate_pretooluse(_mcp_payload("mcp__llm-wiki__llmw_read", tmp_path, session_id="sess-mcp-other"))
+        is None
+    )
+    assert read_session_state(paths, "sess-mcp-other") == {}
+
+
+def test_pretooluse_mcp_outside_project_returns_none(tmp_path: Path):
+    assert (
+        evaluate_pretooluse(_mcp_payload("mcp__llm-wiki__llmw_write", tmp_path, session_id="sess-mcp-out"))
+        is None
+    )
 
 
 def test_pretooluse_ignores_non_guarded_tools(tmp_path: Path):
