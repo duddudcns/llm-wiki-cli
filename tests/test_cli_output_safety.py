@@ -4,18 +4,23 @@ crash the machine-readable interface an agent depends on.
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 
-def run(cwd: Path, *args: str, input: str | None = None) -> subprocess.CompletedProcess:
+def run(
+    cwd: Path, *args: str, input: str | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "llmw.cli", *args],
         cwd=cwd,
         input=input,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=env,
     )
 
 
@@ -105,6 +110,32 @@ def test_ingest_reports_locked_error_cleanly_instead_of_a_traceback(tmp_path: Pa
     assert result.returncode == 1
     assert "Traceback" not in result.stderr
     assert "locked" in result.stderr.lower()
+
+
+def test_search_output_survives_non_locale_encodable_characters(tmp_path: Path):
+    # On Windows, a redirected/piped stdout (Git Bash, `> file`, CI logs)
+    # decodes with locale.getpreferredencoding() by default (e.g. cp949 on
+    # a Korean system), which cannot represent arbitrary Unicode (Korean
+    # summaries, or CJK characters outside that codepage like "测") and
+    # raised UnicodeEncodeError before cli.py reconfigured stdout/stderr to
+    # utf-8. This reproduces that pipe path via capture_output=True, with
+    # PYTHONUTF8/PYTHONIOENCODING stripped so the child can't inherit its
+    # way out of the bug the way this dev shell's env otherwise would.
+    hostile_env = {
+        k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING")
+    }
+    run(tmp_path, "init")
+    (tmp_path / "wiki" / "concepts").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "wiki" / "concepts" / "cjk.md").write_text(
+        "---\ntitle: 흐름도 测试\nsummary: 흐름도 测试 요약\n---\nbody 흐름도 测试\n",
+        encoding="utf-8",
+    )
+    run(tmp_path, "rebuild")
+
+    result = run(tmp_path, "search", "흐름도", env=hostile_env)
+    assert result.returncode == 0, result.stderr
+    assert "흐름도" in result.stdout
+    assert "测试" in result.stdout
 
 
 def test_lint_json_output_is_valid_even_with_bracket_content(tmp_path: Path):

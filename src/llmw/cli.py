@@ -65,6 +65,15 @@ app = typer.Typer(
 # anything bracket-slash-shaped can otherwise raise rich.errors.MarkupError
 # and crash the whole command, or silently swallow "[bold]...[/bold]"-shaped
 # substrings. See git log for the bug this fixed.
+# Force UTF-8 on stdout/stderr: on Windows, a piped/redirected stream (Git
+# Bash, `> file`, CI logs) falls back to the locale encoding (cp949 etc),
+# mangling non-ASCII wiki content and raising UnicodeEncodeError on
+# characters outside that codepage. No-op where the stream is already UTF-8
+# (PowerShell console, WSL, Linux/macOS).
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")
+
 console = Console(markup=False, highlight=False)
 err_console = Console(stderr=True, markup=False, highlight=False)
 
