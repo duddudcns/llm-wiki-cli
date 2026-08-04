@@ -859,3 +859,29 @@ def test_llmw_write_clears_dirty_from_inside_the_command(tmp_path: Path):
 
     assert result.returncode == 0, result.stderr
     assert read_session_state(paths, "cli-env-sess").get("dirty") is False
+
+
+def test_pretooluse_shell_guard_without_cwd_resolves_against_the_project_root(tmp_path: Path):
+    # A payload with no `cwd` must not fall back to the hook process's own
+    # working directory — relative tokens are resolved against the project.
+    init_project(tmp_path)
+    payload = {
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi > wiki/concepts/x.md"},
+        "session_id": "sess-nocwd",
+    }
+    payload_with_cwd = {**payload, "cwd": str(tmp_path)}
+
+    # find_project_root still needs a cwd to locate the project at all, so
+    # run it from inside the project and drop only the payload field.
+    import os
+
+    previous = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = evaluate_pretooluse(payload)
+    finally:
+        os.chdir(previous)
+
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert evaluate_pretooluse(payload_with_cwd) is not None
