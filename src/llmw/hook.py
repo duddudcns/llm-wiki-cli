@@ -8,8 +8,12 @@ Claude Code's native Edit/Write/NotebookEdit tools know nothing about
 mutate `wiki/*.md` without the `--reason` audit log, frontmatter
 validation, or automatic backup that `llmw write`/`edit`/`patch` provide.
 `evaluate_pretooluse` redirects those calls back to the sanctioned
-commands instead; `evaluate_sessionstart` and `evaluate_userpromptsubmit`
-just remind the agent the wiki exists and is worth checking.
+commands instead — and, since a shell redirect or `Set-Content` would
+otherwise walk right around a guard that only watches the native tools,
+asks (never denies: a command string is guesswork) before a Bash/
+PowerShell command that looks like it writes into `wiki/*.md` or `raw/**`.
+`evaluate_sessionstart` and `evaluate_userpromptsubmit` just remind the
+agent the wiki exists and is worth checking.
 
 `evaluate_pretooluse` also carries two session-scoped soft gates, tracked
 via `llmw.hook_state`:
@@ -24,9 +28,13 @@ via `llmw.hook_state`:
   `archive`, or a direct call to this plugin's own
   `mcp__llm-wiki__llmw_write`/`llmw_edit`/`llmw_patch`/`llmw_archive` MCP
   tools (a Claude Code session can have that server registered too, not
-  just Codex — see `codex_hook.py`), clears it. `evaluate_stop` (the Stop
-  hook) uses this to remind the agent to update the wiki before ending a
-  turn that changed source but never touched the wiki.
+  just Codex — see `codex_hook.py`), clears it. A successful `llmw`
+  mutation also clears it from inside the command itself, keyed off
+  `CLAUDE_CODE_SESSION_ID` (see `hook_state.clear_dirty_for_env_session`) —
+  that path doesn't depend on this module recognizing the tool name or
+  parsing the command at all. `evaluate_stop` (the Stop hook) uses this to
+  remind the agent to update the wiki before ending a turn that changed
+  source but never touched the wiki.
 
 `evaluate_pretooluse`'s wiki/raw guard fails open: anything that isn't a
 mutation of `wiki/*.md` or `raw/**` inside a real llmw project (including
@@ -84,6 +92,48 @@ _LLMW_SEARCH_RE = re.compile(
 _LLMW_MUTATE_RE = re.compile(
     rf"(?<![\w-]){_LLMW_INVOCATION}{_ROOT_FLAG}\s+(write|edit|patch|archive)(?![\w-])"
 )
+
+# Prose that merely *mentions* `llmw write` — a heredoc body being piped
+# into `llmw write --stdin`, a commit message, a `--reason` string — used
+# to clear the update gate as if the command had actually run. Heredoc /
+# here-string bodies and quoted strings are stripped before matching.
+# ponytail: string scrub, not a shell parser — `bash -c 'llmw write ...'`
+# is now missed (fails toward one extra reminder, never a silent clear);
+# tokenize properly only if that turns out to bite.
+_HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)(\w+)\1.*?^\s*\2\s*$", re.DOTALL | re.MULTILINE)
+_PS_HERESTRING_RE = re.compile(r"@(['\"]).*?^\1@", re.DOTALL | re.MULTILINE)
+_QUOTED_RE = re.compile(r"'[^']*'|\"[^\"]*\"", re.DOTALL)
+
+
+def _strip_shell_literals(command: str) -> str:
+    """Blank out heredoc bodies and quoted strings so only real command
+    text is matched against the `llmw` patterns above. Heredocs first —
+    quote-stripping would otherwise eat the `'EOF'` delimiter."""
+    for pattern in (_HEREDOC_RE, _PS_HERESTRING_RE):
+        command = pattern.sub(" ", command)
+    # A quoted string collapses to a single placeholder token rather than
+    # whitespace: it was one argument, and `llmw --root "<path>" search`
+    # still has to read as an argument-shaped thing to match.
+    return _QUOTED_RE.sub("_", command)
+
+
+# The wiki/raw guard below only reaches native Edit/Write calls; a shell
+# command can rewrite `wiki/*.md` with a redirect or `Set-Content` and
+# bypass llmw's reason log/validation/backup entirely. These two patterns
+# are the "did this command mutate a file, and which paths did it name"
+# heuristic that closes the common accidental case.
+# ponytail: substring/verb heuristic — `python -c ...`, a variable-held
+# path, or an unusual writer slips through. A real bypass can't be stopped
+# by command parsing at all; this only has to catch the honest slip.
+_SHELL_MUTATION_RE = re.compile(
+    r"(?<![\w-])(?:>>?|tee|rm|mv|cp|ln|sed|touch|truncate|dd"
+    r"|Set-Content|Add-Content|Clear-Content|Out-File"
+    r"|New-Item|Remove-Item|Move-Item|Copy-Item)(?![\w-])",
+    re.IGNORECASE,
+)
+_PATH_TOKEN_RE = re.compile(r"[^\s'\"|;&()<>]+")
+# Tokens holding a glob or an unexpanded variable resolve to garbage paths.
+_UNRESOLVABLE_CHARS = set("*?[]$%~")
 
 
 def permission_output(decision: str, reason: str) -> dict:
@@ -189,14 +239,18 @@ def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | Non
     return permission_output("ask", _SEARCH_GATE_MESSAGE)
 
 
-def _evaluate_shell_pretooluse(payload: dict) -> None:
-    """Bash/PowerShell calls are never gated here — only watched for
-    `llmw search` (marks the session searched) and `llmw write`/`edit`/
-    `patch`/`archive` (marks the session's wiki as caught up with its
-    source edits). Both shell tools use the same `tool_input.command`
-    shape, so one implementation covers either."""
+def _evaluate_shell_pretooluse(payload: dict) -> dict | None:
+    """Bash/PowerShell calls are watched for `llmw search` (marks the
+    session searched) and `llmw write`/`edit`/`patch`/`archive` (marks the
+    session's wiki as caught up), and — only when they aren't an llmw
+    command themselves — checked for a raw shell write into `wiki/*.md` or
+    `raw/**`, which would otherwise walk straight around the guard that
+    covers the native Edit/Write tools. Both shell tools use the same
+    `tool_input.command` shape, so one implementation covers either."""
     command = (payload.get("tool_input") or {}).get("command")
-    if not command or not isinstance(command, str) or "llmw" not in command:
+    if not command or not isinstance(command, str):
+        return None
+    if "llmw" not in command and not _SHELL_MUTATION_RE.search(command):
         return None
 
     try:
@@ -206,11 +260,44 @@ def _evaluate_shell_pretooluse(payload: dict) -> None:
 
     paths = ProjectPaths.for_project_root(root)
     session_id = payload.get("session_id")
+    scrubbed = _strip_shell_literals(command)
 
-    if _LLMW_SEARCH_RE.search(command):
+    if _LLMW_SEARCH_RE.search(scrubbed):
         write_session_state(paths, session_id, searched=True)
-    if _LLMW_MUTATE_RE.search(command):
+    if _LLMW_MUTATE_RE.search(scrubbed):
         write_session_state(paths, session_id, dirty=False)
+        # A sanctioned llmw mutation naming a wiki path is not a bypass.
+        return None
+
+    return _guard_shell_wiki_write(paths, command, payload.get("cwd"))
+
+
+def _guard_shell_wiki_write(paths: ProjectPaths, command: str, cwd: str | None) -> dict | None:
+    """Ask before a shell command that looks like it writes to `wiki/*.md`
+    or `raw/**`. Always "ask", never "deny", even under
+    `wiki_guard = "deny"`: the Edit-tool path knows its exact target, this
+    one is guessing from a command string, and a wrong deny breaks a
+    workflow with no way out while a wrong ask costs one keystroke."""
+    if load_project_config(paths).hooks_wiki_guard == "off":
+        return None
+    if not _SHELL_MUTATION_RE.search(command):
+        return None
+
+    base = Path(cwd or ".")
+    for token in _PATH_TOKEN_RE.findall(command):
+        token = token.strip("'\"")
+        if "/" not in token and "\\" not in token:
+            continue
+        if set(token) & _UNRESOLVABLE_CHARS:
+            continue
+        try:
+            fs_path = (base / token.replace("\\", "/")).resolve()
+        except (OSError, ValueError):
+            continue
+        if paths.is_inside_raw(fs_path):
+            return permission_output("ask", _raw_deny_message(paths.rel(fs_path)))
+        if paths.is_inside_wiki(fs_path) and fs_path.suffix.lower() == ".md":
+            return permission_output("ask", _wiki_edit_message(paths.rel(fs_path)))
     return None
 
 

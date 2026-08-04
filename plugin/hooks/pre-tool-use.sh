@@ -2,24 +2,34 @@
 # PreToolUse hook: redirects native Edit/Write/NotebookEdit calls aimed at
 # wiki/*.md or raw/** back to llmw's own write/edit/patch/archive commands,
 # and soft-gates the first real source-file edit of a session behind an
-# `llmw search` check if none has run yet. For Bash/PowerShell calls, only
+# `llmw search` check if none has run yet. For Bash/PowerShell calls,
 # watches for `llmw search`/`llmw write|edit|patch|archive` to update
-# per-session state (never gates either shell tool itself) — cheaply
-# skipped unless the command string contains "llmw" at all. Direct calls
+# per-session state, and asks before a raw shell write into wiki/ or raw/
+# — cheaply skipped unless the payload mentions "llmw", or names a
+# wiki/raw path *and* a file-mutating command (either alone is common in
+# a normal command; together is rare, so the Python process is only spawned
+# when there is something to decide). Direct calls
 # to this plugin's own mcp__llm-wiki__llmw_* MCP tools (if a project has
 # that server registered) get the same per-session bookkeeping, keyed off
 # the tool name instead of a command string. Always exits 0 — never blocks
 # a tool call by crashing.
 
 payload=$(cat)
+run_hook() { printf '%s' "$payload" | llmw hook pretooluse 2>/dev/null || true; }
+
 case "$payload" in
   *'"tool_name":"Bash"'*|*'"tool_name": "Bash"'*|*'"tool_name":"PowerShell"'*|*'"tool_name": "PowerShell"'*)
     case "$payload" in
-      *llmw*) printf '%s' "$payload" | llmw hook pretooluse 2>/dev/null || true ;;
+      *llmw*) run_hook ;;
+      *wiki/*|*raw/*|*'wiki\\'*|*'raw\\'*)
+        case "$payload" in
+          *'>'*|*Set-Content*|*Add-Content*|*Clear-Content*|*Out-File*|*New-Item*|*Remove-Item*|*Move-Item*|*Copy-Item*|*' rm '*|*' mv '*|*' cp '*|*' tee '*|*sed*|*truncate*) run_hook ;;
+        esac
+        ;;
     esac
     ;;
   *)
-    printf '%s' "$payload" | llmw hook pretooluse 2>/dev/null || true
+    run_hook
     ;;
 esac
 exit 0

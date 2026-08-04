@@ -123,6 +123,20 @@ def write_session_state(paths: ProjectPaths, session_id: str | None, **updates: 
                 pass
 
 
+def clear_dirty_for_env_session(paths: ProjectPaths) -> None:
+    """Mark the wiki caught up from inside a *successful* `llmw` mutation.
+
+    The PreToolUse hook can only guess, by pattern-matching a command
+    string, that a tool call is about to run `llmw write`; by the time this
+    is called the write actually happened. Claude Code exports the same
+    session id its hooks key state on (`CLAUDE_CODE_SESSION_ID`) into every
+    child process, so the mutation clears its own flag regardless of which
+    tool ran it (Bash, PowerShell, a wrapper script, a future harness the
+    hook has no matcher for). No-ops when the variable is absent.
+    """
+    write_session_state(paths, os.environ.get("CLAUDE_CODE_SESSION_ID"), dirty=False)
+
+
 def _prune_stale_sessions(session_dir: Path) -> None:
     cutoff = time.time() - _STALE_AFTER_SECONDS
     try:
