@@ -283,7 +283,9 @@ def _guard_shell_wiki_write(paths: ProjectPaths, command: str, cwd: str | None) 
     if not _SHELL_MUTATION_RE.search(command):
         return None
 
-    base = Path(cwd or ".")
+    # The hook process's own cwd is not the session's — with no `cwd` in the
+    # payload, resolve relative tokens against the project root instead.
+    base = Path(cwd) if cwd else paths.project_root
     for token in _PATH_TOKEN_RE.findall(command):
         token = token.strip("'\"")
         if "/" not in token and "\\" not in token:
