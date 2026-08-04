@@ -3,7 +3,11 @@ import time
 from pathlib import Path
 
 from llmw.bootstrap import init_project
-from llmw.hook_state import read_session_state, write_session_state
+from llmw.hook_state import (
+    clear_dirty_for_env_session,
+    read_session_state,
+    write_session_state,
+)
 
 
 def test_write_then_read_roundtrip(tmp_path: Path):
@@ -130,3 +134,23 @@ def test_recent_session_files_survive_prune(tmp_path: Path):
     write_session_state(paths, "another-session", dirty=True)
 
     assert (sessions_dir / "recent-session.json").exists()
+
+
+def test_clear_dirty_for_env_session_uses_claude_session_id(tmp_path: Path, monkeypatch):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "env-sess", dirty=True)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "env-sess")
+
+    clear_dirty_for_env_session(paths)
+
+    assert read_session_state(paths, "env-sess").get("dirty") is False
+
+
+def test_clear_dirty_for_env_session_noops_without_the_variable(tmp_path: Path, monkeypatch):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "env-sess", dirty=True)
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+
+    clear_dirty_for_env_session(paths)
+
+    assert read_session_state(paths, "env-sess").get("dirty") is True

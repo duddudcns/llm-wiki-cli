@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -678,3 +679,183 @@ def test_hook_cli_stop_silent_when_not_dirty(tmp_path: Path):
     result = _run_hook(tmp_path, "stop", stdin=payload)
     assert result.returncode == 0
     assert result.stdout == ""
+
+
+# --- prose that only mentions an llmw command must not clear the gate ---
+
+
+def test_pretooluse_heredoc_body_mentioning_llmw_write_does_not_clear_dirty(tmp_path: Path):
+    # The command *pipes a heredoc into* something else; "llmw write" only
+    # appears as prose inside the body. Clearing the gate here silently
+    # cancelled the update reminder for the whole turn.
+    paths = init_project(tmp_path)
+    write_session_state(paths, "sess-heredoc", dirty=True)
+    command = "cat <<'EOF' > notes.txt\nremember to run llmw write later\nEOF"
+
+    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-heredoc")) is None
+    assert read_session_state(paths, "sess-heredoc").get("dirty") is True
+
+
+def test_pretooluse_quoted_prose_mentioning_llmw_write_does_not_clear_dirty(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "sess-quoted", dirty=True)
+    command = 'git commit -m "docs: explain when to use llmw write"'
+
+    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-quoted")) is None
+    assert read_session_state(paths, "sess-quoted").get("dirty") is True
+
+
+def test_pretooluse_powershell_herestring_mentioning_llmw_search_does_not_mark_searched(
+    tmp_path: Path,
+):
+    paths = init_project(tmp_path)
+    command = "$body = @'\nfirst run llmw search topic\n'@"
+
+    assert evaluate_pretooluse(_powershell_payload(command, tmp_path, session_id="sess-hs")) is None
+    assert read_session_state(paths, "sess-hs").get("searched") is not True
+
+
+def test_pretooluse_llmw_write_with_heredoc_content_still_clears_dirty(tmp_path: Path):
+    # The real invocation form: `llmw write` outside the heredoc, page
+    # content inside it. Stripping bodies must not break this.
+    paths = init_project(tmp_path)
+    write_session_state(paths, "sess-real", dirty=True)
+    command = (
+        'llmw write "concepts/x.md" --reason "r" --stdin <<\'EOF\'\n'
+        "---\ntitle: X\n---\nbody\nEOF"
+    )
+
+    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-real")) is None
+    assert read_session_state(paths, "sess-real").get("dirty") is False
+
+
+def test_pretooluse_llmw_write_inside_a_quoted_shell_wrapper_is_missed(tmp_path: Path):
+    # Documented ceiling of the literal-stripping heuristic: a wholly
+    # quoted `bash -c '...'` no longer registers. This fails toward one
+    # extra Stop-hook reminder, never toward a silently cleared gate.
+    paths = init_project(tmp_path)
+    write_session_state(paths, "sess-wrapper", dirty=True)
+    command = "bash -c 'llmw write concepts/x.md --reason r --stdin'"
+
+    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-wrapper")) is None
+    assert read_session_state(paths, "sess-wrapper").get("dirty") is True
+
+
+# --- shell writes into wiki/ and raw/ get the same guard as Edit/Write ---
+
+
+def test_pretooluse_shell_redirect_into_wiki_page_asks(tmp_path: Path):
+    paths = init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload("echo hi > wiki/concepts/x.md", tmp_path, session_id="sess-redir")
+    )
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert "llmw edit" in result["hookSpecificOutput"]["permissionDecisionReason"]
+    assert paths is not None
+
+
+def test_pretooluse_powershell_set_content_into_wiki_page_asks(tmp_path: Path):
+    init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _powershell_payload(
+            'Set-Content -Path "wiki/concepts/x.md" -Value "hi"', tmp_path, session_id="sess-sc"
+        )
+    )
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+def test_pretooluse_shell_write_into_raw_asks(tmp_path: Path):
+    init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload("rm raw/inbox/doc.md", tmp_path, session_id="sess-raw")
+    )
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert "raw/" in result["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_pretooluse_shell_guard_asks_even_under_deny_config(tmp_path: Path):
+    # Command-string matching is a heuristic; a wrong "deny" would be an
+    # unrecoverable workflow break, so the shell path never escalates.
+    paths = init_project(tmp_path)
+    save_config(paths.config_path, Config(hooks_wiki_guard="deny"))
+
+    result = evaluate_pretooluse(
+        _bash_payload("echo hi > wiki/concepts/x.md", tmp_path, session_id="sess-deny")
+    )
+    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+def test_pretooluse_shell_guard_off_under_wiki_guard_off(tmp_path: Path):
+    paths = init_project(tmp_path)
+    save_config(paths.config_path, Config(hooks_wiki_guard="off"))
+
+    assert (
+        evaluate_pretooluse(
+            _bash_payload("echo hi > wiki/concepts/x.md", tmp_path, session_id="sess-off")
+        )
+        is None
+    )
+
+
+def test_pretooluse_shell_read_of_a_wiki_page_is_not_guarded(tmp_path: Path):
+    init_project(tmp_path)
+
+    assert (
+        evaluate_pretooluse(
+            _bash_payload("cat wiki/concepts/x.md", tmp_path, session_id="sess-read")
+        )
+        is None
+    )
+
+
+def test_pretooluse_llmw_command_naming_a_wiki_path_is_not_guarded(tmp_path: Path):
+    # `llmw write` is the sanctioned path — it must never trip the guard
+    # meant for raw shell writes, even though it names a wiki/*.md file.
+    paths = init_project(tmp_path)
+    write_session_state(paths, "sess-sanctioned", dirty=True)
+
+    result = evaluate_pretooluse(
+        _bash_payload(
+            'llmw write wiki/concepts/x.md --reason "r" --stdin',
+            tmp_path,
+            session_id="sess-sanctioned",
+        )
+    )
+    assert result is None
+    assert read_session_state(paths, "sess-sanctioned").get("dirty") is False
+
+
+def test_pretooluse_shell_write_outside_wiki_is_not_guarded(tmp_path: Path):
+    init_project(tmp_path)
+
+    assert (
+        evaluate_pretooluse(
+            _bash_payload("echo hi > src/main.py", tmp_path, session_id="sess-src")
+        )
+        is None
+    )
+
+
+def test_llmw_write_clears_dirty_from_inside_the_command(tmp_path: Path):
+    # The command clears its own flag via CLAUDE_CODE_SESSION_ID, so it no
+    # longer matters whether the PreToolUse hook recognized the tool name
+    # (Bash vs PowerShell vs anything else) or parsed the command string.
+    paths = init_project(tmp_path)
+    write_session_state(paths, "cli-env-sess", dirty=True)
+    env = {**os.environ, "CLAUDE_CODE_SESSION_ID": "cli-env-sess"}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "llmw.cli", "write", "wiki/concepts/x.md",
+         "--reason", "test", "--stdin"],
+        cwd=tmp_path,
+        input="---\ntitle: X\n---\nbody\n",
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert read_session_state(paths, "cli-env-sess").get("dirty") is False

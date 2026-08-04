@@ -25,6 +25,7 @@ from llmw.hook import (
     evaluate_stop,
     evaluate_userpromptsubmit,
 )
+from llmw.hook_state import clear_dirty_for_env_session
 from llmw.indexer import index_changed, rebuild as rebuild_index
 from llmw.ingest import (
     SourceAlreadyIngestedError,
@@ -583,6 +584,7 @@ def write(
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
+    clear_dirty_for_env_session(paths)
     console.print(f"wrote {paths.rel(fs_path)}")
 
 
@@ -608,6 +610,7 @@ def patch(
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
+    clear_dirty_for_env_session(paths)
     console.print(f"patched {paths.rel(fs_path)}")
 
 
@@ -638,6 +641,7 @@ def edit(
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
+    clear_dirty_for_env_session(paths)
     console.print(f"edited {paths.rel(fs_path)}")
 
 
@@ -662,6 +666,7 @@ def archive(
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
+    clear_dirty_for_env_session(paths)
     console.print(f"archived to {paths.rel(dest)}")
 
 
