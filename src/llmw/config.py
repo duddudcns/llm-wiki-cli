@@ -47,8 +47,11 @@ class Config:
     # disables the guard for this project entirely.
     hooks_wiki_guard: str = DEFAULT_WIKI_GUARD
     # Controls the PreToolUse soft gate on the first real source-file edit
-    # of a session: "ask" asks the agent to confirm/search once if `llmw
-    # search` hasn't run yet this session, "off" disables it.
+    # of a session: "ask" turns the gate on — it blocks that one edit with
+    # a message telling the agent to run `llmw search` and retry (a "deny"
+    # decision, addressed to the agent, not a prompt to the user, same as
+    # `update_gate` below) — and "off" disables it. The value is still
+    # spelled "ask" so every config.toml already on disk keeps working.
     hooks_search_gate: str = DEFAULT_SEARCH_GATE
     # Controls the Stop hook that nudges the agent to update the wiki when
     # source files changed this turn but no `llmw write`/`edit`/`patch`/

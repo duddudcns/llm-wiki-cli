@@ -76,17 +76,20 @@ tune out.
 
 So there's a second, stronger layer underneath it: the first time in a
 session the AI tries to edit an actual project file (not a wiki note
-itself) without having searched yet, that edit is paused once and it's
-asked to either search first or explicitly decide the task doesn't need
-it. This fires at most once per session — the moment a search runs (even
-a one-off one), or right after this single check, normal editing
-resumes. It's still not a hard lock: the AI can confirm and proceed
-without ever actually searching. What it buys you is a forced moment of
-judgment instead of a reminder that's easy to scroll past.
+itself) without having searched yet, that edit is stopped once and the AI
+is told to either search first or explicitly decide the task doesn't need
+it, and then simply try the edit again. This never interrupts you — the
+message goes to the AI, which can act on it and retry on its own, the
+same way it's told which `llmw` command to use in Feature 1. This fires
+at most once per session: the moment a search runs (even a one-off one),
+or right after this single check, normal editing resumes. It's still not
+a hard lock — the retry goes through whether or not a search actually
+happened. What it buys you is a forced moment of judgment instead of a
+reminder that's easy to scroll past.
 
 ```toml
 [hooks]
-search_gate = "ask"  # default: pause the first real edit of a session until searched or confirmed
+search_gate = "ask"  # default: stop the first real edit of a session until searched or explicitly skipped
 # search_gate = "off"  # turn this check off for this project
 ```
 

@@ -20,9 +20,13 @@ via `llmw.hook_state`:
 
 - **Search-before-work**: the first real source-file edit (outside
   `wiki/`/`raw/`/`.llmw/`) in a session that hasn't run `llmw search` yet
-  gets a one-time "ask" permission response instead of silently
-  proceeding. The agent can confirm and continue — this is a nudge that
-  forces a moment of judgment, not a hard block.
+  gets a one-time "deny" permission response instead of silently
+  proceeding. "deny" rather than "ask" deliberately: the reason text goes
+  to the agent, which can search and re-issue the edit on its own, where
+  an "ask" stops to interrupt the *user* for a decision only the agent can
+  act on. The flag below is set before the deny is returned, so the retry
+  always passes — this is a nudge that forces a moment of judgment, not a
+  hard block.
 - **Update-after-work**: every real source-file edit marks the session
   "dirty"; a Bash/PowerShell call running `llmw write`/`edit`/`patch`/
   `archive`, or a direct call to this plugin's own
@@ -168,7 +172,8 @@ def _raw_ask_message(rel_path: str) -> str:
 
 _SEARCH_GATE_MESSAGE = (
     'Search first: `llmw search "<topic>"`, or explicitly judge this task '
-    "wiki-irrelevant."
+    "wiki-irrelevant — then retry this edit. Fires once per session: the "
+    "retry goes through either way."
 )
 
 
@@ -226,7 +231,10 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
 def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | None:
     """A real source-file edit outside wiki/raw/.llmw: mark the session
     dirty (for the Stop-hook update reminder) and, on the first such edit
-    of a session that hasn't searched yet, ask once before proceeding."""
+    of a session that hasn't searched yet, block once with a message
+    telling the agent to search and retry. Unlike `_guard_shell_wiki_write`
+    this denies rather than asks: the recipient is the agent (which can
+    act on it and re-issue the edit), not the user."""
     session_id = payload.get("session_id")
     state = write_session_state(paths, session_id, dirty=True)
 
@@ -236,7 +244,7 @@ def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | Non
         return None
 
     write_session_state(paths, session_id, search_gate_shown=True)
-    return permission_output("ask", _SEARCH_GATE_MESSAGE)
+    return permission_output("deny", _SEARCH_GATE_MESSAGE)
 
 
 def _evaluate_shell_pretooluse(payload: dict) -> dict | None:

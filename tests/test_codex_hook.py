@@ -32,14 +32,17 @@ def _mcp_payload(tool_name: str, cwd: Path, session_id="codex-session") -> dict:
     return {"tool_name": tool_name, "tool_input": {}, "cwd": str(cwd), "session_id": session_id}
 
 
-def test_codex_pretooluse_asks_search_gate_on_first_apply_patch(tmp_path: Path):
+def test_codex_pretooluse_denies_search_gate_on_first_apply_patch(tmp_path: Path):
     init_project(tmp_path)
 
     result = evaluate_codex_pretooluse(_apply_patch_payload(tmp_path, session_id="sess-a"))
     assert result is not None
     out = result["hookSpecificOutput"]
-    assert out["permissionDecision"] == "ask"
+    # Same reasoning as the Claude-side gate: the message is for the agent,
+    # which can search and re-issue the patch without asking the user.
+    assert out["permissionDecision"] == "deny"
     assert "llmw_search" in out["permissionDecisionReason"]
+    assert "retry" in out["permissionDecisionReason"].lower()
 
 
 def test_codex_pretooluse_search_gate_fires_only_once_per_session(tmp_path: Path):
@@ -168,7 +171,7 @@ def test_hook_cli_codex_pretooluse_emits_valid_json(tmp_path: Path):
     result = _run_hook(tmp_path, "codex-pretooluse", stdin=payload)
     assert result.returncode == 0
     out = json.loads(result.stdout)
-    assert out["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_hook_cli_codex_stop_emits_block_decision(tmp_path: Path):
