@@ -82,18 +82,20 @@ que sea fácil ignorarlo con el tiempo.
 Por eso hay una segunda capa, más fuerte, debajo de esta: la primera vez
 en una sesión que la IA intenta editar un archivo real del proyecto (no
 una nota de la wiki en sí) sin haber buscado todavía, esa edición se
-pausa una vez y se le pide que busque primero o que decida
-explícitamente que la tarea no lo necesita. Esto se dispara como máximo
-una vez por sesión — en cuanto se ejecuta una búsqueda (aunque sea
-puntual), o justo después de esta única comprobación, la edición vuelve
-a la normalidad. Sigue sin ser un bloqueo total: la IA puede confirmar y
-continuar sin llegar a buscar nunca. Lo que consigues con esto es un
-momento de decisión forzado, en vez de un recordatorio fácil de pasar
-por alto.
+detiene una vez y se le pide que busque primero o que decida
+explícitamente que la tarea no lo necesita, y que después vuelva a
+intentar la edición. Esto nunca te interrumpe a ti: el mensaje va
+dirigido a la IA, que puede actuar y reintentar por su cuenta, igual que
+en la Función 1 se le indica qué comando `llmw` usar. Se dispara como
+máximo una vez por sesión — en cuanto se ejecuta una búsqueda (aunque
+sea puntual), o justo después de esta única comprobación, la edición
+vuelve a la normalidad. Sigue sin ser un bloqueo total: el reintento
+pasa haya habido búsqueda o no. Lo que consigues con esto es un momento
+de decisión forzado, en vez de un recordatorio fácil de pasar por alto.
 
 ```toml
 [hooks]
-search_gate = "ask"  # opción por defecto: pausa la primera edición real de una sesión hasta que se busque o se confirme
+search_gate = "ask"  # opción por defecto: detiene la primera edición real de una sesión hasta que se busque o se descarte explícitamente
 # search_gate = "off"  # desactiva este chequeo para este proyecto
 ```
 

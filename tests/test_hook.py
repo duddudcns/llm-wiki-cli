@@ -143,7 +143,7 @@ def test_pretooluse_ignores_files_under_llmw_dir(tmp_path: Path):
     assert evaluate_pretooluse(_edit_payload(target)) is None
 
 
-def test_pretooluse_asks_search_gate_on_first_source_edit(tmp_path: Path):
+def test_pretooluse_denies_search_gate_on_first_source_edit(tmp_path: Path):
     paths = init_project(tmp_path)
     target = paths.root / "README.md"
     target.write_text("hello\n", encoding="utf-8")
@@ -151,8 +151,11 @@ def test_pretooluse_asks_search_gate_on_first_source_edit(tmp_path: Path):
     result = evaluate_pretooluse(_edit_payload(target, session_id="sess-a"))
     assert result is not None
     out = result["hookSpecificOutput"]
-    assert out["permissionDecision"] == "ask"
+    # "deny", not "ask": the reason is addressed to the agent (search, then
+    # retry), and an "ask" would interrupt the user instead.
+    assert out["permissionDecision"] == "deny"
     assert "llmw search" in out["permissionDecisionReason"]
+    assert "retry" in out["permissionDecisionReason"].lower()
 
 
 def test_pretooluse_search_gate_fires_only_once_per_session(tmp_path: Path):

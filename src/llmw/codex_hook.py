@@ -16,7 +16,10 @@ command containing the literal string "llmw". This module ports
 gates to that tool surface, sharing the same `llmw.hook_state` session
 store (session ids never collide across platforms, so one project can be
 worked on from both a Claude Code and a Codex session without
-cross-talk).
+cross-talk). The search gate answers "deny" rather than "ask" for the same
+reason as [[hook.py]]: its message is addressed to the agent, which can
+search and re-issue the patch itself, so interrupting the user for it buys
+nothing.
 
 Unlike the Claude Code integration, there is no wiki/raw PreToolUse guard
 here: wiki mutations already only happen through the validated MCP
@@ -41,7 +44,8 @@ _WATCHED_TOOLS = _SOURCE_EDIT_TOOLS | {_SEARCH_TOOL} | _MUTATE_TOOLS
 
 _SEARCH_GATE_MESSAGE = (
     "Search first: call `llmw_search`, or explicitly judge this task "
-    "wiki-irrelevant."
+    "wiki-irrelevant — then retry this edit. Fires once per session: the "
+    "retry goes through either way."
 )
 
 _UPDATE_GATE_MESSAGE = (
@@ -78,7 +82,7 @@ def evaluate_codex_pretooluse(payload: dict) -> dict | None:
     if state.get("searched") or state.get("search_gate_shown"):
         return None
     write_session_state(paths, session_id, search_gate_shown=True)
-    return permission_output("ask", _SEARCH_GATE_MESSAGE)
+    return permission_output("deny", _SEARCH_GATE_MESSAGE)
 
 
 def evaluate_codex_stop(payload: dict) -> dict | None:

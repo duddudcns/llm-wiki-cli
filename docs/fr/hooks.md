@@ -84,19 +84,22 @@ ligne à chaque tour la rend aussi facile à ignorer avec le temps.
 Il y a donc en dessous une deuxième couche, plus forte : la première
 fois, au cours d'une session, que l'IA essaie de modifier un vrai
 fichier du projet (pas une note du wiki elle-même) sans avoir encore
-fait de recherche, cette modification est mise en pause une fois, et on
-lui demande soit de chercher d'abord, soit de décider explicitement que
-cette tâche n'en a pas besoin. Cela ne se déclenche qu'une fois par
+fait de recherche, cette modification est arrêtée une fois, et on lui
+demande soit de chercher d'abord, soit de décider explicitement que
+cette tâche n'en a pas besoin, puis de refaire sa modification. Cela ne
+vous interrompt jamais : le message s'adresse à l'IA, qui peut agir et
+réessayer toute seule, exactement comme on lui indique la bonne commande
+`llmw` dans la Fonctionnalité 1. Cela ne se déclenche qu'une fois par
 session au maximum — dès qu'une recherche est lancée (même ponctuelle),
 ou juste après cette unique vérification, les modifications reprennent
-normalement. Ce n'est toujours pas un verrou total : l'IA peut confirmer
-et continuer sans jamais avoir réellement cherché. Ce que cela apporte,
-c'est un moment de décision forcé, au lieu d'un rappel qu'on peut
-facilement faire défiler sans y penser.
+normalement. Ce n'est toujours pas un verrou total : la nouvelle
+tentative passe, qu'une recherche ait eu lieu ou non. Ce que cela
+apporte, c'est un moment de décision forcé, au lieu d'un rappel qu'on
+peut facilement faire défiler sans y penser.
 
 ```toml
 [hooks]
-search_gate = "ask"  # par défaut : met en pause la première vraie modification d'une session jusqu'à ce qu'on cherche ou confirme
+search_gate = "ask"  # par défaut : arrête la première vraie modification d'une session jusqu'à ce qu'on cherche ou qu'on écarte explicitement
 # search_gate = "off"   # désactive cette vérification pour ce projet
 ```
 
