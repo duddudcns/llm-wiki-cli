@@ -10,8 +10,9 @@ validation, or automatic backup that `llmw write`/`edit`/`patch` provide.
 `evaluate_pretooluse` redirects those calls back to the sanctioned
 commands instead — and, since a shell redirect or `Set-Content` would
 otherwise walk right around a guard that only watches the native tools,
-asks (never denies: a command string is guesswork) before a Bash/
-PowerShell command that looks like it writes into `wiki/*.md` or `raw/**`.
+blocks a Bash/PowerShell command that looks like it *writes* into
+`wiki/*.md` or `raw/**`. Reading those paths from the shell is never
+gated: only writes can break frontmatter, the reason log, or the index.
 `evaluate_sessionstart` and `evaluate_userpromptsubmit` just remind the
 agent the wiki exists and is worth checking.
 
@@ -129,10 +130,18 @@ def _strip_shell_literals(command: str) -> str:
 # ponytail: substring/verb heuristic — `python -c ...`, a variable-held
 # path, or an unusual writer slips through. A real bypass can't be stopped
 # by command parsing at all; this only has to catch the honest slip.
+# `sed` is the one verb here that does *not* write by default: `sed -n
+# '1,5p' wiki/x.md` is a read, and `sed ... > wiki/x.md` is already caught
+# by the `>`. Only the in-place form counts, so reading a wiki page with
+# sed stops tripping a guard about writes.
+# ponytail: `-i` is only recognized as sed's *first* option (`sed -i`,
+# `sed -i.bak`, `sed --in-place`); `sed -e ... -i f` slips through — widen
+# only if that ever shows up for real.
 _SHELL_MUTATION_RE = re.compile(
-    r"(?<![\w-])(?:>>?|tee|rm|mv|cp|ln|sed|touch|truncate|dd"
+    r"(?<![\w-])(?:>>?|tee|rm|mv|cp|ln|touch|truncate|dd"
     r"|Set-Content|Add-Content|Clear-Content|Out-File"
-    r"|New-Item|Remove-Item|Move-Item|Copy-Item)(?![\w-])",
+    r"|New-Item|Remove-Item|Move-Item|Copy-Item)(?![\w-])"
+    r"|(?<![\w-])sed\s+\S*-i",
     re.IGNORECASE,
 )
 _PATH_TOKEN_RE = re.compile(r"[^\s'\"|;&()<>]+")
@@ -281,15 +290,23 @@ def _evaluate_shell_pretooluse(payload: dict) -> dict | None:
 
 
 def _guard_shell_wiki_write(paths: ProjectPaths, command: str, cwd: str | None) -> dict | None:
-    """Ask before a shell command that looks like it writes to `wiki/*.md`
-    or `raw/**`. Always "ask", never "deny", even under
-    `wiki_guard = "deny"`: the Edit-tool path knows its exact target, this
-    one is guessing from a command string, and a wrong deny breaks a
-    workflow with no way out while a wrong ask costs one keystroke."""
-    if load_project_config(paths).hooks_wiki_guard == "off":
+    """Block a shell command that looks like it writes to `wiki/*.md` or
+    `raw/**`, following the same `wiki_guard` setting as the Edit-tool
+    path: "deny" by default, "ask" only when configured. This used to
+    always "ask" on the grounds that a command string is guesswork and a
+    wrong deny would strand the agent — but the reason text of a deny goes
+    to the *agent*, which can re-issue the work as `llmw write`/`edit`/
+    `patch`/`archive`, while an "ask" interrupts the *user* over a decision
+    only the agent can act on (same reasoning as the search gate). Reads
+    no longer reach here at all, so what's left is writes, and writes have
+    an llmw equivalent every time; `wiki_guard = "ask"` stays available for
+    a project that does need to approve one-off shell surgery by hand."""
+    guard = load_project_config(paths).hooks_wiki_guard
+    if guard == "off":
         return None
     if not _SHELL_MUTATION_RE.search(command):
         return None
+    decision = "ask" if guard == "ask" else "deny"
 
     # The hook process's own cwd is not the session's — with no `cwd` in the
     # payload, resolve relative tokens against the project root instead.
@@ -305,9 +322,9 @@ def _guard_shell_wiki_write(paths: ProjectPaths, command: str, cwd: str | None) 
         except (OSError, ValueError):
             continue
         if paths.is_inside_raw(fs_path):
-            return permission_output("ask", _raw_deny_message(paths.rel(fs_path)))
+            return permission_output(decision, _raw_deny_message(paths.rel(fs_path)))
         if paths.is_inside_wiki(fs_path) and fs_path.suffix.lower() == ".md":
-            return permission_output("ask", _wiki_edit_message(paths.rel(fs_path)))
+            return permission_output(decision, _wiki_edit_message(paths.rel(fs_path)))
     return None
 
 
