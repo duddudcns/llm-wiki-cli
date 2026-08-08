@@ -747,18 +747,17 @@ def test_pretooluse_llmw_write_inside_a_quoted_shell_wrapper_is_missed(tmp_path:
 # --- shell writes into wiki/ and raw/ get the same guard as Edit/Write ---
 
 
-def test_pretooluse_shell_redirect_into_wiki_page_asks(tmp_path: Path):
-    paths = init_project(tmp_path)
+def test_pretooluse_shell_redirect_into_wiki_page_denies(tmp_path: Path):
+    init_project(tmp_path)
 
     result = evaluate_pretooluse(
         _bash_payload("echo hi > wiki/concepts/x.md", tmp_path, session_id="sess-redir")
     )
-    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert "llmw edit" in result["hookSpecificOutput"]["permissionDecisionReason"]
-    assert paths is not None
 
 
-def test_pretooluse_powershell_set_content_into_wiki_page_asks(tmp_path: Path):
+def test_pretooluse_powershell_set_content_into_wiki_page_denies(tmp_path: Path):
     init_project(tmp_path)
 
     result = evaluate_pretooluse(
@@ -766,29 +765,68 @@ def test_pretooluse_powershell_set_content_into_wiki_page_asks(tmp_path: Path):
             'Set-Content -Path "wiki/concepts/x.md" -Value "hi"', tmp_path, session_id="sess-sc"
         )
     )
-    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-def test_pretooluse_shell_write_into_raw_asks(tmp_path: Path):
+def test_pretooluse_shell_write_into_raw_denies(tmp_path: Path):
     init_project(tmp_path)
 
     result = evaluate_pretooluse(
         _bash_payload("rm raw/inbox/doc.md", tmp_path, session_id="sess-raw")
     )
-    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert "raw/" in result["hookSpecificOutput"]["permissionDecisionReason"]
 
 
-def test_pretooluse_shell_guard_asks_even_under_deny_config(tmp_path: Path):
-    # Command-string matching is a heuristic; a wrong "deny" would be an
-    # unrecoverable workflow break, so the shell path never escalates.
+def test_pretooluse_shell_guard_denies_under_default_config(tmp_path: Path):
+    # The reason text of a "deny" reaches the agent, which can re-issue the
+    # write as `llmw edit`/`write`/...; an "ask" would interrupt the user
+    # over a decision only the agent can act on.
     paths = init_project(tmp_path)
     save_config(paths.config_path, Config(hooks_wiki_guard="deny"))
 
     result = evaluate_pretooluse(
         _bash_payload("echo hi > wiki/concepts/x.md", tmp_path, session_id="sess-deny")
     )
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_pretooluse_shell_guard_asks_under_ask_config(tmp_path: Path):
+    # `wiki_guard = "ask"` is the escape hatch for a project that does want
+    # to hand-approve one-off shell surgery on a wiki file.
+    paths = init_project(tmp_path)
+    save_config(paths.config_path, Config(hooks_wiki_guard="ask"))
+
+    result = evaluate_pretooluse(
+        _bash_payload("echo hi > wiki/concepts/x.md", tmp_path, session_id="sess-ask")
+    )
     assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+
+
+def test_pretooluse_read_only_sed_on_wiki_page_passes_through(tmp_path: Path):
+    # `sed` without `-i` prints to stdout; reading a wiki page is not a
+    # mutation and must not prompt at all (`sed ... > page` is caught by
+    # the redirect, not by the verb).
+    init_project(tmp_path)
+
+    assert (
+        evaluate_pretooluse(
+            _bash_payload(
+                "sed -n '1,5p' wiki/concepts/x.md", tmp_path, session_id="sess-sed-read"
+            )
+        )
+        is None
+    )
+
+
+def test_pretooluse_sed_in_place_on_wiki_page_denies(tmp_path: Path):
+    init_project(tmp_path)
+
+    result = evaluate_pretooluse(
+        _bash_payload("sed -i 's/a/b/' wiki/concepts/x.md", tmp_path, session_id="sess-sed-i")
+    )
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "llmw edit" in result["hookSpecificOutput"]["permissionDecisionReason"]
 
 
 def test_pretooluse_shell_guard_off_under_wiki_guard_off(tmp_path: Path):
@@ -886,5 +924,5 @@ def test_pretooluse_shell_guard_without_cwd_resolves_against_the_project_root(tm
     finally:
         os.chdir(previous)
 
-    assert result["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert evaluate_pretooluse(payload_with_cwd) is not None
