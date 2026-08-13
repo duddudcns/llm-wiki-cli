@@ -142,6 +142,14 @@ def test_codex_stop_blocks_when_source_changed_without_wiki_update(tmp_path: Pat
     assert "llmw_write" in result["reason"]
 
 
+def test_codex_stop_fires_once_per_source_change_episode(tmp_path: Path):
+    paths = init_project(tmp_path)
+    write_session_state(paths, "stop-once", dirty=True)
+
+    assert evaluate_codex_stop({"cwd": str(tmp_path), "session_id": "stop-once"}) is not None
+    assert evaluate_codex_stop({"cwd": str(tmp_path), "session_id": "stop-once"}) is None
+
+
 def test_codex_stop_respects_stop_hook_active(tmp_path: Path):
     paths = init_project(tmp_path)
     write_session_state(paths, "stop-c", dirty=True)

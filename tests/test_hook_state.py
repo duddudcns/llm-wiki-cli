@@ -5,6 +5,7 @@ from pathlib import Path
 from llmw.bootstrap import init_project
 from llmw.hook_state import (
     clear_dirty_for_env_session,
+    mark_searched_for_env_session,
     read_session_state,
     write_session_state,
 )
@@ -144,6 +145,24 @@ def test_clear_dirty_for_env_session_uses_claude_session_id(tmp_path: Path, monk
     clear_dirty_for_env_session(paths)
 
     assert read_session_state(paths, "env-sess").get("dirty") is False
+
+
+def test_mark_searched_for_env_session_uses_claude_session_id(tmp_path: Path, monkeypatch):
+    paths = init_project(tmp_path)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "env-sess")
+
+    mark_searched_for_env_session(paths)
+
+    assert read_session_state(paths, "env-sess").get("searched") is True
+
+
+def test_mark_searched_for_env_session_noops_without_the_variable(tmp_path: Path, monkeypatch):
+    paths = init_project(tmp_path)
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+
+    mark_searched_for_env_session(paths)
+
+    assert read_session_state(paths, "env-sess") == {}
 
 
 def test_clear_dirty_for_env_session_noops_without_the_variable(tmp_path: Path, monkeypatch):

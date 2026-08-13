@@ -103,4 +103,7 @@ def evaluate_codex_stop(payload: dict) -> dict | None:
     if not state.get("dirty"):
         return None
 
+    # Once per "source changed" episode, not every turn until the wiki is
+    # touched — same reasoning as [[hook.py]]'s `evaluate_stop`.
+    write_session_state(paths, payload.get("session_id"), dirty=False)
     return {"decision": "block", "reason": _UPDATE_GATE_MESSAGE}
