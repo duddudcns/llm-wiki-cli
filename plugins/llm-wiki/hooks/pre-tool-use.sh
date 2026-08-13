@@ -4,8 +4,8 @@
 # apply_patch/llmw_search/llmw_write is already done by hooks.json's
 # matcher, so no branching on tool_name is needed here (unlike
 # plugin/hooks/pre-tool-use.sh on the Claude Code side, which also has to
-# watch Bash calls for a literal "llmw" substring since Claude has no
-# equivalent per-tool matcher granularity for that case).
+# sift Bash/PowerShell commands for a shell write into wiki/ or raw/,
+# something Claude's matcher can't express).
 #
 # `|| true` plus the trailing `exit 0` matter even though
 # `llmw hook codex-pretooluse` itself never raises (cli.py catches
