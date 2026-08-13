@@ -126,15 +126,24 @@ def write_session_state(paths: ProjectPaths, session_id: str | None, **updates: 
 def clear_dirty_for_env_session(paths: ProjectPaths) -> None:
     """Mark the wiki caught up from inside a *successful* `llmw` mutation.
 
-    The PreToolUse hook can only guess, by pattern-matching a command
-    string, that a tool call is about to run `llmw write`; by the time this
-    is called the write actually happened. Claude Code exports the same
-    session id its hooks key state on (`CLAUDE_CODE_SESSION_ID`) into every
-    child process, so the mutation clears its own flag regardless of which
-    tool ran it (Bash, PowerShell, a wrapper script, a future harness the
-    hook has no matcher for). No-ops when the variable is absent.
+    A PreToolUse hook could only guess, by pattern-matching a command
+    string, that a tool call is *about to* run `llmw write` — and guessed
+    wrong for `llmw write --help`, a command that then failed, or the
+    words appearing in prose. By the time this is called the write
+    actually happened. Claude Code exports the same session id its hooks
+    key state on (`CLAUDE_CODE_SESSION_ID`) into every child process, so
+    the mutation clears its own flag regardless of which tool ran it
+    (Bash, PowerShell, a wrapper script, a future harness the hook has no
+    matcher for). No-ops when the variable is absent.
     """
     write_session_state(paths, os.environ.get("CLAUDE_CODE_SESSION_ID"), dirty=False)
+
+
+def mark_searched_for_env_session(paths: ProjectPaths) -> None:
+    """Satisfy the search-before-work gate from inside a `llmw search`
+    that actually ran and returned results — same mechanism, and same
+    reasoning, as `clear_dirty_for_env_session`."""
+    write_session_state(paths, os.environ.get("CLAUDE_CODE_SESSION_ID"), searched=True)
 
 
 def _prune_stale_sessions(session_dir: Path) -> None:

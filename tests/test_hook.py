@@ -196,50 +196,24 @@ def test_pretooluse_source_edit_marks_session_dirty(tmp_path: Path):
     assert read_session_state(paths, "sess-e").get("dirty") is True
 
 
-def test_pretooluse_bash_llmw_search_marks_session_searched(tmp_path: Path):
+def test_pretooluse_bash_llmw_search_does_not_mark_session_searched(tmp_path: Path):
+    # Session state is never inferred from a command string: a real `llmw
+    # search` marks the session from inside the command (see
+    # `hook_state.mark_searched_for_env_session`), so `--help`, a typo, or
+    # a command that never runs can't satisfy the gate on its own.
     paths = init_project(tmp_path)
 
     result = evaluate_pretooluse(
-        _bash_payload('llmw search "topic"', tmp_path, session_id="sess-f")
+        _bash_payload("llmw search --help", tmp_path, session_id="sess-f")
     )
     assert result is None
-    assert read_session_state(paths, "sess-f").get("searched") is True
+    assert read_session_state(paths, "sess-f") == {}
 
 
-def test_pretooluse_bash_llmw_search_with_root_flag_marks_session_searched(tmp_path: Path):
-    # `llmw --root <path> search ...` (documented in project-layout.md)
-    # used to be missed since the search-detection regex required "llmw"
-    # and "search" to be directly adjacent.
-    paths = init_project(tmp_path)
-
-    result = evaluate_pretooluse(
-        _bash_payload(f'llmw --root "{tmp_path}" search "topic"', tmp_path, session_id="sess-root")
-    )
-    assert result is None
-    assert read_session_state(paths, "sess-root").get("searched") is True
-
-
-def test_pretooluse_bash_python_module_search_marks_session_searched(tmp_path: Path):
-    # `python -m llmw.cli search ...` — another documented invocation form.
-    paths = init_project(tmp_path)
-
-    result = evaluate_pretooluse(
-        _bash_payload("python -m llmw.cli search topic", tmp_path, session_id="sess-mod")
-    )
-    assert result is None
-    assert read_session_state(paths, "sess-mod").get("searched") is True
-
-
-def test_pretooluse_bash_search_prevents_subsequent_edit_gate(tmp_path: Path):
-    paths = init_project(tmp_path)
-    target = paths.root / "README.md"
-    target.write_text("hello\n", encoding="utf-8")
-
-    evaluate_pretooluse(_bash_payload("llmw search topic", tmp_path, session_id="sess-g"))
-    assert evaluate_pretooluse(_edit_payload(target, session_id="sess-g")) is None
-
-
-def test_pretooluse_bash_llmw_write_clears_dirty_flag(tmp_path: Path):
+def test_pretooluse_bash_llmw_edit_help_does_not_clear_dirty(tmp_path: Path):
+    # Reported bug: `llmw edit --help` — no wiki byte changed — cleared the
+    # update gate, because the hook pattern-matched the command string
+    # instead of waiting for the mutation to actually happen.
     paths = init_project(tmp_path)
     target = paths.root / "README.md"
     target.write_text("hello\n", encoding="utf-8")
@@ -247,31 +221,8 @@ def test_pretooluse_bash_llmw_write_clears_dirty_flag(tmp_path: Path):
     evaluate_pretooluse(_edit_payload(target, session_id="sess-h"))
     assert read_session_state(paths, "sess-h").get("dirty") is True
 
-    evaluate_pretooluse(
-        _bash_payload('llmw write wiki/x.md --reason "r" --stdin', tmp_path, session_id="sess-h")
-    )
-    assert read_session_state(paths, "sess-h").get("dirty") is False
-
-
-def test_pretooluse_bash_llmw_exe_write_clears_dirty_flag(tmp_path: Path):
-    # `llmw.exe` (Windows: a venv's Scripts/llmw.exe, no global `llmw` on
-    # PATH) used to be missed since the regex required "llmw" to be
-    # directly followed by whitespace, not the ".exe" suffix.
-    paths = init_project(tmp_path)
-    target = paths.root / "README.md"
-    target.write_text("hello\n", encoding="utf-8")
-
-    evaluate_pretooluse(_edit_payload(target, session_id="sess-exe"))
-    assert read_session_state(paths, "sess-exe").get("dirty") is True
-
-    evaluate_pretooluse(
-        _bash_payload(
-            './.venv/Scripts/llmw.exe write wiki/x.md --reason "r" --stdin',
-            tmp_path,
-            session_id="sess-exe",
-        )
-    )
-    assert read_session_state(paths, "sess-exe").get("dirty") is False
+    evaluate_pretooluse(_bash_payload("llmw edit --help", tmp_path, session_id="sess-h"))
+    assert read_session_state(paths, "sess-h").get("dirty") is True
 
 
 def test_pretooluse_bash_never_gates_even_when_dirty(tmp_path: Path):
@@ -292,36 +243,6 @@ def test_pretooluse_bash_ignores_commands_without_llmw(tmp_path: Path):
 
 def test_pretooluse_bash_outside_project_returns_none(tmp_path: Path):
     assert evaluate_pretooluse(_bash_payload("llmw search x", tmp_path, session_id="sess-k")) is None
-
-
-def test_pretooluse_powershell_llmw_search_marks_session_searched(tmp_path: Path):
-    # The PowerShell tool (Windows' primary shell alongside Bash) used to
-    # be invisible to this hook entirely — only "Bash" was recognized as a
-    # shell tool, so `llmw search`/`write`/etc. run via PowerShell never
-    # updated session state.
-    paths = init_project(tmp_path)
-
-    result = evaluate_pretooluse(
-        _powershell_payload('llmw search "topic"', tmp_path, session_id="sess-ps-search")
-    )
-    assert result is None
-    assert read_session_state(paths, "sess-ps-search").get("searched") is True
-
-
-def test_pretooluse_powershell_llmw_write_clears_dirty_flag(tmp_path: Path):
-    paths = init_project(tmp_path)
-    target = paths.root / "README.md"
-    target.write_text("hello\n", encoding="utf-8")
-
-    evaluate_pretooluse(_edit_payload(target, session_id="sess-ps-write"))
-    assert read_session_state(paths, "sess-ps-write").get("dirty") is True
-
-    evaluate_pretooluse(
-        _powershell_payload(
-            'llmw write wiki/x.md --reason "r" --stdin', tmp_path, session_id="sess-ps-write"
-        )
-    )
-    assert read_session_state(paths, "sess-ps-write").get("dirty") is False
 
 
 def test_pretooluse_powershell_never_gates_even_when_dirty(tmp_path: Path):
@@ -651,17 +572,27 @@ def test_stop_ignores_outside_llmw_project(tmp_path: Path):
     assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-e"}) is None
 
 
-def test_stop_clears_after_llmw_write_via_bash(tmp_path: Path):
+def test_stop_fires_once_per_source_change_and_not_every_later_turn(tmp_path: Path):
+    # The nudge is per "source changed" episode, not sticky: a turn that
+    # legitimately needs no wiki update used to leave `dirty` set, so every
+    # later turn in the session got blocked again with nothing to fix.
+    paths = init_project(tmp_path)
+    write_session_state(paths, "stop-f", dirty=True)
+
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-f"})["decision"] == "block"
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-f"}) is None
+
+
+def test_stop_blocks_again_after_new_source_changes(tmp_path: Path):
     paths = init_project(tmp_path)
     target = paths.root / "README.md"
     target.write_text("hello\n", encoding="utf-8")
+    write_session_state(paths, "stop-g", dirty=True)
 
-    evaluate_pretooluse(_edit_payload(target, session_id="stop-f"))
-    evaluate_pretooluse(
-        _bash_payload('llmw write wiki/x.md --reason "r" --stdin', tmp_path, session_id="stop-f")
-    )
+    evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-g"})
+    evaluate_pretooluse(_edit_payload(target, session_id="stop-g"))
 
-    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-f"}) is None
+    assert evaluate_stop({"cwd": str(tmp_path), "session_id": "stop-g"})["decision"] == "block"
 
 
 def test_hook_cli_stop_emits_block_decision(tmp_path: Path):
@@ -684,64 +615,33 @@ def test_hook_cli_stop_silent_when_not_dirty(tmp_path: Path):
     assert result.stdout == ""
 
 
-# --- prose that only mentions an llmw command must not clear the gate ---
+# --- prose that only mentions an llmw command must not exempt a shell write ---
 
 
-def test_pretooluse_heredoc_body_mentioning_llmw_write_does_not_clear_dirty(tmp_path: Path):
-    # The command *pipes a heredoc into* something else; "llmw write" only
-    # appears as prose inside the body. Clearing the gate here silently
-    # cancelled the update reminder for the whole turn.
-    paths = init_project(tmp_path)
-    write_session_state(paths, "sess-heredoc", dirty=True)
-    command = "cat <<'EOF' > notes.txt\nremember to run llmw write later\nEOF"
-
-    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-heredoc")) is None
-    assert read_session_state(paths, "sess-heredoc").get("dirty") is True
-
-
-def test_pretooluse_quoted_prose_mentioning_llmw_write_does_not_clear_dirty(tmp_path: Path):
-    paths = init_project(tmp_path)
-    write_session_state(paths, "sess-quoted", dirty=True)
-    command = 'git commit -m "docs: explain when to use llmw write"'
-
-    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-quoted")) is None
-    assert read_session_state(paths, "sess-quoted").get("dirty") is True
-
-
-def test_pretooluse_powershell_herestring_mentioning_llmw_search_does_not_mark_searched(
-    tmp_path: Path,
-):
-    paths = init_project(tmp_path)
-    command = "$body = @'\nfirst run llmw search topic\n'@"
-
-    assert evaluate_pretooluse(_powershell_payload(command, tmp_path, session_id="sess-hs")) is None
-    assert read_session_state(paths, "sess-hs").get("searched") is not True
-
-
-def test_pretooluse_llmw_write_with_heredoc_content_still_clears_dirty(tmp_path: Path):
+def test_pretooluse_llmw_write_with_heredoc_content_is_not_flagged_as_a_bypass(tmp_path: Path):
     # The real invocation form: `llmw write` outside the heredoc, page
-    # content inside it. Stripping bodies must not break this.
-    paths = init_project(tmp_path)
-    write_session_state(paths, "sess-real", dirty=True)
+    # content inside it — and markdown content routinely contains a `>`
+    # blockquote, which reads as a redirect to the shell-mutation regex.
+    # Recognizing the sanctioned command is what stops that false deny.
+    init_project(tmp_path)
     command = (
         'llmw write "concepts/x.md" --reason "r" --stdin <<\'EOF\'\n'
-        "---\ntitle: X\n---\nbody\nEOF"
+        "---\ntitle: X\n---\n> quoted note\nEOF"
     )
 
     assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-real")) is None
-    assert read_session_state(paths, "sess-real").get("dirty") is False
 
 
-def test_pretooluse_llmw_write_inside_a_quoted_shell_wrapper_is_missed(tmp_path: Path):
-    # Documented ceiling of the literal-stripping heuristic: a wholly
-    # quoted `bash -c '...'` no longer registers. This fails toward one
-    # extra Stop-hook reminder, never toward a silently cleared gate.
-    paths = init_project(tmp_path)
-    write_session_state(paths, "sess-wrapper", dirty=True)
-    command = "bash -c 'llmw write concepts/x.md --reason r --stdin'"
+def test_pretooluse_quoted_prose_mentioning_llmw_write_does_not_exempt_a_shell_write(
+    tmp_path: Path,
+):
+    # "llmw write" appears only inside a quoted commit message; the actual
+    # write is a raw redirect into a wiki page and must still be denied.
+    init_project(tmp_path)
+    command = 'git commit -m "docs: explain when to use llmw write" && echo hi > wiki/concepts/x.md'
 
-    assert evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-wrapper")) is None
-    assert read_session_state(paths, "sess-wrapper").get("dirty") is True
+    result = evaluate_pretooluse(_bash_payload(command, tmp_path, session_id="sess-quoted"))
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 # --- shell writes into wiki/ and raw/ get the same guard as Edit/Write ---
@@ -855,18 +755,16 @@ def test_pretooluse_shell_read_of_a_wiki_page_is_not_guarded(tmp_path: Path):
 def test_pretooluse_llmw_command_naming_a_wiki_path_is_not_guarded(tmp_path: Path):
     # `llmw write` is the sanctioned path — it must never trip the guard
     # meant for raw shell writes, even though it names a wiki/*.md file.
-    paths = init_project(tmp_path)
-    write_session_state(paths, "sess-sanctioned", dirty=True)
+    init_project(tmp_path)
 
     result = evaluate_pretooluse(
         _bash_payload(
-            'llmw write wiki/concepts/x.md --reason "r" --stdin',
+            'llmw write wiki/concepts/x.md --reason "r" --stdin > /dev/null',
             tmp_path,
             session_id="sess-sanctioned",
         )
     )
     assert result is None
-    assert read_session_state(paths, "sess-sanctioned").get("dirty") is False
 
 
 def test_pretooluse_shell_write_outside_wiki_is_not_guarded(tmp_path: Path):
@@ -900,6 +798,25 @@ def test_llmw_write_clears_dirty_from_inside_the_command(tmp_path: Path):
 
     assert result.returncode == 0, result.stderr
     assert read_session_state(paths, "cli-env-sess").get("dirty") is False
+
+
+def test_llmw_search_marks_searched_from_inside_the_command(tmp_path: Path):
+    # Same deal for the search gate: only a search that actually ran
+    # satisfies it, whatever shell tool (or none) invoked it.
+    paths = init_project(tmp_path)
+    rebuild(paths)
+    env = {**os.environ, "CLAUDE_CODE_SESSION_ID": "cli-search-sess"}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "llmw.cli", "search", "anything"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert read_session_state(paths, "cli-search-sess").get("searched") is True
 
 
 def test_pretooluse_shell_guard_without_cwd_resolves_against_the_project_root(tmp_path: Path):

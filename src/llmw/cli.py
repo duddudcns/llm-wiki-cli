@@ -25,7 +25,7 @@ from llmw.hook import (
     evaluate_stop,
     evaluate_userpromptsubmit,
 )
-from llmw.hook_state import clear_dirty_for_env_session
+from llmw.hook_state import clear_dirty_for_env_session, mark_searched_for_env_session
 from llmw.indexer import index_changed, rebuild as rebuild_index
 from llmw.ingest import (
     SourceAlreadyIngestedError,
@@ -289,6 +289,8 @@ def search(
     except IndexNotBuiltError as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
+
+    mark_searched_for_env_session(paths)
 
     if json:
         _print_json(response.as_dict())
