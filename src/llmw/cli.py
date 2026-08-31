@@ -194,6 +194,13 @@ def init(
             f"(wiki data under {paths.root})",
             style="bold",
         )
+    if adopt:
+        # `init` builds no index, which is right for an empty project and
+        # wrong to leave silent here: the user just pointed llmw at a wiki
+        # that already has content, and the next command they run —
+        # `llmw search`, per the skill — would fail with "Index not built
+        # yet" and no idea that adopting was not the last step.
+        console.print("Next: run `llmw rebuild` to index the pages already here.")
 
 
 @app.command()

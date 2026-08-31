@@ -214,3 +214,35 @@ def test_a_session_id_never_becomes_a_path(session_id: str, tmp_path: Path) -> N
 
     assert read_session_state(paths, session_id) == {}
     assert {p for p in tmp_path.rglob("*") if p.is_file()} == before
+
+
+def test_adopt_says_the_index_still_has_to_be_built(tmp_path: Path) -> None:
+    """`--adopt` points llmw at a wiki that already has content.
+
+    `init` builds no index, which is right for an empty project and
+    leaves an adopted one in a state where the very next command —
+    `llmw search`, which the skill runs first — fails with "Index not
+    built yet". The user just told the tool there is content; it should
+    say what to do with it.
+    """
+    (tmp_path / "wiki" / "decisions").mkdir(parents=True)
+    (tmp_path / "wiki" / "decisions" / "a.md").write_text(PAGE, encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "llmw.cli", "init", "--adopt"],
+        cwd=tmp_path, capture_output=True, text=True, encoding="utf-8",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "llmw rebuild" in result.stdout, result.stdout
+
+
+def test_a_plain_init_does_not_nag_about_rebuilding(tmp_path: Path) -> None:
+    # An empty project has nothing to index, so the hint would be noise.
+    result = subprocess.run(
+        [sys.executable, "-m", "llmw.cli", "init"],
+        cwd=tmp_path, capture_output=True, text=True, encoding="utf-8",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "llmw rebuild" not in result.stdout, result.stdout
