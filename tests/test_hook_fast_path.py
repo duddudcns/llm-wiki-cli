@@ -30,11 +30,24 @@ FORBIDDEN_ON_FAST_PATH = ("typer", "rich", "llmw.indexer", "llmw.cli", "yaml")
 
 PAYLOADS = {
     "pretooluse": {"tool_name": "Bash", "tool_input": {"command": "echo ok"}},
+    "session-start": {"cwd": "."},
     "userpromptsubmit": {"prompt": "add a retry to the uploader", "cwd": "."},
     "stop": {"session_id": "fast-path-test", "cwd": "."},
     "codex-pretooluse": {"tool_name": "apply_patch", "tool_input": {}},
     "codex-stop": {"session_id": "fast-path-test", "cwd": "."},
 }
+
+# session-start reports wiki status, so it legitimately loads the indexer.
+# It still has to match the Typer path — and it is the one dispatch entry
+# whose argument shape differs (`payload["cwd"]`, not the payload), which
+# is exactly where a table-driven rewrite goes wrong.
+LEAN_EVENTS = sorted(set(PAYLOADS) - {"session-start"})
+
+
+def test_every_dispatched_event_is_covered_here() -> None:
+    from llmw.hook_entry import EVENTS
+
+    assert sorted(EVENTS) == sorted(PAYLOADS)
 
 
 def _run_child(script: str, payload: str, cwd: Path) -> subprocess.CompletedProcess:
@@ -50,7 +63,7 @@ def _run_child(script: str, payload: str, cwd: Path) -> subprocess.CompletedProc
     )
 
 
-@pytest.mark.parametrize("event", sorted(PAYLOADS))
+@pytest.mark.parametrize("event", LEAN_EVENTS)
 def test_fast_path_does_not_import_the_cli_or_the_indexer(
     event: str, tmp_path: Path
 ) -> None:
