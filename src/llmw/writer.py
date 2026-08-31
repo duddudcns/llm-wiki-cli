@@ -7,7 +7,9 @@ wiki/, backup before overwrite/patch, log entry recorded, index refreshed.
 from __future__ import annotations
 
 import datetime
+import re
 import shutil
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -47,6 +49,10 @@ class OldStringNotUniqueError(RuntimeError):
 
 
 Notice = Callable[[str], None]
+
+# The stamp `_backup` writes: %Y%m%dT%H%M%S%f. Only directories matching
+# it are pruned — anything else under `backups/` is someone else's.
+_SNAPSHOT_DIR_RE = re.compile(r"\d{8}T\d{12}")
 
 
 def _required_fields(paths: ProjectPaths) -> list[str]:
@@ -114,6 +120,32 @@ def _notice_unbumped_updated(
     )
 
 
+def _prune_backups(paths: ProjectPaths, keep_days: int) -> None:
+    """Drop snapshot directories older than `keep_days`. Never raises.
+
+    Only the timestamp directories this module creates are removed —
+    anything else under `backups/` was put there by someone else and is
+    not ours to delete. A snapshot that will not go (a lock, a
+    permissions problem) is skipped: failing to tidy a backup must never
+    take down the mutation the caller actually asked for.
+    """
+    if keep_days <= 0:
+        return
+    cutoff = time.time() - keep_days * 86400
+    try:
+        entries = list(paths.backups_dir.iterdir())
+    except OSError:
+        return
+    for entry in entries:
+        try:
+            if not entry.is_dir() or not _SNAPSHOT_DIR_RE.fullmatch(entry.name):
+                continue
+            if entry.stat().st_mtime < cutoff:
+                shutil.rmtree(entry)
+        except OSError:
+            continue
+
+
 def _backup(paths: ProjectPaths, fs_path: Path) -> Path:
     paths.backups_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S%f")
@@ -121,6 +153,16 @@ def _backup(paths: ProjectPaths, fs_path: Path) -> Path:
     backup_path = paths.backups_dir / stamp / rel
     backup_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(fs_path, backup_path)
+    # After the copy, so a prune that misbehaves can never take out the
+    # snapshot this call was made to create. A config that will not parse
+    # keeps everything rather than blocking the write or guessing a
+    # window — misreading this setting must never delete more than the
+    # user asked for.
+    try:
+        keep_days = load_project_config(paths).backup_retention_days
+    except Exception:  # noqa: BLE001 - tidying must not fail a mutation
+        keep_days = 0
+    _prune_backups(paths, keep_days)
     return backup_path
 
 

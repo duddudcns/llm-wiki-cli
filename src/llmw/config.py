@@ -20,6 +20,13 @@ _VALID_WIKI_GUARD_VALUES = {"deny", "ask", "off"}
 DEFAULT_SEARCH_GATE = "ask"
 _VALID_SEARCH_GATE_VALUES = {"ask", "off"}
 DEFAULT_UPDATE_GATE = "ask"
+# Days a `.llmw/backups/` snapshot is kept. A backup here answers "undo
+# what I just did" or "recover the page I broke recently", which is a
+# recency need — after a month the wiki log and version control are the
+# record. Pruned by age rather than by count on purpose: a count cap
+# would evict this morning's snapshots after a busy afternoon, which is
+# exactly backwards. 0 keeps everything forever.
+DEFAULT_BACKUP_RETENTION_DAYS = 30
 _VALID_UPDATE_GATE_VALUES = {"ask", "off"}
 
 
@@ -58,6 +65,8 @@ class Config:
     # `archive` ran since: "ask" blocks the stop once with a reminder,
     # "off" disables it.
     hooks_update_gate: str = DEFAULT_UPDATE_GATE
+    # See DEFAULT_BACKUP_RETENTION_DAYS. 0 disables pruning entirely.
+    backup_retention_days: int = DEFAULT_BACKUP_RETENTION_DAYS
 
     def to_toml(self) -> str:
         return (
@@ -80,6 +89,9 @@ class Config:
             f'wiki_guard = "{self.hooks_wiki_guard}"\n'
             f'search_gate = "{self.hooks_search_gate}"\n'
             f'update_gate = "{self.hooks_update_gate}"\n'
+            "\n"
+            "[backups]\n"
+            f"retention_days = {self.backup_retention_days}\n"
         )
 
 
@@ -128,7 +140,7 @@ def load_config(config_path: Path) -> Config:
             "details, or fix/delete the file (llmw falls back to defaults "
             "when it's absent)."
         ) from exc
-    for section_name in ("llmw", "paths", "defaults", "lint", "hooks"):
+    for section_name in ("llmw", "paths", "defaults", "lint", "hooks", "backups"):
         if section_name in data and not isinstance(data[section_name], dict):
             raise ConfigError(
                 f"{config_path}: [{section_name}] must be a TOML table, got "
@@ -141,6 +153,13 @@ def load_config(config_path: Path) -> Config:
     defaults = data.get("defaults", {})
     lint = data.get("lint", {})
     hooks = data.get("hooks", {})
+    backups = data.get("backups", {})
+    # Anything that isn't a whole non-negative number keeps everything.
+    # Misreading this setting must never delete more than intended, so it
+    # fails toward retention rather than toward the default window.
+    retention = backups.get("retention_days", DEFAULT_BACKUP_RETENTION_DAYS)
+    if not isinstance(retention, int) or isinstance(retention, bool) or retention < 0:
+        retention = 0
     wiki_guard = hooks.get("wiki_guard", DEFAULT_WIKI_GUARD)
     if wiki_guard not in _VALID_WIKI_GUARD_VALUES:
         wiki_guard = DEFAULT_WIKI_GUARD
@@ -163,6 +182,7 @@ def load_config(config_path: Path) -> Config:
         hooks_wiki_guard=wiki_guard,
         hooks_search_gate=search_gate,
         hooks_update_gate=update_gate,
+        backup_retention_days=retention,
     )
 
 
