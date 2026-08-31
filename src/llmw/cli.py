@@ -366,7 +366,13 @@ def read(
     console.print(f"title:     {result.title}")
     console.print(f"type:      {result.type}")
     console.print(f"status:    {result.status}")
-    freshness = describe_freshness(result.updated, result.mtime)
+    # Same reasoning as the search surface: marking a page superseded
+    # rewrote its frontmatter, so its mtime jumped past its `updated`
+    # without its claims being restated. `read` has no `superseded_by`,
+    # only the status, which is the same signal.
+    freshness = describe_freshness(
+        result.updated, None if result.status == "superseded" else result.mtime
+    )
     if freshness:
         console.print(f"updated:   {freshness}")
     console.print(f"summary:   {result.summary}")

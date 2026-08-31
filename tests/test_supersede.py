@@ -250,6 +250,26 @@ def test_the_flip_does_not_leave_a_permanent_divergence_notice(
     assert "file modified" not in block
 
 
+def test_read_suppresses_the_same_notice(tmp_path: Path) -> None:
+    # `read` is the other surface the freshness line reaches, and it does
+    # not carry `superseded_by` — only `status`. Suppressing on one
+    # surface and not the other leaves the permanent-noise case alive
+    # exactly where a reader goes to look closer.
+    _project(tmp_path)
+    run(
+        tmp_path, "write", NEW, "--reason", "r", "--supersedes", OLD, "--stdin",
+        stdin=NEW_CONTENT,
+    )
+    run(tmp_path, "rebuild")
+
+    result = run(tmp_path, "read", OLD)
+
+    assert result.returncode == 0, result.stderr
+    assert "status:    superseded" in result.stdout
+    assert "2026-06-01" in result.stdout
+    assert "file modified" not in result.stdout
+
+
 def test_backlinks_see_the_supersession(tmp_path: Path) -> None:
     _project(tmp_path)
     run(
