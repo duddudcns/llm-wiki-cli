@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from llmw.frontmatter import InvalidFrontmatterError, body_after_block
 from llmw.parser import extract_key_points, mask_non_prose, parse_page
 from llmw.paths import ProjectPaths
 from llmw.queries import (
@@ -27,6 +28,10 @@ class ReadResult:
     type: str | None
     status: str | None
     summary: str | None
+    # Set when the page has a frontmatter block that does not parse. The
+    # page is still returned — losing its content over a broken metadata
+    # field is the "worse than nothing" trade this tool exists to avoid.
+    frontmatter_error: str | None
     # See llmw.freshness: the page's own claim vs. when the index last
     # observed the body change.
     updated: str | None
@@ -47,6 +52,7 @@ class ReadResult:
             "type": self.type,
             "status": self.status,
             "summary": self.summary,
+            "frontmatter_error": self.frontmatter_error,
             "updated": self.updated,
             "body_changed_at": self.body_changed_at,
             "key_points": self.key_points,
@@ -108,7 +114,17 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
             f"{rel_path} is not valid UTF-8 text and can't be read as a wiki "
             f"page: {exc}"
         ) from exc
-    page = parse_page(text, rel_path)
+    try:
+        page = parse_page(text, rel_path)
+        frontmatter_error: str | None = None
+    except InvalidFrontmatterError as exc:
+        # The metadata is unreadable; the page is not. Refusing to show it
+        # loses the content over a broken date field, and raising here put
+        # a raw YAML traceback on the terminal. Read it as an untitled
+        # page and say what is wrong — `llmw lint` reports the same thing
+        # under `invalid_frontmatter`.
+        frontmatter_error = str(exc).splitlines()[0]
+        page = parse_page(body_after_block(text), rel_path)
     masked = mask_non_prose(page.body)
     key_points = extract_key_points(page.body, masked)
 
@@ -158,6 +174,7 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
         type=page.type,
         status=page.status,
         summary=page.summary,
+        frontmatter_error=frontmatter_error,
         updated=page.updated,
         # Only the index has the history this needs; None when the page
         # isn't indexed, which reads as "no divergence known".

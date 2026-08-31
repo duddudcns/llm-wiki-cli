@@ -362,6 +362,11 @@ def read(
         print(result.full_text)
         return
 
+    if result.frontmatter_error:
+        _err(
+            f"{result.path}: frontmatter does not parse ({result.frontmatter_error}). "
+            f"Showing the body; run `llmw lint` for the full report."
+        )
     console.print(f"title:     {result.title}")
     console.print(f"type:      {result.type}")
     console.print(f"status:    {result.status}")

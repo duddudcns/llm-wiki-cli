@@ -98,6 +98,14 @@ def missing_fields(frontmatter: dict, required: list[str]) -> list[str]:
     return [name for name in required if not has_field(frontmatter, name)]
 
 
+def body_after_block(text: str) -> str:
+    """Everything past the frontmatter delimiters, without trying to read
+    what sits between them. For callers that must show a page whose
+    metadata does not parse."""
+    match = _FRONTMATTER_RE.match(text)
+    return text[match.end():] if match is not None else text
+
+
 def set_fields(text: str, fields: dict) -> str:
     """Return `text` with `fields` set in its frontmatter.
 
