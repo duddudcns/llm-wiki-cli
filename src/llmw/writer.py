@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 from typing import Callable
 
+from llmw.freshness import as_date
 from llmw.frontmatter import (
     InvalidFrontmatterError,
     missing_fields,
@@ -105,7 +106,7 @@ def _notice_unbumped_updated(
     # notice's first real use, editing a page written earlier the same
     # session: a notice that fires when no action is available is the
     # kind that teaches the reader to ignore it.
-    if str(claimed)[:10] == datetime.date.today().isoformat():
+    if as_date(claimed) == datetime.date.today():
         return
     on_notice(
         f"{rel_path}: body changed, 'updated: {claimed}' not bumped — restate it "
@@ -164,7 +165,13 @@ def write_page(
             raise FileExistsConflictError(
                 f"{rel_path} already exists. Use --force to overwrite."
             )
+        # Held so a failed supersede flip can put it back. Unlinking would
+        # be right for a net-new page and wrong here: `--force` overwrote
+        # a live page, and dropping it entirely is a deletion in a tool
+        # whose whole stance is archive-over-delete.
+        replaced_bytes: str | None = None
         if fs_path.exists() and force:
+            replaced_bytes = fs_path.read_text(encoding="utf-8")
             _backup(paths, fs_path)
 
         fs_path.parent.mkdir(parents=True, exist_ok=True)
@@ -188,12 +195,18 @@ def write_page(
                 )
             except OSError:
                 # The new page landed but the flip did not — a read-only
-                # old page, a permissions change, a full disk. Remove the
-                # new page rather than leave it claiming to supersede
+                # old page, a permissions change, a full disk. Undo the
+                # write rather than leave a page claiming to supersede
                 # something nothing marks: that is exactly the
                 # half-applied state this command exists to prevent, and
                 # `archive.py` rolls its copy back for the same reason.
-                fs_path.unlink(missing_ok=True)
+                # Restore, not unlink, when `--force` replaced a live page.
+                if replaced_bytes is not None:
+                    fs_path.write_text(
+                        replaced_bytes, encoding="utf-8", newline="\n"
+                    )
+                else:
+                    fs_path.unlink(missing_ok=True)
                 raise
             append_log(
                 paths,

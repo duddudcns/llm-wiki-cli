@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 from llmw.config import load_config
-from llmw.frontmatter import InvalidFrontmatterError, split_frontmatter
+from llmw.frontmatter import InvalidFrontmatterError, set_fields, split_frontmatter
 from llmw.indexer import index_changed
 from llmw.locks import acquire_lock
 from llmw.log import append_log
@@ -25,19 +25,20 @@ def _dump_frontmatter_block(frontmatter: dict) -> str:
 
 
 def _stamp_archive_frontmatter(text: str, reason: str, archived_at: str) -> str:
-    try:
-        frontmatter, body = split_frontmatter(text)
-    except InvalidFrontmatterError:
-        frontmatter, body = {}, text
-
-    frontmatter = dict(frontmatter)
-    frontmatter["status"] = "archived"
-    frontmatter["archived"] = True
-    frontmatter["archived_at"] = archived_at
-    frontmatter["archive_reason"] = reason
-
-    yaml_block = _dump_frontmatter_block(frontmatter)
-    return f"---\n{yaml_block}\n---\n{body}"
+    # Through `set_fields` rather than a second copy of the same
+    # dump-and-splice: that is the one place that knows how to split a
+    # frontmatter block whose YAML doesn't parse. Done by hand here, the
+    # unreadable block was re-emitted below the new one and left the page
+    # carrying two — silently, on a page being retired.
+    return set_fields(
+        text,
+        {
+            "status": "archived",
+            "archived": True,
+            "archived_at": archived_at,
+            "archive_reason": reason,
+        },
+    )
 
 
 def _unique_destination(dest_dir: Path, name: str) -> Path:

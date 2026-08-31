@@ -14,6 +14,8 @@ partial one:
 
 from __future__ import annotations
 
+import sqlite3
+
 import re
 from dataclasses import dataclass, field
 
@@ -138,7 +140,17 @@ def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
         params.append(type_filter)
     sql += " ORDER BY rank LIMIT ?"
     params.append(limit)
-    return conn.execute(sql, params).fetchall()
+    try:
+        return conn.execute(sql, params).fetchall()
+    except sqlite3.OperationalError:
+        # An index built before `body_changed_at` existed. `open_ro` never
+        # migrates, and the skill sends an upgraded agent straight into
+        # `llmw search`, so this must answer rather than traceback. The
+        # column reads as absent, which is also what it means: no observed
+        # history. A later write or `rebuild` grafts it on.
+        return conn.execute(
+            sql.replace("p.updated_at, p.body_changed_at, ", "p.updated_at, "), params
+        ).fetchall()
 
 
 def _term_matches_any_page(conn, term: str) -> bool:
@@ -177,7 +189,9 @@ def _rows_to_results(conn, rows) -> list[SearchResult]:
                 score=round(-row["rank"], 4),
                 summary=row["summary"],
                 updated=row["updated_at"],
-                body_changed_at=row["body_changed_at"],
+                body_changed_at=(
+                    row["body_changed_at"] if "body_changed_at" in row.keys() else None
+                ),
                 superseded_by=replaced_by,
                 tags=page_tags(conn, row["id"]),
                 links=link_titles,

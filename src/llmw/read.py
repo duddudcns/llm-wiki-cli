@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass, field
 
 from llmw.parser import extract_key_points, mask_non_prose, parse_page
@@ -114,12 +115,19 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
     conn = open_ro(paths)
     if conn is not None:
         try:
-            row = conn.execute(
-                "SELECT id, body_changed_at FROM pages WHERE path = ?", (rel_path,)
-            ).fetchone()
+            try:
+                row = conn.execute(
+                    "SELECT id, body_changed_at FROM pages WHERE path = ?", (rel_path,)
+                ).fetchone()
+            except sqlite3.OperationalError:
+                # Pre-0.1.31 index; see the same handling in search.py.
+                row = conn.execute(
+                    "SELECT id FROM pages WHERE path = ?", (rel_path,)
+                ).fetchone()
             if row is not None:
                 page_id = row["id"]
-                body_changed_at = row["body_changed_at"]
+                if "body_changed_at" in row.keys():
+                    body_changed_at = row["body_changed_at"]
                 for link in outgoing_links(conn, page_id):
                     links_out.append(
                         {

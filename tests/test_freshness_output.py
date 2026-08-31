@@ -40,10 +40,13 @@ import sys
 from pathlib import Path
 
 
-def run(cwd: Path, *args: str) -> subprocess.CompletedProcess:
+def run(
+    cwd: Path, *args: str, stdin_text: str | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "llmw.cli", *args],
         cwd=cwd,
+        input=stdin_text,
         capture_output=True,
         text=True,
         encoding="utf-8",

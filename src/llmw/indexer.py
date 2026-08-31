@@ -407,7 +407,27 @@ def _stamp_body_history(page: Page, prior: sqlite3.Row | None) -> None:
     page.body_changed_at = datetime.date.today().isoformat()
 
 
-def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Config) -> SyncStats:
+def _body_history(conn: sqlite3.Connection) -> dict[str, sqlite3.Row]:
+    """What each page's body hash was and when it last changed, keyed by
+    path — the part of `pages` that cannot be recomputed from disk."""
+    try:
+        return {
+            row["path"]: row
+            for row in conn.execute(
+                "SELECT path, body_hash, body_changed_at FROM pages"
+            )
+        }
+    except sqlite3.OperationalError:
+        return {}
+
+
+def _sync(
+    conn: sqlite3.Connection,
+    paths: ProjectPaths,
+    force: bool,
+    config: Config,
+    history: dict[str, sqlite3.Row] | None = None,
+) -> SyncStats:
     stats = SyncStats()
     files = iter_wiki_files(paths, config)
     seen_paths: set[str] = set()
@@ -464,7 +484,7 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
                 _delete_page(conn, prior["id"])
             continue
 
-        _stamp_body_history(page, prior)
+        _stamp_body_history(page, prior if prior is not None else (history or {}).get(rel_path))
         if prior is not None:
             _delete_page(conn, prior["id"])
         _insert_page(conn, page)
@@ -500,9 +520,18 @@ def rebuild(paths: ProjectPaths) -> SyncStats:
     conn = connect(paths)
     config = load_project_config(paths)
     try:
+        # Carried across the wipe. `rebuild` clears `pages`, so `_sync`
+        # would see no prior row for anything and reset every page to
+        # "no body change ever observed" — silently, and toward *trust*,
+        # which is the wrong direction for a staleness display. `rebuild`
+        # is not rare either: llmw's own error messages advise it, so
+        # following the tool's advice would erase this memory, and an
+        # unwanted divergence note would have `rebuild` as a laundering
+        # path. A DB that was actually deleted still honestly has nothing.
+        history = _body_history(conn)
         _clear_content_tables(conn)
         conn.commit()
-        return _sync(conn, paths, force=True, config=config)
+        return _sync(conn, paths, force=True, config=config, history=history)
     finally:
         conn.close()
 

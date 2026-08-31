@@ -111,16 +111,21 @@ def set_fields(text: str, fields: dict) -> str:
     superseding — where writing metadata is the entire point of the call.
     An ordinary edit must not reformat a page behind the author's back.
     """
+    match = _FRONTMATTER_RE.match(text)
     try:
         data, body = split_frontmatter(text)
     except InvalidFrontmatterError:
-        data, body = {}, text
+        # Right about `data`, and the naive `body = text` is wrong: `text`
+        # is the whole file, delimiters included, so the unreadable block
+        # would be re-emitted below the new one and the page would end up
+        # carrying two. Split on the delimiters even when what sits
+        # between them can't be read.
+        data, body = {}, (text[match.end():] if match is not None else text)
 
     pending = {k: v for k, v in fields.items() if data.get(k) != v}
     if not pending:
         return text
 
-    match = _FRONTMATTER_RE.match(text)
     if match is not None and not any(key in data for key in pending):
         added = yaml.safe_dump(pending, sort_keys=False, allow_unicode=True).strip()
         return f"---\n{match.group(1)}\n{added}\n---\n{body}"
