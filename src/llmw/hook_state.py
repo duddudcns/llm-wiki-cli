@@ -88,8 +88,34 @@ def _acquire_session_lock(lock_path: Path) -> int | None:
             time.sleep(0.01)
 
 
+# Keys whose updates accumulate instead of replacing. A caller appending
+# to one from outside would have to read-then-write across the lock, which
+# two concurrent PreToolUse hooks can interleave and lose; merging inside
+# the locked section is the only place it is safe.
+_APPEND_KEYS = ("touched",)
+
+# What one turn's worth of changed files is worth remembering. A wide
+# refactor should not grow this file without bound, and the nudge only
+# ever names a handful of pages from it.
+_MAX_APPENDED = 50
+
+
+def _merge_appended(state: dict, key: str, value: object) -> list:
+    existing = state.get(key)
+    merged = list(existing) if isinstance(existing, list) else []
+    incoming = value if isinstance(value, list) else [value]
+    for item in incoming:
+        if item not in merged:
+            merged.append(item)
+    return merged[-_MAX_APPENDED:]
+
+
 def write_session_state(paths: ProjectPaths, session_id: str | None, **updates: object) -> dict:
     """Merge `updates` into the session's stored state and persist it.
+
+    Keys in `_APPEND_KEYS` accumulate rather than replace, unless the
+    update is explicitly empty — passing `touched=[]` clears it, which is
+    how the Stop hook resets an episode.
 
     Silently no-ops (returns `{}`) when `session_id` isn't a safe token or
     the write fails — a hook must never crash a tool call over bookkeeping.
@@ -107,7 +133,11 @@ def write_session_state(paths: ProjectPaths, session_id: str | None, **updates: 
     lock_fd = _acquire_session_lock(session_dir / f"{safe_id}.lock")
     try:
         state = read_session_state(paths, safe_id)
-        state.update(updates)
+        for key, value in updates.items():
+            if key in _APPEND_KEYS and value:
+                state[key] = _merge_appended(state, key, value)
+            else:
+                state[key] = value
         try:
             _session_path(paths, safe_id).write_text(json.dumps(state), encoding="utf-8")
             _prune_stale_sessions(session_dir)
@@ -136,7 +166,9 @@ def clear_dirty_for_env_session(paths: ProjectPaths) -> None:
     (Bash, PowerShell, a wrapper script, a future harness the hook has no
     matcher for). No-ops when the variable is absent.
     """
-    write_session_state(paths, os.environ.get("CLAUDE_CODE_SESSION_ID"), dirty=False)
+    write_session_state(
+        paths, os.environ.get("CLAUDE_CODE_SESSION_ID"), dirty=False, touched=[]
+    )
 
 
 def mark_searched_for_env_session(paths: ProjectPaths) -> None:

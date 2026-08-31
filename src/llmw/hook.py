@@ -255,6 +255,20 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
     return _track_source_edit(payload, paths, config)
 
 
+def _touched_rel(paths: ProjectPaths, payload: dict) -> list[str]:
+    """The edited file as a project-root-relative POSIX path, to match the
+    shape pages declare in `code:`. Empty when the path is outside the
+    project or unreadable — the nudge simply names no pages then."""
+    raw = (payload.get("tool_input") or {}).get("file_path")
+    if not raw:
+        return []
+    try:
+        rel = Path(str(raw)).resolve().relative_to(Path(paths.project_root).resolve())
+    except (ValueError, OSError):
+        return []
+    return [rel.as_posix()]
+
+
 def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | None:
     """A real source-file edit outside wiki/raw/.llmw: mark the session
     dirty (for the Stop-hook update reminder) and, on the first such edit
@@ -263,7 +277,9 @@ def _track_source_edit(payload: dict, paths: ProjectPaths, config) -> dict | Non
     this denies rather than asks: the recipient is the agent (which can
     act on it and re-issue the edit), not the user."""
     session_id = payload.get("session_id")
-    state = write_session_state(paths, session_id, dirty=True)
+    state = write_session_state(
+        paths, session_id, dirty=True, touched=_touched_rel(paths, payload)
+    )
 
     if config.hooks_search_gate == "off":
         return None
@@ -361,7 +377,7 @@ def _evaluate_wiki_mcp_pretooluse(payload: dict, tool_name: str) -> None:
     if tool_name == WIKI_MCP_SEARCH_TOOL:
         write_session_state(paths, session_id, searched=True)
     else:
-        write_session_state(paths, session_id, dirty=False)
+        write_session_state(paths, session_id, dirty=False, touched=[])
     return None
 
 
@@ -446,6 +462,48 @@ _UPDATE_GATE_MESSAGE = (
 )
 
 
+# How many pages the reminder will name. The point is to hand the agent a
+# short list it can act on, not to enumerate everything adjacent to a wide
+# refactor — this hook already documents reminder fatigue as the reason
+# its trivial-prompt filter exists.
+_MAX_NAMED_PAGES = 5
+
+
+def _update_gate_reason(paths: ProjectPaths, touched: object) -> str:
+    """The plain reminder, plus the pages that say they describe what
+    changed this turn.
+
+    Answering "which page went stale?" is the part the agent otherwise has
+    to remember unaided — the same burden that produced the staleness
+    problem — and the information exists right here: PreToolUse recorded
+    the files, and pages declare their own `code:` list.
+
+    Only a declared list is precise enough to use. Searching page bodies
+    for the filename was measured on this repo's wiki and does not
+    discriminate: "hook" appears in 20 of 30 pages and every FTS result
+    scores a flat 0.0, because IDF collapses on a small corpus that is
+    topically about its own search terms.
+    """
+    if not isinstance(touched, list) or not touched:
+        return _UPDATE_GATE_MESSAGE
+
+    # Imported here rather than at module scope: `llmw.queries` is
+    # sqlite3-only, and Stop is the one event that needs it.
+    from llmw.queries import open_ro, pages_declaring_files
+
+    conn = open_ro(paths)
+    if conn is None:
+        return _UPDATE_GATE_MESSAGE
+    try:
+        named = pages_declaring_files(conn, list(touched), _MAX_NAMED_PAGES)
+    finally:
+        conn.close()
+
+    if not named:
+        return _UPDATE_GATE_MESSAGE
+    return f"{_UPDATE_GATE_MESSAGE}\nPages describing what changed: {', '.join(named)}"
+
+
 def evaluate_stop(payload: dict) -> dict | None:
     """Stop hook: fires at the end of every agent turn. If source files
     changed this session since the wiki was last touched, blocks the stop
@@ -475,5 +533,8 @@ def evaluate_stop(payload: dict) -> dict | None:
     # otherwise re-block at the end of every later turn in the session,
     # with nothing left for the agent to act on. New source edits set the
     # flag again and earn a fresh reminder.
-    write_session_state(paths, payload.get("session_id"), dirty=False)
-    return {"decision": "block", "reason": _UPDATE_GATE_MESSAGE}
+    write_session_state(paths, payload.get("session_id"), dirty=False, touched=[])
+    return {
+        "decision": "block",
+        "reason": _update_gate_reason(paths, state.get("touched")),
+    }

@@ -11,7 +11,7 @@
 
 ## Entry quality
 
-- **Mechanism, not narrative.** Record the relevant file/function call chain and order, not merely the outcome.
+- **Mechanism, not narrative.** Record the relevant file/function call chain and order, not merely the outcome, and list those files under `code:` in the frontmatter — the turn-end reminder uses it to name this page when they change.
 - **Mechanism claims are dated.** When a page's `updated` predates the code you are changing, treat its file/function detail as a hypothesis to verify in source; the recorded *why* still holds.
 - Name the exact component or behavior; extend an existing subsystem page when appropriate.
 

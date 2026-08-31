@@ -349,6 +349,23 @@ def extract_frontmatter_links(frontmatter: dict, key: str, kind: str) -> list[Li
     return links
 
 
+def extract_code_refs(frontmatter: dict) -> list[str]:
+    """Project-root-relative source paths a page says it describes.
+
+    Kept out of `LINK_FIELDS` on purpose: these name files in the codebase,
+    not wiki pages, so running them through link resolution would report
+    every page that declares one as carrying a broken link and inflate
+    `lint`'s orphan counts. They get their own table and are read only by
+    the turn-end nudge.
+    """
+    refs = []
+    for raw in _normalize_str_list(frontmatter.get("code")):
+        normalized = raw.strip().replace("\\", "/").lstrip("./")
+        if normalized and normalized not in refs:
+            refs.append(normalized)
+    return refs
+
+
 def extract_related_links(frontmatter: dict) -> list[LinkRef]:
     """Every page-reference frontmatter key, in `LINK_FIELDS` order."""
     links: list[LinkRef] = []
@@ -392,6 +409,7 @@ def parse_page(text: str, path: str) -> Page:
     wikilinks = extract_wikilinks(masked)
     md_links, external_links = extract_markdown_links(masked)
     related_links = extract_related_links(frontmatter)
+    code_refs = extract_code_refs(frontmatter)
 
     title = frontmatter.get("title")
     if not title:
@@ -417,4 +435,5 @@ def parse_page(text: str, path: str) -> Page:
         headings=headings,
         links=[*wikilinks, *md_links, *related_links],
         external_links=external_links,
+        code_refs=code_refs,
     )

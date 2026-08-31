@@ -55,6 +55,35 @@ def find_page_row(conn: sqlite3.Connection, target: str) -> sqlite3.Row | None:
     return row
 
 
+def pages_declaring_files(
+    conn: sqlite3.Connection, file_paths: list[str], limit: int
+) -> list[str]:
+    """Wiki pages whose `code:` frontmatter names any of `file_paths`.
+
+    Returns [] rather than raising when the mapping table is absent:
+    `ensure_schema` runs only on write connects, so an index built before
+    this table existed reaches here through `open_ro`, which never
+    migrates. The caller degrades to its plain message.
+    """
+    if not file_paths:
+        return []
+    placeholders = ",".join("?" * len(file_paths))
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT DISTINCT p.path
+            FROM page_files pf JOIN pages p ON p.id = pf.page_id
+            WHERE pf.file_path IN ({placeholders})
+            ORDER BY p.path
+            LIMIT ?
+            """,
+            (*file_paths, limit),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [row["path"] for row in rows]
+
+
 def outgoing_links(conn: sqlite3.Connection, page_id: int) -> list[sqlite3.Row]:
     return conn.execute(
         """

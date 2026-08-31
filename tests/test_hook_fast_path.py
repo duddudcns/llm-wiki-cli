@@ -7,8 +7,10 @@ the Typer app, which pulled in typer + rich (~230ms) and, through
 the decision needs on the common path where a shell command names no
 wiki/raw file.
 
-These tests pin the fast path down two ways: the modules it must not
-import, and byte-identical output against the Typer path it replaced.
+These tests pin the fast path three ways: the modules it must not import
+with no project present, the CLI machinery it must not import even inside
+a real project (where config and index loads legitimately happen), and
+byte-identical output against the Typer path it replaced.
 """
 
 from __future__ import annotations
@@ -23,10 +25,19 @@ import pytest
 
 ROOT = Path(__file__).parents[1]
 
-# The expensive imports the fast path exists to avoid. `typer`/`rich` come
-# from the CLI app; `llmw.indexer`/`yaml` come from hook.py's module-level
-# config import.
-FORBIDDEN_ON_FAST_PATH = ("typer", "rich", "llmw.indexer", "llmw.cli", "yaml")
+# The CLI machinery, which no hook decision ever needs. This holds
+# everywhere — in a project or not — and is the ~230ms the fast path
+# actually buys.
+ALWAYS_FORBIDDEN = ("typer", "rich", "llmw.cli")
+
+# Additionally absent when there is no llmw project to answer for:
+# `find_project_root` fails before the config load, so nothing pulls in
+# the indexer -> parser -> yaml chain. *Inside* a project every event
+# loads config and these do appear — measured, not assumed. The
+# in-project test below pins what is still forbidden there, because
+# running only the no-project case would let a new module-scope CLI
+# import slip in behind a branch this file never reaches.
+FORBIDDEN_ON_FAST_PATH = (*ALWAYS_FORBIDDEN, "llmw.indexer", "yaml")
 
 PAYLOADS = {
     "pretooluse": {"tool_name": "Bash", "tool_input": {"command": "echo ok"}},
@@ -82,6 +93,36 @@ def test_fast_path_does_not_import_the_cli_or_the_indexer(
     assert result.returncode == 0, result.stderr
     loaded = json.loads(result.stderr.strip().splitlines()[-1])
     assert loaded == [], f"{event} pulled in {loaded} on the fast path"
+
+
+@pytest.mark.parametrize("event", sorted(PAYLOADS))
+def test_the_cli_never_loads_inside_a_real_project_either(
+    event: str, tmp_path: Path
+) -> None:
+    # The branch the no-project test above cannot reach: with a real
+    # `.llmw` present, every event loads config and Stop additionally
+    # opens the index, so the indexer and yaml legitimately appear. What
+    # must never appear is the CLI app — and that is exactly the import
+    # a future module-scope convenience would add without any other test
+    # noticing.
+    from llmw.bootstrap import init_project
+
+    init_project(tmp_path)
+    result = _run_child(
+        f"""
+        import json, sys
+        sys.argv = ["llmw", "hook", {event!r}]
+        from llmw._entry import main
+        main()
+        loaded = [m for m in {ALWAYS_FORBIDDEN!r} if m in sys.modules]
+        print(json.dumps(loaded), file=sys.stderr)
+        """,
+        json.dumps(PAYLOADS[event]),
+        tmp_path,
+    )
+    assert result.returncode == 0, result.stderr
+    loaded = json.loads(result.stderr.strip().splitlines()[-1])
+    assert loaded == [], f"{event} pulled in {loaded} inside a project"
 
 
 @pytest.mark.parametrize("event", sorted(PAYLOADS))

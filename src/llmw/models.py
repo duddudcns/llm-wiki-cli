@@ -45,3 +45,6 @@ class Page:
     headings: list[Heading] = field(default_factory=list)
     links: list[LinkRef] = field(default_factory=list)
     external_links: list[ExternalLinkRef] = field(default_factory=list)
+    # Project-root-relative source paths this page says it describes,
+    # from `code:` frontmatter. Not links — see parser.extract_code_refs.
+    code_refs: list[str] = field(default_factory=list)

@@ -78,12 +78,23 @@ CREATE TABLE IF NOT EXISTS links (
     exists_flag INTEGER NOT NULL DEFAULT 0
 );
 
+-- Source files a page declares it describes, via `code:` frontmatter.
+-- Deliberately not the `links` table: these name files in the codebase,
+-- not wiki pages, so link resolution would mark every one broken.
+CREATE TABLE IF NOT EXISTS page_files (
+    id INTEGER PRIMARY KEY,
+    page_id INTEGER NOT NULL,
+    file_path TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS external_links (
     id INTEGER PRIMARY KEY,
     source_page_id INTEGER NOT NULL,
     url TEXT NOT NULL,
     text TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_page_files_path ON page_files(file_path);
 
 CREATE TABLE IF NOT EXISTS log_entries (
     id INTEGER PRIMARY KEY,
@@ -158,6 +169,7 @@ def _delete_page(conn: sqlite3.Connection, page_id: int) -> None:
     conn.execute("DELETE FROM headings WHERE page_id = ?", (page_id,))
     conn.execute("DELETE FROM links WHERE source_page_id = ?", (page_id,))
     conn.execute("DELETE FROM external_links WHERE source_page_id = ?", (page_id,))
+    conn.execute("DELETE FROM page_files WHERE page_id = ?", (page_id,))
     conn.execute("DELETE FROM pages WHERE id = ?", (page_id,))
 
 
@@ -209,6 +221,11 @@ def _insert_page(conn: sqlite3.Connection, page: Page) -> int:
             VALUES (?, ?, NULL, ?, ?, ?, 0)
             """,
             (page_id, link.target_raw, link.target_heading, link.link_text, link.kind),
+        )
+    for code_ref in page.code_refs:
+        conn.execute(
+            "INSERT INTO page_files(page_id, file_path) VALUES (?, ?)",
+            (page_id, code_ref),
         )
     for ext in page.external_links:
         conn.execute(
@@ -409,7 +426,10 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
     return stats
 
 
-_CONTENT_TABLES = ("pages_fts", "pages", "aliases", "tags", "headings", "links", "external_links")
+_CONTENT_TABLES = (
+    "pages_fts", "pages", "aliases", "tags", "headings", "links",
+    "external_links", "page_files",
+)
 
 
 def _clear_content_tables(conn: sqlite3.Connection) -> None:
