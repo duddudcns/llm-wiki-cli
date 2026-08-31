@@ -59,9 +59,25 @@ import re
 from pathlib import Path
 
 from llmw.hook_state import read_session_state, write_session_state
-from llmw.indexer import load_project_config
 from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
-from llmw.status import build_status
+
+# `llmw.indexer` drags in the parser -> frontmatter -> yaml chain and
+# `llmw.status` walks it further; together ~50ms of import that the common
+# PreToolUse answer (a shell command naming no wiki/raw path) never needs.
+# hooks.json spawns this process per matched tool call, so both are
+# imported at the point of use instead.
+
+
+def _load_project_config(paths: ProjectPaths):
+    from llmw.indexer import load_project_config
+
+    return load_project_config(paths)
+
+
+def _build_status(paths: ProjectPaths):
+    from llmw.status import build_status
+
+    return build_status(paths)
 
 _GUARDED_TOOLS = {"Edit", "Write", "NotebookEdit"}
 # Both shell tools available in a Claude Code session (Bash, and the
@@ -215,7 +231,7 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
         return None
 
     paths = ProjectPaths.for_project_root(root)
-    config = load_project_config(paths)
+    config = _load_project_config(paths)
     guard = config.hooks_wiki_guard
 
     is_raw = paths.is_inside_raw(fs_path)
@@ -304,7 +320,7 @@ def _guard_shell_wiki_write(paths: ProjectPaths, command: str, cwd: str | None) 
     no longer reach here at all, so what's left is writes, and writes have
     an llmw equivalent every time; `wiki_guard = "ask"` stays available for
     a project that does need to approve one-off shell surgery by hand."""
-    guard = load_project_config(paths).hooks_wiki_guard
+    guard = _load_project_config(paths).hooks_wiki_guard
     if guard == "off":
         return None
     decision = "ask" if guard == "ask" else "deny"
@@ -361,7 +377,7 @@ def evaluate_sessionstart(cwd: str) -> str | None:
         return _NO_PROJECT_HINT
 
     paths = ProjectPaths.for_project_root(root)
-    status = build_status(paths)
+    status = _build_status(paths)
     # Relative to the project root (not `paths.root`/wiki_root), so this
     # correctly reads "ai-wiki/wiki" when the wiki is nested there.
     wiki_rel = paths.wiki.resolve().relative_to(paths.project_root.resolve()).as_posix()
@@ -446,7 +462,7 @@ def evaluate_stop(payload: dict) -> dict | None:
         return None
 
     paths = ProjectPaths.for_project_root(root)
-    config = load_project_config(paths)
+    config = _load_project_config(paths)
     if config.hooks_update_gate == "off":
         return None
 

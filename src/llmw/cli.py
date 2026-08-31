@@ -14,17 +14,11 @@ import sys
 from llmw import __version__
 from llmw.archive import PageNotFoundForArchiveError, archive_page as do_archive
 from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_project
-from llmw.codex_hook import evaluate_codex_pretooluse, evaluate_codex_stop
 from llmw.config import ConfigError
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
-from llmw.hook import (
-    evaluate_pretooluse,
-    evaluate_sessionstart,
-    evaluate_stop,
-    evaluate_userpromptsubmit,
-)
+from llmw.hook_entry import run_event
 from llmw.hook_state import clear_dirty_for_env_session, mark_searched_for_env_session
 from llmw.indexer import index_changed, rebuild as rebuild_index
 from llmw.ingest import (
@@ -701,13 +695,7 @@ def hook_pretooluse() -> None:
     hookSpecificOutput deny/ask decision to stdout if llmw has an opinion,
     otherwise prints nothing. Always exits 0 — a hook must never crash or
     block a tool call outside a real llmw project's wiki/raw."""
-    try:
-        payload = jsonlib.loads(sys.stdin.read() or "{}")
-        result = evaluate_pretooluse(payload)
-    except Exception:  # noqa: BLE001 - a hook must never crash a tool call
-        return
-    if result is not None:
-        print(jsonlib.dumps(result))
+    run_event("pretooluse")
 
 
 @hook_app.command("session-start")
@@ -715,13 +703,7 @@ def hook_session_start() -> None:
     """SessionStart hook: reads the session payload from stdin and prints a
     short plain-text note (added as context) — wiki status when cwd is
     inside an llmw project, otherwise a one-line hint to run `llmw init`."""
-    try:
-        payload = jsonlib.loads(sys.stdin.read() or "{}")
-        context = evaluate_sessionstart(payload.get("cwd") or ".")
-    except Exception:  # noqa: BLE001 - a hook must never crash session start
-        return
-    if context:
-        print(context)
+    run_event("session-start")
 
 
 @hook_app.command("userpromptsubmit")
@@ -731,13 +713,7 @@ def hook_userpromptsubmit() -> None:
     reminder (added as context) to search the wiki before starting work.
     Does not keyword-match the prompt against wiki content; skips trivially
     short prompts and slash commands. Always exits 0."""
-    try:
-        payload = jsonlib.loads(sys.stdin.read() or "{}")
-        context = evaluate_userpromptsubmit(payload)
-    except Exception:  # noqa: BLE001 - a hook must never crash a turn
-        return
-    if context:
-        print(context)
+    run_event("userpromptsubmit")
 
 
 @hook_app.command("stop")
@@ -748,13 +724,7 @@ def hook_stop() -> None:
     agent to update the wiki (relies on Claude Code's `stop_hook_active`
     to fire at most once per turn). Always exits 0 — a hook must never
     crash a turn."""
-    try:
-        payload = jsonlib.loads(sys.stdin.read() or "{}")
-        result = evaluate_stop(payload)
-    except Exception:  # noqa: BLE001 - a hook must never crash a turn
-        return
-    if result is not None:
-        print(jsonlib.dumps(result))
+    run_event("stop")
 
 
 @hook_app.command("codex-pretooluse")
@@ -763,13 +733,7 @@ def hook_codex_pretooluse() -> None:
     tool surface (`apply_patch` for source edits, the `mcp__llm-wiki__
     llmw_search`/`llmw_write` MCP tools in place of a `llmw` CLI shelled
     out via Bash). Always exits 0 — a hook must never crash a tool call."""
-    try:
-        payload = jsonlib.loads(sys.stdin.read() or "{}")
-        result = evaluate_codex_pretooluse(payload)
-    except Exception:  # noqa: BLE001 - a hook must never crash a tool call
-        return
-    if result is not None:
-        print(jsonlib.dumps(result))
+    run_event("codex-pretooluse")
 
 
 @hook_app.command("codex-stop")
@@ -777,13 +741,7 @@ def hook_codex_stop() -> None:
     """Codex Stop hook: same idea as `stop`, ported to Codex's payload
     shape (same `session_id`/`cwd`/`stop_hook_active` fields). Always
     exits 0 — a hook must never crash a turn."""
-    try:
-        payload = jsonlib.loads(sys.stdin.read() or "{}")
-        result = evaluate_codex_stop(payload)
-    except Exception:  # noqa: BLE001 - a hook must never crash a turn
-        return
-    if result is not None:
-        print(jsonlib.dumps(result))
+    run_event("codex-stop")
 
 
 if __name__ == "__main__":

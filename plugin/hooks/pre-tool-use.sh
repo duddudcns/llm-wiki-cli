@@ -18,8 +18,10 @@
 # token. That saved ~350ms per shell tool call but silently missed a
 # command *starting* with `rm`/`mv`/`cp`/`tee` (the patterns required a
 # leading space), so `rm raw/note.md` bypassed the immutability guard
-# entirely. The filter is gone; startup cost belongs in llmw's import
-# chain, not in a second copy of the decision rules.
+# entirely. The filter is gone, and the startup cost it was hiding was
+# fixed where it belongs — `llmw` now dispatches `hook <event>` without
+# importing typer/rich or the indexer, taking the call from 405ms to
+# 121ms. See llmw/_entry.py and tests/test_hook_fast_path.py.
 
 llmw hook pretooluse 2>/dev/null || true
 exit 0

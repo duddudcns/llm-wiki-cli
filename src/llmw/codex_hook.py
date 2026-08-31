@@ -36,8 +36,18 @@ from llmw.hook import WIKI_MCP_MUTATE_TOOLS as _MUTATE_TOOLS
 from llmw.hook import WIKI_MCP_SEARCH_TOOL as _SEARCH_TOOL
 from llmw.hook import permission_output
 from llmw.hook_state import read_session_state, write_session_state
-from llmw.indexer import load_project_config
 from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
+
+# Imported at the point of use, not here: `llmw.indexer` pulls the
+# parser -> frontmatter -> yaml chain, and hooks.json spawns this
+# process on every matched tool call. See llmw/hook.py for the same
+# treatment on the Claude side.
+
+
+def _load_project_config(paths: ProjectPaths):
+    from llmw.indexer import load_project_config
+
+    return load_project_config(paths)
 
 _SOURCE_EDIT_TOOLS = {"apply_patch"}
 _WATCHED_TOOLS = _SOURCE_EDIT_TOOLS | {_SEARCH_TOOL} | _MUTATE_TOOLS
@@ -75,7 +85,7 @@ def evaluate_codex_pretooluse(payload: dict) -> dict | None:
         return None
 
     # tool_name == "apply_patch": a real source-file edit.
-    config = load_project_config(paths)
+    config = _load_project_config(paths)
     state = write_session_state(paths, session_id, dirty=True)
     if config.hooks_search_gate == "off":
         return None
@@ -95,7 +105,7 @@ def evaluate_codex_stop(payload: dict) -> dict | None:
         return None
 
     paths = ProjectPaths.for_project_root(root)
-    config = load_project_config(paths)
+    config = _load_project_config(paths)
     if config.hooks_update_gate == "off":
         return None
 
