@@ -20,6 +20,9 @@ class ReadResult:
     type: str | None
     status: str | None
     summary: str | None
+    # See llmw.freshness: the page's own claim vs. the filesystem fact.
+    updated: str | None
+    mtime: float | None
     key_points: list[str]
     tags: list[str]
     aliases: list[str]
@@ -36,6 +39,8 @@ class ReadResult:
             "type": self.type,
             "status": self.status,
             "summary": self.summary,
+            "updated": self.updated,
+            "mtime": self.mtime,
             "key_points": self.key_points,
             "tags": self.tags,
             "aliases": self.aliases,
@@ -134,6 +139,11 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
         type=page.type,
         status=page.status,
         summary=page.summary,
+        updated=page.updated,
+        # Straight from the file, not the index: `read` already has the
+        # page open, and an index that hasn't caught up would understate
+        # the very divergence this exists to show.
+        mtime=fs_path.stat().st_mtime,
         key_points=key_points,
         tags=page.tags,
         aliases=page.aliases,

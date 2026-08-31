@@ -11,6 +11,7 @@
 ## Entry quality
 
 - **Mechanism, not narrative.** Record the relevant file/function call chain and order, not merely the outcome.
+- **Mechanism claims are dated.** When a page's `updated` predates the code you are changing, treat its file/function detail as a hypothesis to verify in source; the recorded *why* still holds.
 - Name the exact component or behavior; extend an existing subsystem page when appropriate.
 
 ## Capturing preferences

@@ -10,7 +10,7 @@ Use `llmw`; do not load the whole wiki manually.
 ## Workflow
 
 1. Run `llmw status --brief`, then `llmw search "<topic>" --limit 5` before non-trivial work when relevant.
-2. Read only relevant results with `llmw read <path> --brief`; use `--full` only when needed.
+2. Read only relevant results with `llmw read <path> --brief`; use `--full` only when needed. Mechanism claims are dated: when `updated` predates the code you are changing, verify the file/function detail in source — the recorded *why* still holds.
 3. Record durable knowledge after work. **Mechanism, not narrative:** name the file/function call chain and order. Prefer `llmw edit` for exact changes, `patch` for diffs, `write --force` for intended replacement, and `archive` over deletion; provide `--reason`.
 4. Capture stated preferences or conventions without waiting to be asked: edit rules for small always-apply rules, or write a wiki entry for a decision with a why. Briefly report it.
 5. Run `llmw lint --brief` after major wiki changes.

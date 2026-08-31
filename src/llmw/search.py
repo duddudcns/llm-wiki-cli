@@ -49,6 +49,11 @@ class SearchResult:
     status: str | None
     score: float
     summary: str | None
+    # The page's own claim about when its content was last restated, and
+    # the filesystem fact about when its bytes last changed. Kept apart on
+    # purpose — see llmw.freshness.
+    updated: str | None = None
+    mtime: float | None = None
     tags: list[str] = field(default_factory=list)
     links: list[str] = field(default_factory=list)
 
@@ -59,6 +64,8 @@ class SearchResult:
             "type": self.type,
             "status": self.status,
             "score": self.score,
+            "updated": self.updated,
+            "mtime": self.mtime,
             "summary": self.summary,
             "tags": self.tags,
             "links": self.links,
@@ -115,6 +122,7 @@ def build_match_query(query: str) -> str | None:
 def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
     sql = (
         "SELECT p.id, p.path, p.title, p.type, p.status, p.summary, "
+        "p.updated_at, p.mtime, "
         f"{_RANK_SQL} AS rank "
         "FROM pages_fts JOIN pages p ON p.id = pages_fts.rowid "
         "WHERE pages_fts MATCH ?"
@@ -151,6 +159,8 @@ def _rows_to_results(conn, rows) -> list[SearchResult]:
                 status=row["status"],
                 score=round(-row["rank"], 4),
                 summary=row["summary"],
+                updated=row["updated_at"],
+                mtime=row["mtime"],
                 tags=page_tags(conn, row["id"]),
                 links=link_titles,
             )

@@ -9,7 +9,7 @@ Use native `llm-wiki` MCP tools; do not load the whole wiki manually. “Wiki”
 
 ## Workflow
 
-1. Call `llmw_status`; before relevant substantial work or questions, call `llmw_search`, then `llmw_read` for matching pages.
+1. Call `llmw_status`; before relevant substantial work or questions, call `llmw_search`, then `llmw_read` for matching pages. Mechanism claims are dated: when `updated` predates the code you are changing, verify the file/function detail in source — the recorded *why* still holds.
 2. Record durable knowledge after work. **Mechanism, not narrative:** name the file/function call chain and order. Use `llmw_edit` for exact changes, `llmw_patch` for diffs, `llmw_write` for new or replacement pages, and `llmw_archive` instead of delete; every mutation needs a meaningful `reason`.
 3. If no wiki exists, call `llmw_init` only when the user explicitly asks to create one; otherwise say initialization is needed.
 4. Capture stated preferences or conventions without waiting to be asked: edit `.codex/rules/` for small always-apply rules, or write a wiki entry for a decision with a why. Briefly report it.

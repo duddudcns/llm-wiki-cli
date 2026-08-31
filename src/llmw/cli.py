@@ -15,6 +15,7 @@ from llmw import __version__
 from llmw.archive import PageNotFoundForArchiveError, archive_page as do_archive
 from llmw.bootstrap import ProjectAlreadyExistsError, UnknownLayoutError, init_project
 from llmw.config import ConfigError
+from llmw.freshness import describe as describe_freshness
 from llmw.frontmatter import InvalidFrontmatterError
 from llmw.graph import build_graph, write_graph_html, write_graph_json
 from llmw.health import check_health
@@ -299,8 +300,20 @@ def search(
             note += f" (ignored: {', '.join(response.dropped_tokens)})"
         console.print(note, style="dim")
     for i, r in enumerate(response.results, start=1):
-        console.print(f"{i}. {r.path}")
+        # A non-`active` status rides on the path line, not a line of its
+        # own: the agent cannot read the path it is about to act on
+        # without reading the flag. `active` is the overwhelming majority
+        # and printing it would only train the reader to skip the field.
+        flag = f" [{r.status}]" if r.status and r.status != "active" else ""
+        console.print(f"{i}. {r.path}{flag}")
+        # Pages stamp their era in the title by convention — "(v0.1.18)" —
+        # and this surface used to drop it on the floor.
+        if r.title:
+            console.print(f"   title: {r.title}")
         console.print(f"   score: {r.score}")
+        freshness = describe_freshness(r.updated, r.mtime)
+        if freshness:
+            console.print(f"   updated: {freshness}")
         if r.summary:
             console.print(f"   summary: {r.summary}")
         if r.links:
@@ -337,6 +350,9 @@ def read(
     console.print(f"title:     {result.title}")
     console.print(f"type:      {result.type}")
     console.print(f"status:    {result.status}")
+    freshness = describe_freshness(result.updated, result.mtime)
+    if freshness:
+        console.print(f"updated:   {freshness}")
     console.print(f"summary:   {result.summary}")
     if result.key_points:
         console.print("key points:")
