@@ -139,11 +139,23 @@ def set_fields(text: str, fields: dict) -> str:
         data, parsed = {}, False
         body = text[match.end():] if match is not None else text
         if match is not None:
+            # Indented four spaces, which is Markdown's own code-block
+            # form and needs no fence. A fence would be the obvious
+            # choice and is the wrong one: `parser._mask_fences` pairs
+            # marker lines by indent+length across the whole body, so a
+            # bare ``` inside the unreadable frontmatter would pair with
+            # the opening fence and leave the closing one to pair with the
+            # page's own code block — masking every heading and link in
+            # between. Out-lengthening the fence only covers backticks;
+            # `~~~` would still do it. Indenting defeats both, since
+            # `_FENCE_MARKER_RE` allows at most three leading spaces.
+            salvaged = "\n".join(
+                f"    {line}" for line in match.group(1).splitlines()
+            )
             body = (
-                "\n```\n"
-                "# frontmatter that could not be parsed, preserved verbatim\n"
-                f"{match.group(1)}\n"
-                "```\n" + body
+                "\n    # frontmatter that could not be parsed, "
+                "preserved verbatim\n"
+                f"{salvaged}\n\n" + body
             )
 
     pending = {k: v for k, v in fields.items() if data.get(k) != v}

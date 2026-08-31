@@ -68,6 +68,36 @@ def test_set_fields_keeps_the_body_intact_when_it_cannot_parse() -> None:
     assert "The body still says something true." in result
 
 
+@pytest.mark.parametrize("marker", ["```", "~~~"])
+def test_salvaged_text_containing_a_fence_does_not_swallow_the_body(
+    marker: str,
+) -> None:
+    # The salvaged block is demoted into the body, and
+    # `parser._mask_fences` pairs marker lines across the whole body by
+    # indent and length. Wrapping it in a fence looks obvious and is
+    # wrong: a bare marker inside the unreadable frontmatter pairs with
+    # the *opening* fence, leaving the closing one to pair with the page's
+    # own code block — masking every heading and link in between.
+    # Reproduced before the fix: `# Real heading` and `[[Real Link]]` both
+    # vanished from the parse. Both marker kinds, because out-lengthening
+    # a backtick fence would still leave `~~~` doing it.
+    from llmw.parser import parse_page
+
+    broken = (
+        "---\n"
+        'title: "unterminated\n'
+        f"{marker}\n"
+        "---\n\n# Real heading\n\n[[Real Link]]\n\n"
+        f"{marker}python\nprint(1)\n{marker}\n\n"
+        "## Second heading\n\n[[Another Link]]\n"
+    )
+
+    page = parse_page(set_fields(broken, {"status": "superseded"}), "wiki/x.md")
+
+    assert [h.text for h in page.headings] == ["Real heading", "Second heading"]
+    assert [link.target_raw for link in page.links] == ["Real Link", "Another Link"]
+
+
 def test_superseding_a_page_with_broken_frontmatter_does_not_corrupt_it(
     tmp_path: Path,
 ) -> None:
