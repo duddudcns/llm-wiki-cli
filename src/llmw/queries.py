@@ -8,6 +8,11 @@ import sqlite3
 from llmw.paths import ProjectPaths
 
 
+# Read-side commands touch all of these; `page_files` is deliberately
+# absent, since it postdates 0.1.30 and its own lookup degrades on its own.
+_REQUIRED_TABLES = ("pages", "pages_fts", "links", "aliases", "tags")
+
+
 class IndexNotBuiltError(RuntimeError):
     """Raised by read-side commands when .llmw/index.sqlite does not exist yet."""
 
@@ -23,7 +28,14 @@ def open_ro(paths: ProjectPaths) -> sqlite3.Connection | None:
     try:
         conn = sqlite3.connect(uri, uri=True)
         conn.row_factory = sqlite3.Row
-        conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
+        # Every table the read side needs, not just "is this a database".
+        # An interrupted write or a half-synced folder leaves one missing,
+        # and probing `sqlite_master` alone called that readable — so the
+        # gap surfaced as a raw OperationalError from `llmw search`, the
+        # first command an agent runs. Missing tables mean the same thing
+        # as a missing file: rebuild.
+        for table in _REQUIRED_TABLES:
+            conn.execute(f"SELECT 1 FROM {table} LIMIT 1")
     except sqlite3.DatabaseError:
         return None
     return conn

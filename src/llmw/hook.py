@@ -69,9 +69,23 @@ from llmw.paths import ProjectNotFoundError, ProjectPaths, find_project_root
 
 
 def _load_project_config(paths: ProjectPaths):
+    """Project config, or the defaults if it cannot be read.
+
+    A hook must never break a tool call, so `hook_entry.run_event`
+    swallows every exception — which meant one typo in `config.toml`
+    raised here and silently switched the raw/ immutability guard and the
+    wiki write guard *off*, with no message anywhere. Failing open on a
+    parse error is right for a hook; giving up the protection is not.
+    Defaults keep the guards running, and `llmw health` still reports the
+    broken file loudly to whoever asks.
+    """
+    from llmw.config import Config, ConfigError
     from llmw.indexer import load_project_config
 
-    return load_project_config(paths)
+    try:
+        return load_project_config(paths)
+    except (ConfigError, OSError):
+        return Config()
 
 
 def _build_status(paths: ProjectPaths):
@@ -178,7 +192,14 @@ def permission_output(decision: str, reason: str) -> dict:
 
 
 def _target_path(tool_input: dict) -> str | None:
-    return tool_input.get("file_path") or tool_input.get("notebook_path")
+    # Hosts are not obliged to send the shape this expects, and a future
+    # one need only differ slightly. Nothing here may raise: the outer
+    # entry catches everything, which is precisely how a guard can go
+    # quiet without anyone noticing.
+    if not isinstance(tool_input, dict):
+        return None
+    target = tool_input.get("file_path") or tool_input.get("notebook_path")
+    return target if isinstance(target, str) else None
 
 
 def _wiki_edit_message(rel_path: str) -> str:
