@@ -360,7 +360,10 @@ def extract_code_refs(frontmatter: dict) -> list[str]:
     """
     refs = []
     for raw in _normalize_str_list(frontmatter.get("code")):
-        normalized = raw.strip().replace("\\", "/").lstrip("./")
+        # `removeprefix`, not `lstrip`: lstrip strips *characters*, so
+        # `.github/workflows/ci.yml` came back as `github/...` and could
+        # never match a real edited path.
+        normalized = raw.strip().replace("\\", "/").removeprefix("./")
         if normalized and normalized not in refs:
             refs.append(normalized)
     return refs

@@ -51,10 +51,10 @@ class SearchResult:
     score: float
     summary: str | None
     # The page's own claim about when its content was last restated, and
-    # the filesystem fact about when its bytes last changed. Kept apart on
-    # purpose — see llmw.freshness.
+    # when the index last observed its body change. Kept apart on purpose
+    # — see llmw.freshness.
     updated: str | None = None
-    mtime: float | None = None
+    body_changed_at: str | None = None
     # Set only on a page some later page replaced, so the flag on the
     # path line can name where the decision moved to.
     superseded_by: str | None = None
@@ -69,7 +69,7 @@ class SearchResult:
             "status": self.status,
             "score": self.score,
             "updated": self.updated,
-            "mtime": self.mtime,
+            "body_changed_at": self.body_changed_at,
             "superseded_by": self.superseded_by,
             "summary": self.summary,
             "tags": self.tags,
@@ -127,7 +127,7 @@ def build_match_query(query: str) -> str | None:
 def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
     sql = (
         "SELECT p.id, p.path, p.title, p.type, p.status, p.summary, "
-        "p.updated_at, p.mtime, "
+        "p.updated_at, p.body_changed_at, "
         f"{_RANK_SQL} AS rank "
         "FROM pages_fts JOIN pages p ON p.id = pages_fts.rowid "
         "WHERE pages_fts MATCH ?"
@@ -177,7 +177,7 @@ def _rows_to_results(conn, rows) -> list[SearchResult]:
                 score=round(-row["rank"], 4),
                 summary=row["summary"],
                 updated=row["updated_at"],
-                mtime=row["mtime"],
+                body_changed_at=row["body_changed_at"],
                 superseded_by=replaced_by,
                 tags=page_tags(conn, row["id"]),
                 links=link_titles,

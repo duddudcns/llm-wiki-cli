@@ -16,8 +16,10 @@ from llmw.freshness import describe
 TODAY = datetime.date(2026, 8, 31)
 
 
-def _mtime(year: int, month: int, day: int) -> float:
-    return datetime.datetime(year, month, day, 12, 0).timestamp()
+def _observed(year: int, month: int, day: int) -> str:
+    """A `body_changed_at` stamp: the day the index last saw this page's
+    body change. Stored as an ISO date string, like `updated`."""
+    return datetime.date(year, month, day).isoformat()
 
 
 def test_claim_alone_reports_its_age() -> None:
@@ -28,39 +30,39 @@ def test_a_claim_restated_today_reads_as_today() -> None:
     assert describe("2026-08-31", None, today=TODAY) == "2026-08-31 (today)"
 
 
-def test_a_file_newer_than_its_claim_shows_both() -> None:
+def test_a_body_change_after_the_claim_shows_both() -> None:
     # The gap is the signal: the body moved and the claim did not.
-    assert describe("2026-07-13", _mtime(2026, 8, 31), today=TODAY) == (
-        "2026-07-13 (49d ago, file modified 2026-08-31)"
+    assert describe("2026-07-13", _observed(2026, 8, 31), today=TODAY) == (
+        "2026-07-13 (49d ago, body changed 2026-08-31)"
     )
 
 
-def test_a_file_touched_the_same_day_is_not_divergence() -> None:
-    # Every page is written to disk moments after its `updated` is set, so
-    # a same-day mtime must stay quiet or the notice fires on everything.
-    assert describe("2026-08-31", _mtime(2026, 8, 31), today=TODAY) == (
+def test_a_body_change_on_the_same_day_is_not_divergence() -> None:
+    # A page written and restated in one session lands on the same day, so
+    # a same-day stamp must stay quiet or the notice fires on everything.
+    assert describe("2026-08-31", _observed(2026, 8, 31), today=TODAY) == (
         "2026-08-31 (today)"
     )
 
 
 @pytest.mark.parametrize(
-    ("mtime_day", "expected_note"),
+    ("observed_day", "expected_note"),
     [(1, False), (2, True)],
 )
 def test_divergence_needs_more_than_a_day_of_gap(
-    mtime_day: int, expected_note: bool
+    observed_day: int, expected_note: bool
 ) -> None:
-    # The boundary itself: `updated` has day resolution and a page is
-    # written to disk moments after it is set, so one day of slack is
-    # noise. Two days means somebody came back and changed the body.
-    result = describe("2026-08-01", _mtime(2026, 8, 1 + mtime_day), today=TODAY)
-    assert ("file modified" in result) is expected_note
+    # The boundary itself: both dates have day resolution and a page
+    # restated the day after an edit is not evidence of anything. Two days
+    # means somebody came back and changed the body.
+    result = describe("2026-08-01", _observed(2026, 8, 1 + observed_day), today=TODAY)
+    assert ("body changed" in result) is expected_note
 
 
-def test_a_file_older_than_its_claim_is_not_divergence() -> None:
-    # Backdated only in the harmless direction — a `git checkout` resets
-    # mtimes without touching content.
-    assert describe("2026-08-31", _mtime(2026, 7, 1), today=TODAY) == (
+def test_a_body_change_older_than_the_claim_is_not_divergence() -> None:
+    # Wrong in the harmless direction: the claim is newer than the last
+    # observed body change, which is the state we want.
+    assert describe("2026-08-31", _observed(2026, 7, 1), today=TODAY) == (
         "2026-08-31 (today)"
     )
 
@@ -71,11 +73,11 @@ def test_a_claim_in_the_future_drops_the_age_but_keeps_the_date() -> None:
     assert describe("2026-09-12", None, today=TODAY) == "2026-09-12"
 
 
-def test_a_missing_claim_falls_back_to_the_file_and_says_so() -> None:
-    # Labelled as a filesystem fact, never dressed up as a verification
-    # date the page never made.
-    assert describe(None, _mtime(2026, 8, 31), today=TODAY) == (
-        "unknown (file modified 2026-08-31)"
+def test_a_missing_claim_falls_back_to_the_observation_and_says_so() -> None:
+    # Labelled as an observation, never dressed up as a verification date
+    # the page never made.
+    assert describe(None, _observed(2026, 8, 31), today=TODAY) == (
+        "unknown (body changed 2026-08-31)"
     )
 
 
@@ -96,7 +98,7 @@ def test_an_unquoted_yaml_date_is_read_as_the_date_it_is() -> None:
 def test_an_uninterpretable_claim_is_passed_through_verbatim(value: object) -> None:
     # An agent can read a malformed date and act on it; it cannot read a
     # field we dropped. Whatever it is, show it.
-    result = describe(value, _mtime(2026, 8, 31), today=TODAY)
+    result = describe(value, _observed(2026, 8, 31), today=TODAY)
     assert result == str(value)
 
 
@@ -108,5 +110,5 @@ def test_a_datetime_stamped_claim_keeps_its_date_half() -> None:
     )
 
 
-def test_an_unusable_mtime_does_not_crash_the_line() -> None:
-    assert describe("2026-07-13", 10.0**20, today=TODAY) == "2026-07-13 (49d ago)"
+def test_an_unusable_observation_does_not_crash_the_line() -> None:
+    assert describe("2026-07-13", "last tuesday", today=TODAY) == "2026-07-13 (49d ago)"

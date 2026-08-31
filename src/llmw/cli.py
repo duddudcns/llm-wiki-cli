@@ -321,13 +321,7 @@ def search(
         if r.title:
             console.print(f"   title: {r.title}")
         console.print(f"   score: {r.score}")
-        # A superseded page's mtime jumped when its status was flipped,
-        # not because its claims were restated — reporting that as
-        # divergence would fire on every superseded page forever. The flag
-        # above already says this is not the current answer.
-        freshness = describe_freshness(
-            r.updated, None if r.superseded_by else r.mtime
-        )
+        freshness = describe_freshness(r.updated, r.body_changed_at)
         if freshness:
             console.print(f"   updated: {freshness}")
         if r.summary:
@@ -366,13 +360,7 @@ def read(
     console.print(f"title:     {result.title}")
     console.print(f"type:      {result.type}")
     console.print(f"status:    {result.status}")
-    # Same reasoning as the search surface: marking a page superseded
-    # rewrote its frontmatter, so its mtime jumped past its `updated`
-    # without its claims being restated. `read` has no `superseded_by`,
-    # only the status, which is the same signal.
-    freshness = describe_freshness(
-        result.updated, None if result.status == "superseded" else result.mtime
-    )
+    freshness = describe_freshness(result.updated, result.body_changed_at)
     if freshness:
         console.print(f"updated:   {freshness}")
     console.print(f"summary:   {result.summary}")

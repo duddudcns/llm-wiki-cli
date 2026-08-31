@@ -81,7 +81,7 @@ def evaluate_codex_pretooluse(payload: dict) -> dict | None:
         write_session_state(paths, session_id, searched=True)
         return None
     if tool_name in _MUTATE_TOOLS:
-        write_session_state(paths, session_id, dirty=False)
+        write_session_state(paths, session_id, dirty=False, touched=[])
         return None
 
     # tool_name == "apply_patch": a real source-file edit.
@@ -115,5 +115,5 @@ def evaluate_codex_stop(payload: dict) -> dict | None:
 
     # Once per "source changed" episode, not every turn until the wiki is
     # touched — same reasoning as [[hook.py]]'s `evaluate_stop`.
-    write_session_state(paths, payload.get("session_id"), dirty=False)
+    write_session_state(paths, payload.get("session_id"), dirty=False, touched=[])
     return {"decision": "block", "reason": _UPDATE_GATE_MESSAGE}

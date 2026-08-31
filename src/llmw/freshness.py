@@ -7,11 +7,18 @@ rotted page as current. So both read-side surfaces print an age.
 
 Two dates are available and they mean different things. `updated` is the
 page's own claim about when its content was last restated — agent-asserted,
-and therefore the one that means "verified". `mtime` is a filesystem fact:
-when the bytes last changed. Neither is a substitute for the other, so
-when they disagree this prints both rather than quietly preferring one:
-that gap means somebody edited the body and left the claim behind, which
-is exactly the state worth being suspicious of.
+and therefore the one that means "verified". `body_changed_at` is when the
+index last *observed* the page's body change. Neither is a substitute for
+the other, so when they disagree this prints both rather than quietly
+preferring one: that gap means somebody edited the body and left the claim
+behind, which is exactly the state worth being suspicious of.
+
+Deliberately the body, not the file. Declaring `code:`, marking a page
+superseded, or fixing a tag rewrites the file without restating any claim,
+and the write-side rule says correctly not to bump `updated` for those. A
+file-based signal would therefore fire forever on every page any metadata
+edit ever touched — one `code:` sweep did exactly that to 21 of this
+project's own 31 pages before the basis was moved here.
 
 Deliberately not done here: bumping `updated` on the caller's behalf. That
 would make a typo fix look like a re-verification — an error in the
@@ -23,9 +30,9 @@ from __future__ import annotations
 
 import datetime
 
-# A page written and indexed in one session has an mtime seconds newer
-# than its `updated` date, and `updated` has only day resolution. Only a
-# gap wider than a day says anything.
+# Both dates have day resolution, and a page written and restated in the
+# same session lands on the same day. Only a gap wider than a day says
+# anything.
 _DIVERGENCE_DAYS = 1
 
 
@@ -50,15 +57,6 @@ def as_date(value: object) -> datetime.date | None:
 _parse_iso_date = as_date
 
 
-def _mtime_date(mtime: float | None) -> datetime.date | None:
-    if not mtime:
-        return None
-    try:
-        return datetime.datetime.fromtimestamp(mtime).date()
-    except (OSError, OverflowError, ValueError):
-        return None
-
-
 def _age(days: int) -> str:
     if days == 0:
         return "today"
@@ -67,7 +65,7 @@ def _age(days: int) -> str:
 
 def describe(
     updated: object,
-    mtime: float | None = None,
+    body_changed_at: object = None,
     today: datetime.date | None = None,
 ) -> str | None:
     """Render the freshness suffix for one page, or None when there is
@@ -75,8 +73,8 @@ def describe(
     `updated` is still shown verbatim, since the agent can read a typo but
     cannot read a field we swallowed."""
     today = today or datetime.date.today()
-    claimed = _parse_iso_date(updated)
-    modified = _mtime_date(mtime)
+    claimed = as_date(updated)
+    modified = as_date(body_changed_at)
 
     if claimed is None:
         if updated:
@@ -84,14 +82,14 @@ def describe(
             return str(updated)
         if modified is None:
             return None
-        return f"unknown (file modified {modified.isoformat()})"
+        return f"unknown (body changed {modified.isoformat()})"
 
     notes = []
     age_days = (today - claimed).days
     if age_days >= 0:
         notes.append(_age(age_days))
     if modified is not None and (modified - claimed).days > _DIVERGENCE_DAYS:
-        notes.append(f"file modified {modified.isoformat()}")
+        notes.append(f"body changed {modified.isoformat()}")
 
     if not notes:
         return claimed.isoformat()

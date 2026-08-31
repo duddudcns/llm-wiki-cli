@@ -109,16 +109,21 @@ def llmw_edit(
     """Exact-string replace in an existing wiki page — prefer this over
     llmw_write for a small, contiguous change so the rest of the page
     doesn't need to be read and resent in full."""
-    fs_path = edit_page(_paths(root), path, old, new, reason, replace_all=replace_all)
-    return {"path": str(fs_path), "edited": True}
+    notices: list[str] = []
+    fs_path = edit_page(
+        _paths(root), path, old, new, reason,
+        replace_all=replace_all, on_notice=notices.append,
+    )
+    return {"path": str(fs_path), "edited": True, "notices": notices}
 
 
 @mcp.tool()
 def llmw_patch(path: str, diff: str, reason: str, root: str | None = None) -> dict[str, Any]:
     """Apply a unified diff to an existing wiki page. Backs up first; rolls
     back (leaves the original untouched) if the patch fails to apply."""
-    fs_path = patch_page(_paths(root), path, diff, reason)
-    return {"path": str(fs_path), "patched": True}
+    notices: list[str] = []
+    fs_path = patch_page(_paths(root), path, diff, reason, on_notice=notices.append)
+    return {"path": str(fs_path), "patched": True, "notices": notices}
 
 
 @mcp.tool()

@@ -48,3 +48,8 @@ class Page:
     # Project-root-relative source paths this page says it describes,
     # from `code:` frontmatter. Not links — see parser.extract_code_refs.
     code_refs: list[str] = field(default_factory=list)
+    # Hash of the body alone, and when that hash was last *observed* to
+    # change. Set by the indexer, which is the only thing with history —
+    # `body_changed_at` stays None until a change is actually witnessed.
+    body_hash: str | None = None
+    body_changed_at: str | None = None

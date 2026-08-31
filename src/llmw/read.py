@@ -20,9 +20,10 @@ class ReadResult:
     type: str | None
     status: str | None
     summary: str | None
-    # See llmw.freshness: the page's own claim vs. the filesystem fact.
+    # See llmw.freshness: the page's own claim vs. when the index last
+    # observed the body change.
     updated: str | None
-    mtime: float | None
+    body_changed_at: str | None
     key_points: list[str]
     tags: list[str]
     aliases: list[str]
@@ -40,7 +41,7 @@ class ReadResult:
             "status": self.status,
             "summary": self.summary,
             "updated": self.updated,
-            "mtime": self.mtime,
+            "body_changed_at": self.body_changed_at,
             "key_points": self.key_points,
             "tags": self.tags,
             "aliases": self.aliases,
@@ -107,14 +108,18 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
     links_out: list[dict] = []
     backlinks_count: int | None = None
     backlink_paths: list[str] = []
+    body_changed_at: str | None = None
     indexed = True
 
     conn = open_ro(paths)
     if conn is not None:
         try:
-            row = conn.execute("SELECT id FROM pages WHERE path = ?", (rel_path,)).fetchone()
+            row = conn.execute(
+                "SELECT id, body_changed_at FROM pages WHERE path = ?", (rel_path,)
+            ).fetchone()
             if row is not None:
                 page_id = row["id"]
+                body_changed_at = row["body_changed_at"]
                 for link in outgoing_links(conn, page_id):
                     links_out.append(
                         {
@@ -140,10 +145,9 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
         status=page.status,
         summary=page.summary,
         updated=page.updated,
-        # Straight from the file, not the index: `read` already has the
-        # page open, and an index that hasn't caught up would understate
-        # the very divergence this exists to show.
-        mtime=fs_path.stat().st_mtime,
+        # Only the index has the history this needs; None when the page
+        # isn't indexed, which reads as "no divergence known".
+        body_changed_at=body_changed_at,
         key_points=key_points,
         tags=page.tags,
         aliases=page.aliases,

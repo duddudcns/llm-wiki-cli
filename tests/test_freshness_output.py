@@ -17,10 +17,18 @@ descending order of how hard they are to skim past:
 1. the title, which by convention carries an era stamp — "(v0.1.18)";
 2. a non-`active` status, on the path line itself, so it cannot be read
    without reading the path the agent is about to act on;
-3. `updated`, with a relative age, and — when the file on disk is newer
-   than the page's own claim — both numbers rather than whichever one we
-   happened to prefer. That gap is itself the evidence: it means the body
-   changed without anyone restating when the claims were last true.
+3. `updated`, with a relative age, and — when the index has *observed*
+   the body change since the page's own claim — both numbers rather than
+   whichever one we happened to prefer. That gap is itself the evidence:
+   the body changed without anyone restating when the claims were last
+   true.
+
+The third keys on the body, not the file. A file-based version shipped
+first and put a permanent divergence note on 21 of this project's own 31
+pages after a single frontmatter-only sweep — declaring `code:`, marking
+a page superseded, and fixing a tag all rewrite the file while restating
+nothing, and the write-side rule says correctly not to bump `updated` for
+them.
 """
 
 from __future__ import annotations
@@ -99,13 +107,14 @@ def test_search_prints_updated_with_a_relative_age(tmp_path: Path) -> None:
     assert "49d ago" in result.stdout
 
 
-def test_search_shows_both_dates_when_the_file_is_newer_than_its_claim(
+def test_a_page_we_have_only_ever_seen_once_reports_no_divergence(
     tmp_path: Path,
 ) -> None:
-    # The page says its claims were last restated 200 days ago, but the
-    # file was written today: somebody edited the body and left `updated`
-    # alone. Show the gap instead of picking a winner — substituting the
-    # file mtime would quietly relabel "last touched" as "last verified".
+    # Divergence is a claim about history: the body changed *after* the
+    # page said when it was last restated. On a page indexed for the first
+    # time there is no history, so the honest answer is to say nothing.
+    # Keying on the file's mtime instead would fire on every page of a
+    # fresh clone, and on every page any metadata edit ever touched.
     _project(
         tmp_path, title="Retry budget", status="active", updated=_days_ago(200)
     )
@@ -114,22 +123,68 @@ def test_search_shows_both_dates_when_the_file_is_newer_than_its_claim(
 
     assert result.returncode == 0, result.stderr
     assert _days_ago(200) in result.stdout
-    assert "file modified" in result.stdout
-    assert datetime.date.today().isoformat() in result.stdout
+    assert "body changed" not in result.stdout
 
 
-def test_search_does_not_report_divergence_for_a_page_updated_today(
+def test_a_body_edit_that_leaves_the_claim_behind_shows_the_gap(
     tmp_path: Path,
 ) -> None:
-    # Every page is written to disk "now" during a test, so the divergence
-    # notice has to key on a real gap or it would fire on every result and
-    # become invisible.
-    _project(tmp_path, title="Retry budget", status="active", updated=_days_ago(0))
+    _project(
+        tmp_path, title="Retry budget", status="active", updated=_days_ago(200)
+    )
 
+    run(
+        tmp_path, "edit", "wiki/decisions/retry-budget.md",
+        "--old", "The uploader owns the retry budget.",
+        "--new", "The client owns the retry budget again.",
+        "--reason", "reverse it",
+    )
     result = run(tmp_path, "search", "retry budget")
 
     assert result.returncode == 0, result.stderr
-    assert "file modified" not in result.stdout
+    assert _days_ago(200) in result.stdout
+    assert "body changed" in result.stdout
+    assert datetime.date.today().isoformat() in result.stdout
+
+
+def test_a_frontmatter_only_edit_reports_no_divergence(tmp_path: Path) -> None:
+    # This is the case that broke the mtime version. Declaring `code:`,
+    # marking a page superseded, fixing a tag — all rewrite the file
+    # without restating a single claim, and the write-side rule says
+    # correctly not to bump `updated` for them. Keying on bytes put a
+    # permanent divergence note on 21 of this project's own 31 pages after
+    # one sweep. The read side now uses the same basis the writer's own
+    # unbumped-`updated` notice uses: the body.
+    _project(
+        tmp_path, title="Retry budget", status="active", updated=_days_ago(200)
+    )
+
+    run(
+        tmp_path, "edit", "wiki/decisions/retry-budget.md",
+        "--old", "type: decision", "--new", "type: decision\ntags:\n  - retries",
+        "--reason", "tag it",
+    )
+    result = run(tmp_path, "search", "retry budget")
+
+    assert result.returncode == 0, result.stderr
+    assert "body changed" not in result.stdout
+
+
+def test_read_reports_divergence_on_the_same_basis(tmp_path: Path) -> None:
+    _project(
+        tmp_path, title="Retry budget", status="active", updated=_days_ago(200)
+    )
+    run(
+        tmp_path, "edit", "wiki/decisions/retry-budget.md",
+        "--old", "The uploader owns the retry budget.",
+        "--new", "The client owns the retry budget again.",
+        "--reason", "reverse it",
+    )
+
+    result = run(tmp_path, "read", "wiki/decisions/retry-budget.md")
+
+    assert result.returncode == 0, result.stderr
+    assert "body changed" in result.stdout
 
 
 def test_search_flags_a_non_active_status_on_the_path_line(tmp_path: Path) -> None:
@@ -223,10 +278,11 @@ def test_mcp_search_and_read_carry_the_freshness_fields(tmp_path: Path) -> None:
 
     found = mcp_server.llmw_search("retry budget", root=str(tmp_path))
     assert found["results"][0]["updated"] == updated
-    assert found["results"][0]["mtime"] > 0
+    # None on a page seen once: there is no observed history to report.
+    assert "body_changed_at" in found["results"][0]
 
     page_payload = mcp_server.llmw_read(
         "wiki/decisions/retry-budget.md", root=str(tmp_path)
     )
     assert page_payload["updated"] == updated
-    assert page_payload["mtime"] > 0
+    assert "body_changed_at" in page_payload

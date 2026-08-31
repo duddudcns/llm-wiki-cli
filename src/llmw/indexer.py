@@ -41,7 +41,13 @@ CREATE TABLE IF NOT EXISTS pages (
     hash TEXT NOT NULL,
     mtime REAL NOT NULL,
     created_at TEXT,
-    updated_at TEXT
+    updated_at TEXT,
+    -- Hash of the body alone, and when that hash was last observed to
+    -- change. NULL until we have actually witnessed a change: divergence
+    -- is a claim about history, and on a page indexed for the first time
+    -- there is none. See llmw.freshness.
+    body_hash TEXT,
+    body_changed_at TEXT
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
@@ -128,8 +134,20 @@ def connect(paths: ProjectPaths) -> sqlite3.Connection:
     return conn
 
 
+def _add_missing_columns(conn: sqlite3.Connection) -> None:
+    """`CREATE TABLE IF NOT EXISTS` never adds a column to a table that
+    already exists, so an index built by an older version needs these
+    grafted on. They stay NULL until the page is next reindexed, which
+    reads as "no divergence known" rather than a false one."""
+    have = {row["name"] for row in conn.execute("PRAGMA table_info(pages)")}
+    for column in ("body_hash", "body_changed_at"):
+        if column not in have:
+            conn.execute(f"ALTER TABLE pages ADD COLUMN {column} TEXT")
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA_SQL)
+    _add_missing_columns(conn)
     conn.execute(
         "INSERT INTO meta(key, value) VALUES ('schema_version', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -177,8 +195,8 @@ def _insert_page(conn: sqlite3.Connection, page: Page) -> int:
     cur = conn.execute(
         """
         INSERT INTO pages (path, title, type, status, summary, body, hash, mtime,
-                            created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            created_at, updated_at, body_hash, body_changed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             page.path,
@@ -191,6 +209,8 @@ def _insert_page(conn: sqlite3.Connection, page: Page) -> int:
             page.mtime,
             page.created,
             page.updated,
+            page.body_hash,
+            page.body_changed_at,
         ),
     )
     page_id = cur.lastrowid
@@ -357,14 +377,46 @@ def _set_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
     )
 
 
+def _stamp_body_history(page: Page, prior: sqlite3.Row | None) -> None:
+    """Record whether this page's *body* just changed, as distinct from
+    its file changing.
+
+    Read-side freshness needs "the claims moved after the page said when
+    it last restated them". Keyed on the file instead, every metadata
+    write counts: declaring `code:`, marking a page superseded, fixing a
+    tag. Those must not bump `updated` — the write-side rule is that you
+    bump when you re-checked the claims, not when you touched the file —
+    so keying on bytes puts the two rules at war and leaves a permanent
+    divergence note behind every sweep. One `code:` sweep did exactly
+    that to 21 of this project's own 31 pages.
+
+    `body_changed_at` stays None on a page seen for the first time: there
+    is no history yet, and inventing one would fire on every page of a
+    fresh clone.
+    """
+    page.body_hash = hashlib.sha256(page.body.encode("utf-8")).hexdigest()
+    if prior is None:
+        return
+    if prior["body_hash"] == page.body_hash:
+        page.body_changed_at = prior["body_changed_at"]
+        return
+    if prior["body_hash"] is None:
+        # Grafted column on an index built before this existed: the body
+        # may or may not have moved, and claiming it did would be a guess.
+        return
+    page.body_changed_at = datetime.date.today().isoformat()
+
+
 def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Config) -> SyncStats:
     stats = SyncStats()
     files = iter_wiki_files(paths, config)
     seen_paths: set[str] = set()
 
     existing = {
-        row["path"]: (row["id"], row["hash"], row["mtime"])
-        for row in conn.execute("SELECT id, path, hash, mtime FROM pages")
+        row["path"]: row
+        for row in conn.execute(
+            "SELECT id, path, hash, mtime, body_hash, body_changed_at FROM pages"
+        )
     }
 
     for fs_path in files:
@@ -378,7 +430,7 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
         except OSError as exc:  # noqa: BLE001 - one bad file must not abort the rebuild
             stats.errors.append((rel_path, str(exc)))
             continue
-        if not force and prior is not None and prior[2] == mtime:
+        if not force and prior is not None and prior["mtime"] == mtime:
             continue
 
         try:
@@ -388,12 +440,14 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
             continue
         if not force and prior is not None:
             content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-            if prior[1] == content_hash:
+            if prior["hash"] == content_hash:
                 # mtime moved without the content changing (a `git
                 # checkout`/clone resets mtimes but not hashes) — record
                 # the new mtime so this short-circuits on mtime alone
                 # next time, without reparsing an unchanged page.
-                conn.execute("UPDATE pages SET mtime = ? WHERE id = ?", (mtime, prior[0]))
+                conn.execute(
+                    "UPDATE pages SET mtime = ? WHERE id = ?", (mtime, prior["id"])
+                )
                 continue
 
         try:
@@ -407,17 +461,18 @@ def _sync(conn: sqlite3.Connection, paths: ProjectPaths, force: bool, config: Co
                 # keep serving its old, now-stale content via search/
                 # links/lint — drop it rather than leave the DB claiming
                 # content that no longer matches what's on disk.
-                _delete_page(conn, prior[0])
+                _delete_page(conn, prior["id"])
             continue
 
+        _stamp_body_history(page, prior)
         if prior is not None:
-            _delete_page(conn, prior[0])
+            _delete_page(conn, prior["id"])
         _insert_page(conn, page)
         stats.pages_indexed += 1
 
-    for rel_path, (page_id, _hash, _mtime) in existing.items():
+    for rel_path, prior_row in existing.items():
         if rel_path not in seen_paths:
-            _delete_page(conn, page_id)
+            _delete_page(conn, prior_row["id"])
             stats.pages_removed += 1
 
     _resolve_links(conn, paths)
