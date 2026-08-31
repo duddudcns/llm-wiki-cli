@@ -22,7 +22,13 @@ from dataclasses import dataclass, field
 from llmw.korean import strip_josa
 from llmw.parser import SUPERSESSION_KINDS
 from llmw.paths import ProjectPaths
-from llmw.queries import IndexNotBuiltError, open_ro, outgoing_links, page_tags
+from llmw.queries import (
+    IndexNotBuiltError,
+    open_ro,
+    outgoing_links,
+    page_columns,
+    page_tags,
+)
 
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
@@ -127,9 +133,14 @@ def build_match_query(query: str) -> str | None:
 
 
 def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
+    # `body_changed_at` is absent on an index built before 0.1.31 — see
+    # `queries.page_columns`. Naming it unconditionally made `llmw search`
+    # die with a raw OperationalError as the first command an upgraded
+    # agent runs.
+    optional = "p.body_changed_at, " if "body_changed_at" in page_columns(conn) else ""
     sql = (
         "SELECT p.id, p.path, p.title, p.type, p.status, p.summary, "
-        "p.updated_at, p.body_changed_at, "
+        f"p.updated_at, {optional}"
         f"{_RANK_SQL} AS rank "
         "FROM pages_fts JOIN pages p ON p.id = pages_fts.rowid "
         "WHERE pages_fts MATCH ?"
@@ -140,17 +151,7 @@ def _rows_for(conn, match_query: str, type_filter: str | None, limit: int):
         params.append(type_filter)
     sql += " ORDER BY rank LIMIT ?"
     params.append(limit)
-    try:
-        return conn.execute(sql, params).fetchall()
-    except sqlite3.OperationalError:
-        # An index built before `body_changed_at` existed. `open_ro` never
-        # migrates, and the skill sends an upgraded agent straight into
-        # `llmw search`, so this must answer rather than traceback. The
-        # column reads as absent, which is also what it means: no observed
-        # history. A later write or `rebuild` grafts it on.
-        return conn.execute(
-            sql.replace("p.updated_at, p.body_changed_at, ", "p.updated_at, "), params
-        ).fetchall()
+    return conn.execute(sql, params).fetchall()
 
 
 def _term_matches_any_page(conn, term: str) -> bool:

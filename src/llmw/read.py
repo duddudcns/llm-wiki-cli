@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-import sqlite3
 from dataclasses import dataclass, field
 
 from llmw.parser import extract_key_points, mask_non_prose, parse_page
 from llmw.paths import ProjectPaths
-from llmw.queries import backlinks, find_page_row, open_ro, outgoing_links, page_tags
+from llmw.queries import (
+    backlinks,
+    find_page_row,
+    open_ro,
+    outgoing_links,
+    page_columns,
+    page_tags,
+)
 
 
 class PageNotFoundError(RuntimeError):
@@ -115,18 +121,18 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
     conn = open_ro(paths)
     if conn is not None:
         try:
-            try:
-                row = conn.execute(
-                    "SELECT id, body_changed_at FROM pages WHERE path = ?", (rel_path,)
-                ).fetchone()
-            except sqlite3.OperationalError:
-                # Pre-0.1.31 index; see the same handling in search.py.
-                row = conn.execute(
-                    "SELECT id FROM pages WHERE path = ?", (rel_path,)
-                ).fetchone()
+            # See `queries.page_columns`: an index built before 0.1.31 has
+            # no `body_changed_at`, and naming it made `llmw read` die.
+            has_history = "body_changed_at" in page_columns(conn)
+            row = conn.execute(
+                "SELECT id, body_changed_at FROM pages WHERE path = ?"
+                if has_history
+                else "SELECT id FROM pages WHERE path = ?",
+                (rel_path,),
+            ).fetchone()
             if row is not None:
                 page_id = row["id"]
-                if "body_changed_at" in row.keys():
+                if has_history:
                     body_changed_at = row["body_changed_at"]
                 for link in outgoing_links(conn, page_id):
                     links_out.append(

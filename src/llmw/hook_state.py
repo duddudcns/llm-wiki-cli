@@ -92,6 +92,10 @@ def _acquire_session_lock(lock_path: Path) -> int | None:
 # to one from outside would have to read-then-write across the lock, which
 # two concurrent PreToolUse hooks can interleave and lose; merging inside
 # the locked section is the only place it is safe.
+# `touched` is the only member, and the generality is deliberate rather
+# than speculative: the merge has to live inside the lock, so any future
+# accumulating key must come through here too instead of growing a second
+# read-then-write at a call site.
 _APPEND_KEYS = ("touched",)
 
 # What one turn's worth of changed files is worth remembering. A wide

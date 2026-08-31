@@ -29,6 +29,24 @@ def open_ro(paths: ProjectPaths) -> sqlite3.Connection | None:
     return conn
 
 
+def page_columns(conn: sqlite3.Connection) -> set[str]:
+    """Which columns `pages` actually has.
+
+    `open_ro` never migrates, and nothing on the read path grafts columns
+    on — `status` and `health` open the DB raw, so session start doesn't
+    either. An index built by an older release therefore reaches every
+    reader here missing whatever that release predates, and asking it up
+    front is the only way to build a query that will run. Probed rather
+    than pattern-matched out of a SQL string: a string edit two functions
+    away would silently turn such a fallback into a no-op that re-raises
+    the very error it exists to catch.
+    """
+    try:
+        return {row["name"] for row in conn.execute("PRAGMA table_info(pages)")}
+    except sqlite3.OperationalError:
+        return set()
+
+
 def find_page_row(conn: sqlite3.Connection, target: str) -> sqlite3.Row | None:
     """Resolve `target` (project-relative path, title, or alias) to a pages row."""
     normalized = target.replace("\\", "/")
