@@ -139,23 +139,35 @@ def set_fields(text: str, fields: dict) -> str:
         data, parsed = {}, False
         body = text[match.end():] if match is not None else text
         if match is not None:
-            # Indented four spaces, which is Markdown's own code-block
-            # form and needs no fence. A fence would be the obvious
-            # choice and is the wrong one: `parser._mask_fences` pairs
-            # marker lines by indent+length across the whole body, so a
-            # bare ``` inside the unreadable frontmatter would pair with
-            # the opening fence and leave the closing one to pair with the
-            # page's own code block — masking every heading and link in
-            # between. Out-lengthening the fence only covers backticks;
-            # `~~~` would still do it. Indenting defeats both, since
-            # `_FENCE_MARKER_RE` allows at most three leading spaces.
-            salvaged = "\n".join(
-                f"    {line}" for line in match.group(1).splitlines()
+            # Fenced with a backtick run longer than any inside the
+            # salvaged text. Two things have to hold at once and each
+            # rules out the obvious answer to the other.
+            #
+            # The salvaged text must be *masked*, or its `[[wikilinks]]`
+            # become real links and its `#` lines become real headings —
+            # so indenting it as a plain code block is not enough;
+            # `mask_non_prose` only blanks fenced blocks, inline code, and
+            # comments.
+            #
+            # And nothing inside it may close the wrapper. A bare ``` in
+            # the unreadable frontmatter would otherwise pair with a
+            # three-backtick opener and leave the closer to pair with the
+            # page's own code block, masking every heading and link in
+            # between. `_mask_fences` pairs on indent *and* fence string,
+            # and CommonMark closes only on a run at least as long, so a
+            # longer opener contains any interior run — and a `~~~` line
+            # cannot close a backtick fence at all.
+            salvaged = match.group(1)
+            longest = max(
+                (len(run.group(0)) for run in re.finditer(r"`+", salvaged)),
+                default=0,
             )
+            fence = "`" * max(4, longest + 1)
             body = (
-                "\n    # frontmatter that could not be parsed, "
-                "preserved verbatim\n"
-                f"{salvaged}\n\n" + body
+                f"\n{fence}\n"
+                "# frontmatter that could not be parsed, preserved verbatim\n"
+                f"{salvaged}\n"
+                f"{fence}\n" + body
             )
 
     pending = {k: v for k, v in fields.items() if data.get(k) != v}

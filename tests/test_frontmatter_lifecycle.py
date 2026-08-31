@@ -68,27 +68,32 @@ def test_set_fields_keeps_the_body_intact_when_it_cannot_parse() -> None:
     assert "The body still says something true." in result
 
 
-@pytest.mark.parametrize("marker", ["```", "~~~"])
-def test_salvaged_text_containing_a_fence_does_not_swallow_the_body(
+@pytest.mark.parametrize("marker", ["```", "~~~", "````", "`" * 10])
+def test_salvaged_text_containing_a_fence_does_not_leak_into_the_page(
     marker: str,
 ) -> None:
-    # The salvaged block is demoted into the body, and
-    # `parser._mask_fences` pairs marker lines across the whole body by
-    # indent and length. Wrapping it in a fence looks obvious and is
-    # wrong: a bare marker inside the unreadable frontmatter pairs with
-    # the *opening* fence, leaving the closing one to pair with the page's
-    # own code block — masking every heading and link in between.
-    # Reproduced before the fix: `# Real heading` and `[[Real Link]]` both
-    # vanished from the parse. Both marker kinds, because out-lengthening
-    # a backtick fence would still leave `~~~` doing it.
+    # Two ways the demoted block can escape, and each obvious fix breaks
+    # the other:
+    #
+    # - A three-backtick wrapper is closed early by a bare ``` inside the
+    #   salvaged text. Its real closer then pairs with the page's own code
+    #   block, masking every heading and link in between — reproduced:
+    #   `# Real heading` and `[[Real Link]]` vanished from the parse.
+    # - Indenting instead of fencing fixes that and leaks the other way:
+    #   `mask_non_prose` blanks fenced blocks, not indented ones, so the
+    #   salvaged `[[Ghost Page]]` became a real link and its `#` line a
+    #   real heading.
+    #
+    # A backtick run longer than anything inside satisfies both, `~~~`
+    # included, since a tilde line cannot close a backtick fence.
     from llmw.parser import parse_page
 
     broken = (
         "---\n"
         'title: "unterminated\n'
-        f"{marker}\n"
+        f"{marker}\n# Phantom Heading\n[[Ghost Page]]\n"
         "---\n\n# Real heading\n\n[[Real Link]]\n\n"
-        f"{marker}python\nprint(1)\n{marker}\n\n"
+        "```python\nprint(1)\n```\n\n"
         "## Second heading\n\n[[Another Link]]\n"
     )
 
