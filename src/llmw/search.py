@@ -14,9 +14,8 @@ partial one:
 
 from __future__ import annotations
 
-import sqlite3
-
 import re
+import sqlite3
 from dataclasses import dataclass, field
 
 from llmw.korean import strip_josa

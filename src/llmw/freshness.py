@@ -54,9 +54,6 @@ def as_date(value: object) -> datetime.date | None:
         return None
 
 
-_parse_iso_date = as_date
-
-
 def _age(days: int) -> str:
     if days == 0:
         return "today"

@@ -106,7 +106,12 @@ def pages_declaring_files(
             """,
             file_paths,
         ).fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        # Only the missing-table case. `OperationalError` also covers
+        # `database is locked`, and swallowing that would silently answer
+        # "no pages describe this" on a healthy index.
+        if "no such table" not in str(exc):
+            raise
         return [], 0
 
     # Sorted here rather than in SQL: `updated_at` is TEXT straight from

@@ -101,32 +101,56 @@ def missing_fields(frontmatter: dict, required: list[str]) -> list[str]:
 def set_fields(text: str, fields: dict) -> str:
     """Return `text` with `fields` set in its frontmatter.
 
-    When every key is new and a block already exists, the new lines are
-    appended to the raw block and nothing else is touched — the author's
-    key order, quoting, and comments survive byte-for-byte. Only when a
-    key must be *replaced* (or there is no block at all) does this fall
-    back to re-dumping the mapping, which normalizes the whole block.
+    When every key is new and the block parses, the new lines are appended
+    to it and nothing else is touched — key order, quoting, and comments
+    survive byte-for-byte. When a key must be *replaced*, the mapping is
+    re-dumped and the block is normalized.
 
-    That fallback is why this belongs to lifecycle operations — archiving,
+    In practice the append path's customer is `write_page` injecting
+    `supersedes:` into content the caller just handed it. The supersede
+    flip and archive both set `status`, which every real page already has,
+    so they take the re-dump path — do not read the byte-preservation
+    promise as protecting a hand-authored page from being normalized.
+
+    Re-dumping is why this belongs to lifecycle operations — archiving,
     superseding — where writing metadata is the entire point of the call.
     An ordinary edit must not reformat a page behind the author's back.
     """
     match = _FRONTMATTER_RE.match(text)
     try:
         data, body = split_frontmatter(text)
+        parsed = True
     except InvalidFrontmatterError:
-        # Right about `data`, and the naive `body = text` is wrong: `text`
-        # is the whole file, delimiters included, so the unreadable block
-        # would be re-emitted below the new one and the page would end up
-        # carrying two. Split on the delimiters even when what sits
-        # between them can't be read.
-        data, body = {}, (text[match.end():] if match is not None else text)
+        # Two things go wrong here if handled naively.
+        #
+        # `body = text` is wrong: `text` is the whole file, delimiters
+        # included, so the unreadable block gets re-emitted below the new
+        # one and the page ends up carrying two.
+        #
+        # Appending to the block is wrong too, and worse, because it looks
+        # right: the new keys land inside YAML that still doesn't parse,
+        # so as *data* they do not exist. The indexer drops the page on
+        # reparse, the mark never reaches search, backlinks, or the status
+        # flag — and the command reports success over an inert operation.
+        #
+        # So: demote what could not be read into the body, visibly and
+        # verbatim, and write a clean block. Nothing is lost, the result
+        # parses, and the mark is real.
+        data, parsed = {}, False
+        body = text[match.end():] if match is not None else text
+        if match is not None:
+            body = (
+                "\n```\n"
+                "# frontmatter that could not be parsed, preserved verbatim\n"
+                f"{match.group(1)}\n"
+                "```\n" + body
+            )
 
     pending = {k: v for k, v in fields.items() if data.get(k) != v}
     if not pending:
         return text
 
-    if match is not None and not any(key in data for key in pending):
+    if parsed and match is not None and not any(key in data for key in pending):
         added = yaml.safe_dump(pending, sort_keys=False, allow_unicode=True).strip()
         return f"---\n{match.group(1)}\n{added}\n---\n{body}"
 

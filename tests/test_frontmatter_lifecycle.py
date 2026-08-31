@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from llmw.bootstrap import init_project
-from llmw.frontmatter import set_fields
+from llmw.frontmatter import set_fields, split_frontmatter
 from llmw.writer import write_page
 
 BROKEN = (
@@ -37,20 +37,35 @@ NEW_PAGE = (
 )
 
 
-def test_set_fields_does_not_duplicate_an_unparseable_block() -> None:
+def test_set_fields_leaves_a_page_that_actually_parses() -> None:
+    # The assertion that matters, and the one the first fix did not make.
+    # Appending the new keys *inside* a block that still doesn't parse is
+    # byte-correct and semantically inert: as data the keys do not exist,
+    # the indexer drops the page on reparse, and the mark never reaches
+    # search, backlinks, or the status flag — while the CLI reports
+    # success. Asserting the text contains "status: superseded" passes
+    # through all of that.
     result = set_fields(BROKEN, {"status": "superseded"})
 
-    assert result.count("type: decision") == 1, result
-    assert result.count("---") == 2, result
-    assert "status: superseded" in result
-    assert "The body still says something true." in result
+    data, _ = split_frontmatter(result)
+    assert data["status"] == "superseded"
+
+
+def test_set_fields_preserves_what_it_could_not_read(tmp_path: Path) -> None:
+    # Nothing is thrown away: the unreadable block moves into the body,
+    # visibly, so the author can repair it by hand.
+    result = set_fields(BROKEN, {"status": "superseded"})
+
+    assert "unterminated" in result
+    assert "type: decision" in result
+    assert result.count("title:") == 1, result
 
 
 def test_set_fields_keeps_the_body_intact_when_it_cannot_parse() -> None:
     result = set_fields(BROKEN, {"status": "superseded"})
-    body = result.split("---", 2)[2]
 
-    assert body.strip().startswith("# Old decision")
+    assert "# Old decision" in result
+    assert "The body still says something true." in result
 
 
 def test_superseding_a_page_with_broken_frontmatter_does_not_corrupt_it(
@@ -70,9 +85,11 @@ def test_superseding_a_page_with_broken_frontmatter_does_not_corrupt_it(
     )
 
     text = old.read_text(encoding="utf-8")
-    assert text.count("type: decision") == 1, text
+    data, _ = split_frontmatter(text)
+    assert data["superseded_by"] == "wiki/decisions/new.md"
+    assert data["status"] == "superseded"
     assert "The body still says something true." in text
-    assert "superseded_by: wiki/decisions/new.md" in text
+    assert "unterminated" in text, "the unreadable block must not be thrown away"
 
 
 def test_archiving_a_page_with_broken_frontmatter_does_not_corrupt_it(
@@ -90,9 +107,11 @@ def test_archiving_a_page_with_broken_frontmatter_does_not_corrupt_it(
     dest = archive_page(paths, "wiki/decisions/old.md", reason="retire it")
 
     text = dest.read_text(encoding="utf-8")
-    assert text.count("type: decision") == 1, text
+    data, _ = split_frontmatter(text)
+    assert data["archived"] is True
+    assert data["status"] == "archived"
     assert "The body still says something true." in text
-    assert "archived: true" in text.lower()
+    assert "unterminated" in text, "the unreadable block must not be thrown away"
 
 
 def test_superseding_a_page_that_declares_code_keeps_the_list(
