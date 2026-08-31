@@ -69,7 +69,20 @@ pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-> Claude Code 插件的安全保障功能(见 [hooks.md](hooks.md))在 Windows 上需要装了"Git Bash"才能运行。如果没装,这些额外功能就是不会跑而已——`llmw` 本身照样能正常工作,它自带的安全检查也一样会生效。
+> Claude Code 插件的安全保障功能(见 [hooks.md](hooks.md))会直接调用 `llmw`,所以 Windows 不会去走 `.sh` 的文件关联——你也不需要修改 `.sh` 的默认打开方式。
+>
+> 只有一个钩子仍然需要"Git Bash":负责替你安装 `llmw` 并让它和插件版本保持一致的 SessionStart。要让它跑起来,`bash` 必须解析到 Git for Windows,因此请在 `PATH` 里把 `C:\Program Files\Git\bin` 放在 **`C:\Windows\System32` 前面**。Windows 自带了 `System32\bash.exe`(WSL 启动器),否则会被它抢先。Git for Windows 默认并不会把这个目录加进 `PATH`。
+>
+> 如果你不想动 `PATH`,可以用 `uv tool install` 自己装 `llmw`,跳过这一步引导。其余钩子怎样都能工作,`llmw` 自带的安全检查也照样生效。
+
+在 PowerShell 里确认：
+
+```powershell
+Get-Command bash
+Get-Command llmw
+'{"tool_name":"Bash","tool_input":{"command":"echo ok"}}' | llmw hook pretooluse
+$LASTEXITCODE
+```
 
 ### macOS
 

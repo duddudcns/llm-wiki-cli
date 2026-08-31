@@ -39,10 +39,12 @@ wiki_guard = "deny"  # default: block the edit, and explain the right way to do 
 # wiki_guard = "off"   # turn this check off for this project
 ```
 
-On Windows, this check needs "Git Bash" installed to work. If it's
-missing, the check just won't run — `llmw`'s own built-in safety rules
-(a reason is required for every change, backups before edits, etc.) still
-apply regardless.
+On Windows, this check runs `llmw` directly, so it does not depend on
+"Git Bash" or on what your machine opens `.sh` files with. Git Bash is
+only needed for the one hook that installs `llmw` for you — see
+[installation.md](installation.md). Either way, `llmw`'s own built-in
+safety rules (a reason is required for every change, backups before
+edits, etc.) apply regardless.
 
 ## Feature 2: reminding the AI to check the wiki before every request
 

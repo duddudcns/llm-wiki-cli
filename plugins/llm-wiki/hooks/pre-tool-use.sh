@@ -12,8 +12,17 @@
 # everything internally): if `llmw` isn't on PATH yet — e.g. the first
 # session before SessionStart's self-install has finished, or the install
 # failed — the shell fails to spawn it at all (exit 127), outside that
-# internal guarantee. Without this wrapper that failure was unguarded,
-# unlike every other hook in this plugin.
+# internal guarantee. Before this wrapper existed that failure was
+# unguarded; hooks.json now carries the same guard inline as
+# `|| exit 0`.
+#
+# hooks.json no longer routes this event through this file - it calls
+# `llmw hook <event> || exit 0` directly, so a Windows hook host cannot
+# resolve a bare `.sh` path through ShellExecute and launch the file's
+# associated application instead of running it (the launched app never
+# inherits the hook's stdin/stdout pipe). Kept as a manual entry point
+# and as a fallback for hosts that can only take a script path; the
+# `|| true` plus trailing `exit 0` still cover `llmw` missing from PATH.
 
 llmw hook codex-pretooluse 2>/dev/null || true
 exit 0

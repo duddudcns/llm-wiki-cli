@@ -42,11 +42,13 @@ wiki_guard = "deny"  # par défaut : bloquer la modification, et expliquer la bo
 # wiki_guard = "off"   # désactiver cette vérification pour ce projet
 ```
 
-Sur Windows, cette vérification a besoin de « Git Bash » installé pour
-fonctionner. S'il est absent, la vérification ne se lance tout simplement
-pas — les propres règles de sécurité intégrées de `llmw` (une raison
-obligatoire à chaque changement, des sauvegardes avant chaque
-modification, etc.) s'appliquent quand même dans tous les cas.
+Sur Windows, cette vérification exécute `llmw` directement : elle ne
+dépend donc ni de « Git Bash », ni du programme avec lequel votre machine
+ouvre les fichiers `.sh`. Git Bash n'est nécessaire que pour le seul hook
+qui installe `llmw` à votre place — voir [installation.md](installation.md).
+Dans tous les cas, les propres règles de sécurité intégrées de `llmw` (une
+raison obligatoire à chaque changement, des sauvegardes avant chaque
+modification, etc.) s'appliquent quand même.
 
 ## Fonctionnalité 2 : rappeler à l'IA de consulter le wiki avant chaque demande
 

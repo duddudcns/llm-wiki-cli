@@ -1,9 +1,13 @@
-"""Guards the executable bit on shell scripts invoked directly by hooks.json.
+"""Guards the executable bit on the shell scripts this repo distributes.
 
-Claude Code and Codex run hook commands as a bare path (e.g.
-`${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh`), not `sh <path>` — on Unix that
-requires the file to carry the executable bit in git's tracked mode, or
-every hook silently no-ops (fail-open, so nothing surfaces the breakage).
+hooks.json now invokes SessionStart as `bash <path>` and calls `llmw hook
+<event>` directly for every other event, so Windows never resolves a bare
+`.sh` path through ShellExecute. The remaining scripts stay executable
+anyway: `plugin/bin/llmw` is run as a bare path, and the hook wrappers are
+kept as manual entry points and as a fallback for hosts that can only take
+a script path. Without the executable bit in git's tracked mode those
+invocations silently no-op on Unix (fail-open, so nothing surfaces the
+breakage).
 """
 
 import subprocess

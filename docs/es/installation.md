@@ -70,10 +70,30 @@ pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
 > Las redes de seguridad del plugin de Claude Code (mira [hooks.md](hooks.md))
-> necesitan tener "Git Bash" instalado en Windows para funcionar. Si no lo
-> tienes, esas funciones extra simplemente no se van a ejecutar — `llmw`
-> sigue funcionando bien de todas formas, y mantiene sus propios chequeos de
-> seguridad de cualquier manera.
+> llaman a `llmw` directamente, así que Windows nunca resuelve un archivo
+> `.sh` a través de sus asociaciones de archivo — no hace falta cambiar la
+> aplicación predeterminada para `.sh`.
+>
+> Un hook sí sigue necesitando "Git Bash": SessionStart, el que instala
+> `llmw` por ti y lo mantiene sincronizado con el plugin. Para que ese
+> funcione, `bash` tiene que resolverse a Git for Windows — pon
+> `C:\Program Files\Git\bin` **antes de `C:\Windows\System32`** en el
+> `PATH`, porque Windows trae su propio `System32\bash.exe` (el lanzador de
+> WSL) que gana si no lo haces. Git for Windows no agrega ese directorio al
+> `PATH` por defecto.
+>
+> Si prefieres no tocar el `PATH`, instala `llmw` tú mismo con
+> `uv tool install` y sáltate ese arranque. Los demás hooks funcionan de
+> cualquier manera, y `llmw` mantiene sus propios chequeos de seguridad.
+
+Compruébalo desde PowerShell:
+
+```powershell
+Get-Command bash
+Get-Command llmw
+'{"tool_name":"Bash","tool_input":{"command":"echo ok"}}' | llmw hook pretooluse
+$LASTEXITCODE
+```
 
 ### macOS
 

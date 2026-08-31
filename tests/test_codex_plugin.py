@@ -40,22 +40,35 @@ def test_codex_plugin_ships_hooks_at_default_path() -> None:
     assert "hooks" not in manifest
 
     hooks = json.loads((plugin / "hooks/hooks.json").read_text())
+    # SessionStart is the only event still routed through a script: its
+    # self-install bootstrap is what puts `llmw` on PATH in the first
+    # place. Every other command calls `llmw` directly, because a hook
+    # host that hands a bare `.sh` path to Windows resolves it through
+    # ShellExecute — launching the file's associated application, which
+    # never inherits the hook's stdin/stdout pipe. Prefixing the paths
+    # with `bash` does not fix that: on a stock Windows box `bash` is
+    # `C:\Windows\System32\bash.exe` (the WSL launcher), since System32
+    # precedes Git's `bin` on PATH and Git for Windows does not put
+    # `bash.exe` on PATH by default.
     assert hooks["hooks"]["SessionStart"][0]["hooks"][0]["command"] == (
-        "${PLUGIN_ROOT}/hooks/session-start.sh"
+        'bash "${PLUGIN_ROOT}/hooks/session-start.sh"'
     )
     pretooluse = hooks["hooks"]["PreToolUse"][0]
     assert "apply_patch" in pretooluse["matcher"]
     assert "mcp__llm-wiki__llmw_search" in pretooluse["matcher"]
     for tool in ("llmw_write", "llmw_edit", "llmw_patch", "llmw_archive"):
         assert f"mcp__llm-wiki__{tool}" in pretooluse["matcher"]
-    # Routed through a wrapper script, not a bare `llmw hook ...` command:
-    # if `llmw` isn't on PATH yet (before SessionStart's self-install
-    # finishes), the shell fails to spawn it before cli.py's own
-    # never-crash guarantee gets a chance to run — the wrapper's `|| true`
-    # plus trailing `exit 0` is what actually catches that.
-    assert pretooluse["hooks"][0]["command"] == "${PLUGIN_ROOT}/hooks/pre-tool-use.sh"
-    assert hooks["hooks"]["Stop"][0]["hooks"][0]["command"] == "${PLUGIN_ROOT}/hooks/stop.sh"
+    # `|| exit 0` short-circuits identically in cmd.exe and POSIX sh, so a
+    # missing `llmw` (before SessionStart's self-install finishes, or
+    # after it failed) still fails open instead of surfacing exit 127 on
+    # every hook — the guarantee the wrapper scripts used to provide.
+    assert pretooluse["hooks"][0]["command"] == "llmw hook codex-pretooluse || exit 0"
+    assert hooks["hooks"]["Stop"][0]["hooks"][0]["command"] == (
+        "llmw hook codex-stop || exit 0"
+    )
     assert (plugin / "hooks/session-start.sh").is_file()
+    # Retained as manual entry points and as a fallback for hosts that can
+    # only take a script path, so they keep their own fail-open guards.
     assert (plugin / "hooks/pre-tool-use.sh").is_file()
     assert (plugin / "hooks/stop.sh").is_file()
     for script in ("pre-tool-use.sh", "stop.sh"):

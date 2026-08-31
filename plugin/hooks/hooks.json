@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\""
           }
         ]
       }
@@ -16,7 +16,7 @@
           {
             "type": "command",
             "timeout": 5,
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit.sh"
+            "command": "llmw hook userpromptsubmit || exit 0"
           }
         ]
       }
@@ -28,7 +28,7 @@
           {
             "type": "command",
             "timeout": 10,
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"
+            "command": "llmw hook pretooluse || exit 0"
           }
         ]
       }
@@ -39,7 +39,7 @@
           {
             "type": "command",
             "timeout": 10,
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop.sh"
+            "command": "llmw hook stop || exit 0"
           }
         ]
       }

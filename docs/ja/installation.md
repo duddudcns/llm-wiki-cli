@@ -68,7 +68,20 @@ pipx install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
-> Claude Codeプラグインの安全装置の機能([hooks.md](hooks.md) 参照)を使うには、Windowsで「Git Bash」がインストールされている必要があります。もし入っていなければ、その追加機能だけが動かなくなります。`llmw` 自体は問題なく動きますし、`llmw` 自身の安全チェックはどちらにしてもきちんと働きます。
+> Claude Codeプラグインの安全装置の機能([hooks.md](hooks.md) 参照)は `llmw` を直接呼び出します。そのため Windows が `.sh` のファイル関連付けを経由することはなく、`.sh` の既定のアプリを変更する必要もありません。
+>
+> ただしフックのうち1つ、`llmw` を代わりにインストールしてプラグインとバージョンを揃える SessionStart だけは、今も「Git Bash」を必要とします。これを動かすには `bash` が Git for Windows として解決される必要があるので、`PATH` で `C:\Program Files\Git\bin` を **`C:\Windows\System32` より前に** 置いてください。Windows には独自の `System32\bash.exe`(WSL ランチャー)が同梱されており、そうしないとそちらが優先されます。Git for Windows は既定ではこのディレクトリを `PATH` に追加しません。
+>
+> `PATH` を触りたくない場合は、`uv tool install` で `llmw` を自分でインストールしてこのブートストラップを省略できます。他のフックはどちらでも動きますし、`llmw` 自身の安全チェックもそのまま働きます。
+
+PowerShell で確認できます。
+
+```powershell
+Get-Command bash
+Get-Command llmw
+'{"tool_name":"Bash","tool_input":{"command":"echo ok"}}' | llmw hook pretooluse
+$LASTEXITCODE
+```
 
 ### macOS
 

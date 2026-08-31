@@ -40,11 +40,12 @@ wiki_guard = "deny"  # opción por defecto: bloquea el cambio y explica la forma
 # wiki_guard = "off"   # desactiva este chequeo para este proyecto
 ```
 
-En Windows, este chequeo necesita tener "Git Bash" instalado para
-funcionar. Si no lo tienes, el chequeo simplemente no se ejecuta — las
-reglas de seguridad propias de `llmw` (una razón obligatoria para cada
-cambio, copias de seguridad antes de editar, etc.) se siguen aplicando
-igual.
+En Windows, este chequeo ejecuta `llmw` directamente, así que no depende
+de "Git Bash" ni de con qué programa abre tu equipo los archivos `.sh`.
+Git Bash solo hace falta para el único hook que instala `llmw` por ti —
+mira [installation.md](installation.md). En cualquier caso, las reglas de
+seguridad propias de `llmw` (una razón obligatoria para cada cambio,
+copias de seguridad antes de editar, etc.) se siguen aplicando igual.
 
 ## Función 2: recordarle a la IA que revise la wiki antes de cada solicitud
 

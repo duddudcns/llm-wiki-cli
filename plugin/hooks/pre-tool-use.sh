@@ -1,36 +1,25 @@
 #!/usr/bin/env bash
 # PreToolUse hook: redirects native Edit/Write/NotebookEdit calls aimed at
 # wiki/*.md or raw/** back to llmw's own write/edit/patch/archive commands,
-# and soft-gates the first real source-file edit of a session behind an
-# `llmw search` check if none has run yet. For Bash/PowerShell calls, the
-# only decision left is whether the command is a raw shell write into
-# wiki/ or raw/ (session state is recorded by the llmw commands
-# themselves, not guessed from a command string) — so the Python process
-# is only spawned when the payload names a wiki/raw path *and* a
-# file-mutating command; either alone is common in a normal command,
-# together is rare. `sed` counts as file-mutating only
-# in its `-i`/`--in-place` form: plain `sed -n '1,5p' wiki/x.md` is a read,
-# and `sed ... > wiki/x.md` is already caught by the `>`. Direct calls
-# to this plugin's own mcp__llm-wiki__llmw_* MCP tools (if a project has
-# that server registered) get the same per-session bookkeeping, keyed off
-# the tool name instead of a command string. Always exits 0 — never blocks
-# a tool call by crashing.
+# soft-gates the first real source-file edit of a session behind an
+# `llmw search` check, and denies raw shell writes into wiki/ or raw/.
+# All of that decision logic lives in `llmw hook pretooluse`.
+#
+# hooks.json no longer routes PreToolUse through this file — it calls
+# `llmw hook pretooluse || exit 0` directly, because on Windows a hook
+# host that resolves a bare `.sh` path through ShellExecute launches the
+# file's associated application instead of running it, and the launched
+# app never inherits the hook's stdin/stdout pipe. This wrapper is kept
+# as a manual entry point and as a fallback for hosts that can only take
+# a script path.
+#
+# It used to carry a shell prefilter that skipped the Python process for
+# Bash/PowerShell payloads with no wiki/raw path and no file-mutating
+# token. That saved ~350ms per shell tool call but silently missed a
+# command *starting* with `rm`/`mv`/`cp`/`tee` (the patterns required a
+# leading space), so `rm raw/note.md` bypassed the immutability guard
+# entirely. The filter is gone; startup cost belongs in llmw's import
+# chain, not in a second copy of the decision rules.
 
-payload=$(cat)
-run_hook() { printf '%s' "$payload" | llmw hook pretooluse 2>/dev/null || true; }
-
-case "$payload" in
-  *'"tool_name":"Bash"'*|*'"tool_name": "Bash"'*|*'"tool_name":"PowerShell"'*|*'"tool_name": "PowerShell"'*)
-    case "$payload" in
-      *wiki/*|*raw/*|*'wiki\\'*|*'raw\\'*)
-        case "$payload" in
-          *'>'*|*Set-Content*|*Add-Content*|*Clear-Content*|*Out-File*|*New-Item*|*Remove-Item*|*Move-Item*|*Copy-Item*|*' rm '*|*' mv '*|*' cp '*|*' tee '*|*'sed -i'*|*'sed --in-place'*|*truncate*) run_hook ;;
-        esac
-        ;;
-    esac
-    ;;
-  *)
-    run_hook
-    ;;
-esac
+llmw hook pretooluse 2>/dev/null || true
 exit 0

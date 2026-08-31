@@ -94,9 +94,29 @@ pip install "git+https://github.com/duddudcns/llm-wiki-cli.git"
 ```
 
 > Claude Code 플러그인의 안전장치 기능(자세한 내용은 [hooks.md](hooks.md))은
-> Windows에서 동작하려면 "Git Bash"가 설치돼 있어야 합니다. 없다면
-> 그 추가 기능들만 실행되지 않을 뿐, `llmw` 자체는 문제없이 동작하고
-> 자체 안전 점검도 그대로 유지됩니다.
+> `llmw`를 직접 호출합니다. 그래서 Windows가 `.sh` 파일 연결을 거칠 일이
+> 없고, `.sh`의 기본 앱을 바꿀 필요도 없습니다.
+>
+> 다만 훅 하나는 여전히 "Git Bash"가 필요합니다. `llmw`를 대신 설치하고
+> 플러그인과 버전을 맞춰주는 SessionStart 훅입니다. 이 훅이 돌아가려면
+> `bash`가 Git for Windows로 잡혀야 하므로, `PATH`에서
+> `C:\Program Files\Git\bin`을 **`C:\Windows\System32`보다 앞에** 두세요.
+> Windows에는 자체 `System32\bash.exe`(WSL 런처)가 들어 있어서 그러지 않으면
+> 그쪽이 먼저 잡힙니다. Git for Windows는 이 디렉터리를 기본적으로 `PATH`에
+> 넣지 않습니다.
+>
+> `PATH`를 건드리고 싶지 않다면 `uv tool install`로 `llmw`를 직접 설치하고
+> 이 부트스트랩을 건너뛰면 됩니다. 나머지 훅은 어느 쪽이든 동작하고,
+> `llmw` 자체 안전 점검도 그대로 유지됩니다.
+
+PowerShell에서 확인해 보세요:
+
+```powershell
+Get-Command bash
+Get-Command llmw
+'{"tool_name":"Bash","tool_input":{"command":"echo ok"}}' | llmw hook pretooluse
+$LASTEXITCODE
+```
 
 ### macOS
 

@@ -1,6 +1,6 @@
 {
   "name": "llm-wiki",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "description": "Headless Obsidian-like LLM Wiki CLI and Claude Code skill",
   "author": {
     "name": "local"
