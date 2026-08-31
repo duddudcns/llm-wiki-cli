@@ -45,6 +45,7 @@ from llmw.writer import (
     FileNotFoundForPatchError,
     OldStringNotFoundError,
     OldStringNotUniqueError,
+    SupersedeTargetError,
     edit_page as do_edit,
     patch_page as do_patch,
     write_page as do_write,
@@ -305,13 +306,21 @@ def search(
         # without reading the flag. `active` is the overwhelming majority
         # and printing it would only train the reader to skip the field.
         flag = f" [{r.status}]" if r.status and r.status != "active" else ""
+        if r.superseded_by:
+            flag = f" [{r.status or 'superseded'} -> {r.superseded_by}]"
         console.print(f"{i}. {r.path}{flag}")
         # Pages stamp their era in the title by convention — "(v0.1.18)" —
         # and this surface used to drop it on the floor.
         if r.title:
             console.print(f"   title: {r.title}")
         console.print(f"   score: {r.score}")
-        freshness = describe_freshness(r.updated, r.mtime)
+        # A superseded page's mtime jumped when its status was flipped,
+        # not because its claims were restated — reporting that as
+        # divergence would fire on every superseded page forever. The flag
+        # above already says this is not the current answer.
+        freshness = describe_freshness(
+            r.updated, None if r.superseded_by else r.mtime
+        )
         if freshness:
             console.print(f"   updated: {freshness}")
         if r.summary:
@@ -578,26 +587,40 @@ def write(
     reason: str = typer.Option(..., "--reason"),
     stdin: bool = typer.Option(False, "--stdin", help="Read new page content from stdin."),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing page."),
+    supersedes: Optional[str] = typer.Option(
+        None,
+        "--supersedes",
+        help="Path of an earlier page this one replaces: marks it superseded in the same write.",
+    ),
 ) -> None:
     """Create a new wiki page from stdin, or fully replace one with --force.
     For an existing page, prefer `edit` (small exact-text change) or
     `patch` (structural diff) over --force unless most of the page is
-    actually changing."""
+    actually changing.
+
+    Pass --supersedes when this page overturns an earlier decision: the
+    replaced page is marked `status: superseded` with a pointer here, in
+    the same write, so search stops returning it as current."""
     paths = _require_paths()
     content = _read_stdin_content(stdin)
     try:
-        fs_path = do_write(paths, path, content, reason=reason, force=force)
+        fs_path = do_write(
+            paths, path, content, reason=reason, force=force, supersedes=supersedes
+        )
     except (
         ReasonRequiredError,
         PathNotAllowedError,
         FileExistsConflictError,
         InvalidFrontmatterError,
+        SupersedeTargetError,
         LockedError,
     ) as exc:
         _err(exc)
         raise typer.Exit(code=1) from exc
     clear_dirty_for_env_session(paths)
     console.print(f"wrote {paths.rel(fs_path)}")
+    if supersedes:
+        console.print(f"superseded {supersedes}")
 
 
 @app.command()

@@ -305,26 +305,55 @@ _BARE_WIKILINK_RE = re.compile(
 )
 
 
-def extract_related_links(frontmatter: dict) -> list[LinkRef]:
+# Frontmatter keys whose values are page references, and the link kind
+# each produces. Anything not listed here is metadata, not a link: a key
+# absent from this map is dropped at parse and is therefore invisible to
+# the index, to `llmw links`/`backlinks`, and to any surface that wants to
+# name the page on the other end of the relationship.
+LINK_FIELDS: dict[str, str] = {
+    "related": "related",
+    # Written as a pair by `llmw write --supersedes`: the new page points
+    # back, the replaced page points forward.
+    "supersedes": "supersedes",
+    "superseded_by": "superseded_by",
+}
+
+# Kinds that describe a page's lifecycle rather than its subject matter.
+# Surfaces that list "what this page links to" exclude them, because they
+# are shown as the page's status instead.
+SUPERSESSION_KINDS = frozenset({"supersedes", "superseded_by"})
+
+
+def extract_frontmatter_links(frontmatter: dict, key: str, kind: str) -> list[LinkRef]:
+    """Read one page-reference frontmatter key into LinkRefs, accepting a
+    bare path, a title, or Obsidian's `"[[Target]]"` property syntax."""
     links = []
-    for raw in _normalize_str_list(frontmatter.get("related")):
+    for raw in _normalize_str_list(frontmatter.get(key)):
         raw = raw.strip()
         if not raw:
             continue
         m = _BARE_WIKILINK_RE.match(raw)
         if m is None:
-            links.append(LinkRef(target_raw=raw, kind="related"))
+            links.append(LinkRef(target_raw=raw, kind=kind))
             continue
         heading = m.group("heading")
         alias = m.group("alias")
         links.append(
             LinkRef(
                 target_raw=(m.group("target") or "").strip(),
-                kind="related",
+                kind=kind,
                 target_heading=heading.strip() if heading else None,
                 link_text=alias.strip() if alias else None,
             )
         )
+    return links
+
+
+def extract_related_links(frontmatter: dict) -> list[LinkRef]:
+    """Every page-reference frontmatter key, in `LINK_FIELDS` order."""
+    links: list[LinkRef] = []
+    for key, kind in LINK_FIELDS.items():
+        links.extend(extract_frontmatter_links(frontmatter, key, kind))
     return links
 
 

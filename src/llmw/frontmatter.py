@@ -76,3 +76,35 @@ def split_frontmatter(text: str) -> tuple[dict, str]:
     if not isinstance(data, dict):
         raise InvalidFrontmatterError("frontmatter must be a YAML mapping")
     return data, body
+
+
+def set_fields(text: str, fields: dict) -> str:
+    """Return `text` with `fields` set in its frontmatter.
+
+    When every key is new and a block already exists, the new lines are
+    appended to the raw block and nothing else is touched — the author's
+    key order, quoting, and comments survive byte-for-byte. Only when a
+    key must be *replaced* (or there is no block at all) does this fall
+    back to re-dumping the mapping, which normalizes the whole block.
+
+    That fallback is why this belongs to lifecycle operations — archiving,
+    superseding — where writing metadata is the entire point of the call.
+    An ordinary edit must not reformat a page behind the author's back.
+    """
+    try:
+        data, body = split_frontmatter(text)
+    except InvalidFrontmatterError:
+        data, body = {}, text
+
+    pending = {k: v for k, v in fields.items() if data.get(k) != v}
+    if not pending:
+        return text
+
+    match = _FRONTMATTER_RE.match(text)
+    if match is not None and not any(key in data for key in pending):
+        added = yaml.safe_dump(pending, sort_keys=False, allow_unicode=True).strip()
+        return f"---\n{match.group(1)}\n{added}\n---\n{body}"
+
+    merged = {**data, **fields}
+    block = yaml.safe_dump(merged, sort_keys=False, allow_unicode=True).strip()
+    return f"---\n{block}\n---\n{body}"

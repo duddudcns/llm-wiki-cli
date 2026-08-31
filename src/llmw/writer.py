@@ -10,7 +10,7 @@ import datetime
 import shutil
 from pathlib import Path
 
-from llmw.frontmatter import split_frontmatter
+from llmw.frontmatter import set_fields, split_frontmatter
 from llmw.indexer import index_changed
 from llmw.locks import acquire_lock
 from llmw.log import append_log
@@ -21,6 +21,10 @@ from llmw.safety import require_reason, resolve_wiki_target
 
 class FileExistsConflictError(RuntimeError):
     pass
+
+
+class SupersedeTargetError(ValueError):
+    """`--supersedes` named a page that cannot be superseded."""
 
 
 class FileNotFoundForPatchError(RuntimeError):
@@ -46,13 +50,41 @@ def _backup(paths: ProjectPaths, fs_path: Path) -> Path:
 
 
 def write_page(
-    paths: ProjectPaths, rel_path: str, content: str, reason: str, force: bool = False
+    paths: ProjectPaths,
+    rel_path: str,
+    content: str,
+    reason: str,
+    force: bool = False,
+    supersedes: str | None = None,
 ) -> Path:
+    """Create a page, or replace one with force=True.
+
+    `supersedes` additionally marks an earlier page as replaced by this
+    one, in the same locked transaction: the new page gets `supersedes:`,
+    the old gets `status: superseded` and `superseded_by:`. That pairing
+    exists as one operation because the reverse pointer is the half that
+    gets forgotten when it is left to convention — and a page still
+    reading `status: active` weeks after it was overturned is exactly what
+    makes a later session trust a reversed decision.
+    """
     require_reason(reason)
     fs_path = resolve_wiki_target(paths, rel_path)
     split_frontmatter(content)  # raises InvalidFrontmatterError before touching disk
 
+    superseded_fs: Path | None = None
+    if supersedes is not None:
+        superseded_fs = resolve_wiki_target(paths, supersedes)
+        if superseded_fs == fs_path:
+            raise SupersedeTargetError("a page cannot supersede itself")
+        content = set_fields(content, {"supersedes": paths.rel(superseded_fs)})
+
     with acquire_lock(paths, "write"):
+        # Both existence checks run before either write: half-applied is
+        # the state this command exists to make impossible.
+        if superseded_fs is not None and not superseded_fs.is_file():
+            raise SupersedeTargetError(
+                f"{supersedes} does not exist, so there is nothing to supersede."
+            )
         if fs_path.exists() and not force:
             raise FileExistsConflictError(
                 f"{rel_path} already exists. Use --force to overwrite."
@@ -63,6 +95,28 @@ def write_page(
         fs_path.parent.mkdir(parents=True, exist_ok=True)
         fs_path.write_text(content, encoding="utf-8", newline="\n")
         append_log(paths, "write", paths.rel(fs_path), reason)
+
+        if superseded_fs is not None:
+            new_rel = paths.rel(fs_path)
+            # The flip is a mutation like any other: backed up and logged,
+            # so it can be undone and audited.
+            _backup(paths, superseded_fs)
+            superseded_fs.write_text(
+                set_fields(
+                    superseded_fs.read_text(encoding="utf-8"),
+                    {"status": "superseded", "superseded_by": new_rel},
+                ),
+                encoding="utf-8",
+                newline="\n",
+            )
+            append_log(
+                paths,
+                "supersede",
+                paths.rel(superseded_fs),
+                reason,
+                detail=f"superseded by {new_rel}",
+            )
+
         index_changed(paths)
 
     return fs_path

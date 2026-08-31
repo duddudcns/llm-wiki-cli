@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from llmw.korean import strip_josa
+from llmw.parser import SUPERSESSION_KINDS
 from llmw.paths import ProjectPaths
 from llmw.queries import IndexNotBuiltError, open_ro, outgoing_links, page_tags
 
@@ -54,6 +55,9 @@ class SearchResult:
     # purpose — see llmw.freshness.
     updated: str | None = None
     mtime: float | None = None
+    # Set only on a page some later page replaced, so the flag on the
+    # path line can name where the decision moved to.
+    superseded_by: str | None = None
     tags: list[str] = field(default_factory=list)
     links: list[str] = field(default_factory=list)
 
@@ -66,6 +70,7 @@ class SearchResult:
             "score": self.score,
             "updated": self.updated,
             "mtime": self.mtime,
+            "superseded_by": self.superseded_by,
             "summary": self.summary,
             "tags": self.tags,
             "links": self.links,
@@ -148,9 +153,21 @@ def _rows_to_results(conn, rows) -> list[SearchResult]:
     results = []
     for row in rows:
         links = outgoing_links(conn, row["id"])
+        # Supersession is the page's status, shown on the path line — it
+        # would only be noise repeated in the "what this links to" list.
         link_titles = [
-            (l["target_title"] or l["target_raw"]) for l in links if l["target_raw"]
+            (l["target_title"] or l["target_raw"])
+            for l in links
+            if l["target_raw"] and l["kind"] not in SUPERSESSION_KINDS
         ]
+        replaced_by = next(
+            (
+                (l["target_path"] or l["target_raw"])
+                for l in links
+                if l["kind"] == "superseded_by"
+            ),
+            None,
+        )
         results.append(
             SearchResult(
                 path=row["path"],
@@ -161,6 +178,7 @@ def _rows_to_results(conn, rows) -> list[SearchResult]:
                 summary=row["summary"],
                 updated=row["updated_at"],
                 mtime=row["mtime"],
+                superseded_by=replaced_by,
                 tags=page_tags(conn, row["id"]),
                 links=link_titles,
             )

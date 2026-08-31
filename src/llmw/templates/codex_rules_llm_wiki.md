@@ -6,6 +6,7 @@
 
 - Before substantial work, call `llmw_search` when prior context may matter; explicitly judge a task wiki-irrelevant when it does not.
 - After source changes, decide whether durable knowledge changed. Record decisions, non-obvious fixes, and workarounds with `llmw_write`/`llmw_edit`/`llmw_patch` and a meaningful `reason`.
+- When a new entry overturns an earlier one, pass `supersedes` with the old path rather than leaving the old page reading `status: active`.
 - Never use generic file-edit tools on `wiki/*.md`; mutate it only through MCP. `raw/` is immutable.
 
 ## Entry quality

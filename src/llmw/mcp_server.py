@@ -66,14 +66,25 @@ def llmw_write(
     reason: str,
     root: str | None = None,
     force: bool = False,
+    supersedes: str | None = None,
 ) -> dict[str, Any]:
     """Create a wiki page, or fully replace an existing one with force=true.
     For an existing page, prefer llmw_edit (small exact-text change) or
     llmw_patch (structural diff) over force=true unless most of the page
     is actually changing — this call requires resending the full content
-    either way."""
-    written = write_page(_paths(root), path, content, reason, force=force)
-    return {"path": str(written), "written": True}
+    either way.
+
+    Pass supersedes with the path of an earlier page this one overturns:
+    that page is marked status=superseded with a pointer here, in the same
+    write, so search stops returning it as the current answer."""
+    written = write_page(
+        _paths(root), path, content, reason, force=force, supersedes=supersedes
+    )
+    return {
+        "path": str(written),
+        "written": True,
+        "superseded": supersedes,
+    }
 
 
 @mcp.tool()
