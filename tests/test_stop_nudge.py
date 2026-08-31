@@ -179,6 +179,45 @@ def test_an_index_without_the_mapping_table_does_not_crash_the_hook(
     assert "record durable knowledge" in result["reason"]
 
 
+def test_the_most_recently_updated_pages_come_first(tmp_path: Path) -> None:
+    # A long-lived file accumulates decisions: `src/llmw/hook.py` is named
+    # by nine pages in this repo's own wiki. Ordering by path would name
+    # five of nine alphabetically and leave out the one written last,
+    # which is the one most likely to need the update.
+    paths = init_project(tmp_path)
+    for i, updated in enumerate(["2026-01-01", "2026-08-30", "2026-03-01"]):
+        page = tmp_path / "wiki" / "decisions" / f"page{i}.md"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(
+            f"---\ntitle: page{i}\ntype: decision\nstatus: active\n"
+            f"created: 2026-01-01\nupdated: {updated}\nsummary: s.\n"
+            f"code:\n  - src/shared.py\n---\n\n# page{i}\n\nBody.\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "src").mkdir(exist_ok=True)
+    (tmp_path / "src" / "shared.py").write_text("a\n", encoding="utf-8")
+    rebuild(paths)
+
+    _edit(paths, tmp_path / "src" / "shared.py")
+    reason = _stop(paths)["reason"]
+
+    named = [p for p in ("page1.md", "page2.md", "page0.md") if p in reason]
+    assert named == ["page1.md", "page2.md", "page0.md"], reason
+
+
+def test_a_truncated_list_says_how_many_it_left_out(tmp_path: Path) -> None:
+    # A cap that hides its own existence reads as "these are all of them",
+    # which is worse than the long list it replaced.
+    pages = {f"page{i:02d}": ["src/shared.py"] for i in range(9)}
+    paths = _project(tmp_path, pages)
+
+    _edit(paths, tmp_path / "src" / "shared.py")
+    reason = _stop(paths)["reason"]
+
+    assert reason.count("wiki/decisions/") == 5
+    assert "9" in reason, reason
+
+
 def test_a_wide_refactor_does_not_produce_a_wall_of_text(tmp_path: Path) -> None:
     # A twenty-file session would otherwise enumerate twenty files and
     # every page touching them, which is the reminder-fatigue this hook

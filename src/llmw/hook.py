@@ -495,13 +495,19 @@ def _update_gate_reason(paths: ProjectPaths, touched: object) -> str:
     if conn is None:
         return _UPDATE_GATE_MESSAGE
     try:
-        named = pages_declaring_files(conn, list(touched), _MAX_NAMED_PAGES)
+        named, total = pages_declaring_files(conn, list(touched), _MAX_NAMED_PAGES)
     finally:
         conn.close()
 
     if not named:
         return _UPDATE_GATE_MESSAGE
-    return f"{_UPDATE_GATE_MESSAGE}\nPages describing what changed: {', '.join(named)}"
+    # Say what was left out. A cap that hides itself reads as "these are
+    # all of them", which is worse than the long list it replaced.
+    more = f" (+{total - len(named)} more of {total})" if total > len(named) else ""
+    return (
+        f"{_UPDATE_GATE_MESSAGE}\n"
+        f"Pages describing what changed, newest first{more}: {', '.join(named)}"
+    )
 
 
 def evaluate_stop(payload: dict) -> dict | None:

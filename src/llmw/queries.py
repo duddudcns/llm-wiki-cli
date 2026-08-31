@@ -57,31 +57,40 @@ def find_page_row(conn: sqlite3.Connection, target: str) -> sqlite3.Row | None:
 
 def pages_declaring_files(
     conn: sqlite3.Connection, file_paths: list[str], limit: int
-) -> list[str]:
-    """Wiki pages whose `code:` frontmatter names any of `file_paths`.
+) -> tuple[list[str], int]:
+    """Wiki pages whose `code:` frontmatter names any of `file_paths`, most
+    recently updated first, plus the total number that matched.
 
-    Returns [] rather than raising when the mapping table is absent:
+    Newest first because a long-lived file accumulates decisions —
+    `src/llmw/hook.py` is named by nine pages in this project's own wiki —
+    and the page written last is the one most likely to need updating.
+    Ordering by path would instead pick five alphabetically and drop it.
+
+    The total is returned so the caller can say what it left out. A cap
+    that hides its own existence reads as "these are all of them", which
+    is worse than the long list it replaced.
+
+    Returns ([], 0) rather than raising when the mapping table is absent:
     `ensure_schema` runs only on write connects, so an index built before
     this table existed reaches here through `open_ro`, which never
     migrates. The caller degrades to its plain message.
     """
     if not file_paths:
-        return []
+        return [], 0
     placeholders = ",".join("?" * len(file_paths))
     try:
         rows = conn.execute(
             f"""
-            SELECT DISTINCT p.path
+            SELECT DISTINCT p.path, p.updated_at
             FROM page_files pf JOIN pages p ON p.id = pf.page_id
             WHERE pf.file_path IN ({placeholders})
-            ORDER BY p.path
-            LIMIT ?
+            ORDER BY p.updated_at DESC, p.path
             """,
-            (*file_paths, limit),
+            file_paths,
         ).fetchall()
     except sqlite3.OperationalError:
-        return []
-    return [row["path"] for row in rows]
+        return [], 0
+    return [row["path"] for row in rows[:limit]], len(rows)
 
 
 def outgoing_links(conn: sqlite3.Connection, page_id: int) -> list[sqlite3.Row]:
