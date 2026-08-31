@@ -37,11 +37,14 @@ SESSION = "stop-nudge-test"
 def _page(root: Path, name: str, code: list[str]) -> Path:
     page = root / "wiki" / "decisions" / f"{name}.md"
     page.parent.mkdir(parents=True, exist_ok=True)
-    listed = "".join(f"  - {c}\n" for c in code)
+    # No `code:` key at all when the list is empty — a bare `code:` is a
+    # real key with a null value, and a later edit adding a second one
+    # gives YAML a duplicate that resolves to the empty side.
+    listed = ("code:\n" + "".join(f"  - {c}\n" for c in code)) if code else ""
     page.write_text(
         f"---\ntitle: {name}\ntype: decision\nstatus: active\n"
         f"created: 2026-06-01\nupdated: 2026-06-01\n"
-        f"summary: How {name} works.\ncode:\n{listed}---\n\n# {name}\n\nBody.\n",
+        f"summary: How {name} works.\n{listed}---\n\n# {name}\n\nBody.\n",
         encoding="utf-8",
     )
     return page
@@ -201,8 +204,69 @@ def test_the_most_recently_updated_pages_come_first(tmp_path: Path) -> None:
     _edit(paths, tmp_path / "src" / "shared.py")
     reason = _stop(paths)["reason"]
 
-    named = [p for p in ("page1.md", "page2.md", "page0.md") if p in reason]
-    assert named == ["page1.md", "page2.md", "page0.md"], reason
+    order = [n for _, n in sorted(
+        (reason.index(p), p) for p in ("page0.md", "page1.md", "page2.md")
+    )]
+    assert order == ["page1.md", "page2.md", "page0.md"], reason
+
+
+def test_ordering_survives_mixed_date_formats(tmp_path: Path) -> None:
+    # `pages.updated_at` is TEXT straight from frontmatter, and the parser
+    # legitimately produces three shapes: `2026-07-13`, `20260713` (an
+    # unquoted YAML integer, which is compact ISO 8601 and means the same
+    # day), and `2026-07-13T09:30:00`. Sorting those as strings puts every
+    # compact date above every hyphenated one — '-' is 0x2D and '0' is
+    # 0x30 — so an old page outranks a new one purely on punctuation.
+    paths = init_project(tmp_path)
+    dates = {"oldest": "20260101", "middle": "2026-05-05T09:30:00", "newest": "2026-08-30"}
+    for name, updated in dates.items():
+        page = tmp_path / "wiki" / "decisions" / f"{name}.md"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(
+            f"---\ntitle: {name}\ntype: decision\nstatus: active\n"
+            f"created: 2026-01-01\nupdated: {updated}\nsummary: s.\n"
+            f"code:\n  - src/shared.py\n---\n\n# {name}\n\nBody.\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "src").mkdir(exist_ok=True)
+    (tmp_path / "src" / "shared.py").write_text("a\n", encoding="utf-8")
+    rebuild(paths)
+
+    _edit(paths, tmp_path / "src" / "shared.py")
+    reason = _stop(paths)["reason"]
+
+    order = [n for _, n in sorted(
+        (reason.index(f"{n}.md"), n) for n in ("newest", "middle", "oldest")
+    )]
+    assert order == ["newest", "middle", "oldest"], reason
+
+
+def test_a_code_ref_added_by_edit_is_indexed_without_a_rebuild(
+    tmp_path: Path,
+) -> None:
+    # The path every real adoption takes: someone runs `llmw edit` to add
+    # `code:` to an existing page. That goes through `index_changed` and
+    # the incremental sync, not `rebuild` — which every other test here
+    # calls explicitly.
+    from llmw.writer import edit_page
+
+    paths = _project(tmp_path, {"retry": []})
+    (tmp_path / "src").mkdir(exist_ok=True)
+    (tmp_path / "src" / "uploader.py").write_text("a\n", encoding="utf-8")
+
+    edit_page(
+        paths,
+        "wiki/decisions/retry.md",
+        "updated: 2026-06-01",
+        "updated: 2026-06-01\ncode:\n  - src/uploader.py",
+        reason="declare the file this page describes",
+    )
+
+    _edit(paths, tmp_path / "src" / "uploader.py")
+    result = _stop(paths)
+
+    assert result is not None
+    assert "wiki/decisions/retry.md" in result["reason"]
 
 
 def test_a_truncated_list_says_how_many_it_left_out(tmp_path: Path) -> None:

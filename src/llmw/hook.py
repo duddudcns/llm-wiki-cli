@@ -258,7 +258,14 @@ def evaluate_pretooluse(payload: dict) -> dict | None:
 def _touched_rel(paths: ProjectPaths, payload: dict) -> list[str]:
     """The edited file as a project-root-relative POSIX path, to match the
     shape pages declare in `code:`. Empty when the path is outside the
-    project or unreadable — the nudge simply names no pages then."""
+    project or unreadable — the nudge simply names no pages then.
+
+    Covers the native Edit/Write tools only. A source file rewritten
+    through the shell (`sed -i`, a `>` redirect, a script) arrives as
+    `tool_input.command` and is handled by `_evaluate_shell_pretooluse`,
+    which deliberately keeps its hands off session state — so a
+    shell-driven session still gets the plain reminder, not a named page.
+    """
     raw = (payload.get("tool_input") or {}).get("file_path")
     if not raw:
         return []

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import sqlite3
 
 from llmw.paths import ProjectPaths
@@ -84,13 +85,29 @@ def pages_declaring_files(
             SELECT DISTINCT p.path, p.updated_at
             FROM page_files pf JOIN pages p ON p.id = pf.page_id
             WHERE pf.file_path IN ({placeholders})
-            ORDER BY p.updated_at DESC, p.path
             """,
             file_paths,
         ).fetchall()
     except sqlite3.OperationalError:
         return [], 0
-    return [row["path"] for row in rows[:limit]], len(rows)
+
+    # Sorted here rather than in SQL: `updated_at` is TEXT straight from
+    # frontmatter, and `ORDER BY` on it compares strings. An unquoted
+    # `updated: 20260101` then outranks every hyphenated date, however
+    # recent, because `-` is 0x2D and `0` is 0x30. A page with no usable
+    # date sorts last rather than being dropped.
+    from llmw.freshness import as_date
+
+    ordered = sorted(
+        rows,
+        # Newest date first, then path ascending — a blanket `reverse=True`
+        # would also flip the tiebreaker into reverse alphabetical.
+        key=lambda row: (
+            datetime.date.max - (as_date(row["updated_at"]) or datetime.date.min),
+            row["path"],
+        ),
+    )
+    return [row["path"] for row in ordered[:limit]], len(ordered)
 
 
 def outgoing_links(conn: sqlite3.Connection, page_id: int) -> list[sqlite3.Row]:

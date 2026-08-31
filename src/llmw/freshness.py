@@ -29,13 +29,25 @@ import datetime
 _DIVERGENCE_DAYS = 1
 
 
-def _parse_iso_date(value: object) -> datetime.date | None:
+def as_date(value: object) -> datetime.date | None:
+    """The date a frontmatter value means, or None if it isn't one.
+
+    Frontmatter reaches the index as text and legitimately arrives in
+    three shapes: `2026-07-13`, `20260713` (an unquoted YAML integer,
+    which is compact ISO 8601 for the same day), and
+    `2026-07-13T09:30:00`. Anything comparing or ordering these has to go
+    through here — comparing them as strings puts every compact date
+    above every hyphenated one, since `-` is 0x2D and `0` is 0x30.
+    """
     if not value:
         return None
     try:
         return datetime.date.fromisoformat(str(value)[:10])
     except (ValueError, TypeError):
         return None
+
+
+_parse_iso_date = as_date
 
 
 def _mtime_date(mtime: float | None) -> datetime.date | None:
