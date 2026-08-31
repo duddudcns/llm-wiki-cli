@@ -266,7 +266,9 @@ def _touched_rel(paths: ProjectPaths, payload: dict) -> list[str]:
     which deliberately keeps its hands off session state — so a
     shell-driven session still gets the plain reminder, not a named page.
     """
-    raw = (payload.get("tool_input") or {}).get("file_path")
+    # `_target_path`, not `file_path` directly: NotebookEdit is already
+    # one of the guarded tools and carries `notebook_path` instead.
+    raw = _target_path(payload.get("tool_input") or {})
     if not raw:
         return []
     try:

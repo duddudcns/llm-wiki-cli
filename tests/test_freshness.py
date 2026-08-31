@@ -73,12 +73,13 @@ def test_a_claim_in_the_future_drops_the_age_but_keeps_the_date() -> None:
     assert describe("2026-09-12", None, today=TODAY) == "2026-09-12"
 
 
-def test_a_missing_claim_falls_back_to_the_observation_and_says_so() -> None:
-    # Labelled as an observation, never dressed up as a verification date
-    # the page never made.
-    assert describe(None, _observed(2026, 8, 31), today=TODAY) == (
-        "unknown (body changed 2026-08-31)"
-    )
+def test_a_page_that_makes_no_claim_gets_no_freshness_line() -> None:
+    # "unknown (body changed X)" answers a question nobody asked and reads
+    # like a warning. An `llmw archive` tombstone carries no `updated` and
+    # no content but "see elsewhere", so it hit this on every search. The
+    # missing field is reported where it belongs: `llmw lint`, and the
+    # writer's own notice at the moment of writing.
+    assert describe(None, _observed(2026, 8, 31), today=TODAY) is None
 
 
 def test_nothing_at_all_yields_nothing() -> None:

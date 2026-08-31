@@ -151,6 +151,42 @@ def test_touched_files_accumulate_across_a_turn(tmp_path: Path) -> None:
     assert "parsing.md" in result["reason"]
 
 
+def test_a_notebook_edit_is_tracked_like_any_other(tmp_path: Path) -> None:
+    # NotebookEdit is already one of the guarded tools and carries its
+    # path as `notebook_path`. Reading only `file_path` here meant a
+    # notebook-heavy session silently got the plain reminder, while the
+    # helper that handles both already existed two functions away.
+    paths = _project(tmp_path, {"analysis": ["notebooks/explore.ipynb"]})
+
+    evaluate_pretooluse(
+        {
+            "tool_name": "NotebookEdit",
+            "tool_input": {
+                "notebook_path": str(tmp_path / "notebooks" / "explore.ipynb"),
+                "new_source": "print(1)",
+            },
+            "session_id": SESSION,
+            "cwd": str(paths.project_root),
+        }
+    )
+    result = _stop(paths)
+
+    assert result is not None
+    assert "wiki/decisions/analysis.md" in result["reason"]
+
+
+def test_a_code_ref_under_a_dot_directory_still_matches(tmp_path: Path) -> None:
+    # `lstrip("./")` strips characters, not a prefix, so `.github/...`
+    # was indexed as `github/...` and could never match an edited path.
+    paths = _project(tmp_path, {"ci": [".github/workflows/ci.yml"]})
+
+    _edit(paths, tmp_path / ".github" / "workflows" / "ci.yml")
+    result = _stop(paths)
+
+    assert result is not None
+    assert "wiki/decisions/ci.md" in result["reason"]
+
+
 def test_touched_is_cleared_with_dirty(tmp_path: Path) -> None:
     # `dirty` resets once the reminder fires, so a later turn does not
     # re-block. `touched` must reset with it or the next episode names

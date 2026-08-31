@@ -28,19 +28,28 @@ por última vez:
    summary: ...
 ```
 
-Si el archivo en el disco es más nuevo que la fecha que la nota dice, verás
-ambas:
+Si `llmw` ha visto que el cuerpo de la nota cambió después de la fecha que
+la nota dice, verás ambas:
 
 ```
-   updated: 2026-07-13 (49d ago, file modified 2026-08-31)
+   updated: 2026-07-13 (49d ago, body changed 2026-08-31)
 ```
 
-Esa diferencia significa que alguien editó el cuerpo de la nota y no
+Esa diferencia significa que alguien reescribió lo que la nota dice y no
 actualizó su fecha — así que la nota podría describir algo más nuevo, o
 más viejo, de lo que dice. Mostrar ambos números es deliberado: elegir uno
-convertiría silenciosamente "cuándo alguien tocó por última vez este
-archivo" en "cuándo alguien verificó que esto seguía siendo verdad", y
-esas no son la misma cosa.
+convertiría silenciosamente "cuándo alguien cambió esto por última vez"
+en "cuándo alguien verificó que esto seguía siendo verdad", y esas no son
+la misma cosa.
+
+**El cuerpo, no el archivo.** Marcar una nota como reemplazada, agregar una
+lista `code:`, o arreglar una etiqueta reescribe el archivo sin cambiar una
+sola palabra de lo que la nota dice — y se te dice que *no* toques la fecha
+para eso. Una versión anterior de esto comparaba timestamps del archivo, y
+un ciclo de mantenimiento en el wiki de este proyecto dejó una advertencia
+permanente "esto cambió" en 21 de sus 31 notas, ninguna de las cuales lo
+había hecho. Una advertencia que casi siempre está equivocada es una que
+dejas de leer.
 
 `llmw read <path> --full` se deja solo — imprime la nota y nada más,
 porque ese texto exacto es lo que se usa para hacer ediciones cuidadosas.

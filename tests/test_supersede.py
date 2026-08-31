@@ -180,6 +180,65 @@ def test_supersede_refuses_an_unknown_target_and_writes_nothing(
     assert not (tmp_path / NEW).exists()
 
 
+def test_a_failed_flip_rolls_the_new_page_back(tmp_path: Path) -> None:
+    # The existence checks cover the check phase, but the flip itself can
+    # still fail — a read-only old page, a permissions change, a full
+    # disk. Leaving the new page written and the old one unflipped is
+    # exactly the half-applied state this command exists to prevent, and
+    # `archive.py` already rolls its copy back in the mirror situation.
+    import pytest
+    from unittest.mock import patch
+
+    from llmw.paths import ProjectPaths
+    from llmw.writer import write_page
+
+    _project(tmp_path)
+    paths = ProjectPaths.for_project_root(tmp_path)
+    real_write = Path.write_text
+
+    def fail_on_the_old_page(self, *args, **kwargs):
+        if self.name == "retry-in-the-client.md":
+            raise OSError("permission denied")
+        return real_write(self, *args, **kwargs)
+
+    with patch.object(Path, "write_text", fail_on_the_old_page):
+        with pytest.raises(OSError):
+            write_page(paths, NEW, NEW_CONTENT, reason="r", supersedes=OLD)
+
+    assert not (tmp_path / NEW).exists(), "the new page outlived the failed flip"
+
+
+def test_a_hand_written_pointer_reads_as_superseded_not_as_active(
+    tmp_path: Path,
+) -> None:
+    # `--supersedes` always sets both keys, but a hand-edited page can
+    # carry `superseded_by` with `status` left at `active`. Rendering the
+    # raw status then produced `[active -> other-page.md]`, which reads as
+    # nonsense. The pointer is the supersession claim, so it decides the
+    # word; a contradictory `status` is a content problem for `llmw lint`,
+    # not something to spell out on the path line.
+    run(tmp_path, "init")
+    page = tmp_path / OLD
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "---\ntitle: Retry budget lives in the client\ntype: decision\n"
+        "status: active\ncreated: 2026-06-01\nupdated: 2026-06-01\n"
+        "summary: The client counts retries.\n"
+        f"superseded_by: {NEW}\n---\n\n# Old\n\nThe client counts retries.\n",
+        encoding="utf-8",
+    )
+    run(tmp_path, "rebuild")
+
+    result = run(tmp_path, "search", "retry budget client")
+
+    assert result.returncode == 0, result.stderr
+    path_line = next(
+        line for line in result.stdout.splitlines() if "retry-in-the-client.md" in line
+    )
+    assert "[superseded ->" in path_line
+    assert "active" not in path_line
+
+
 def test_supersede_refuses_to_point_a_page_at_itself(tmp_path: Path) -> None:
     _project(tmp_path)
 

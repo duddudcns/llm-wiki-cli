@@ -174,17 +174,27 @@ def write_page(
 
         if superseded_fs is not None:
             new_rel = paths.rel(fs_path)
-            # The flip is a mutation like any other: backed up and logged,
-            # so it can be undone and audited.
-            _backup(paths, superseded_fs)
-            superseded_fs.write_text(
-                set_fields(
-                    superseded_fs.read_text(encoding="utf-8"),
-                    {"status": "superseded", "superseded_by": new_rel},
-                ),
-                encoding="utf-8",
-                newline="\n",
-            )
+            try:
+                # The flip is a mutation like any other: backed up and
+                # logged, so it can be undone and audited.
+                _backup(paths, superseded_fs)
+                superseded_fs.write_text(
+                    set_fields(
+                        superseded_fs.read_text(encoding="utf-8"),
+                        {"status": "superseded", "superseded_by": new_rel},
+                    ),
+                    encoding="utf-8",
+                    newline="\n",
+                )
+            except OSError:
+                # The new page landed but the flip did not — a read-only
+                # old page, a permissions change, a full disk. Remove the
+                # new page rather than leave it claiming to supersede
+                # something nothing marks: that is exactly the
+                # half-applied state this command exists to prevent, and
+                # `archive.py` rolls its copy back for the same reason.
+                fs_path.unlink(missing_ok=True)
+                raise
             append_log(
                 paths,
                 "supersede",

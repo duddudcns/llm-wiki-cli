@@ -6,7 +6,8 @@
 
 - Before substantial work, call `llmw_search` when prior context may matter; explicitly judge a task wiki-irrelevant when it does not.
 - After source changes, decide whether durable knowledge changed. Record decisions, non-obvious fixes, and workarounds with `llmw_write`/`llmw_edit`/`llmw_patch` and a meaningful `reason`.
-- When a new entry overturns an earlier one, pass `supersedes` with the old path rather than leaving the old page reading `status: active`.
+- When a new entry *wholly* replaces an earlier one, write it with `supersedes` with the old path rather than leaving the old page reading `status: active`. A partial overturn keeps the old page active — mark the superseded claim inline instead, since `status: superseded` says the whole page is no longer current.
+- Bump `updated` when you re-checked a page's claims against current code. Adding a link, fixing a typo, or appending a dated section restates nothing, and stamping today's date on unverified claims is the error that causes wrong decisions.
 - Never use generic file-edit tools on `wiki/*.md`; mutate it only through MCP. `raw/` is immutable.
 
 ## Entry quality

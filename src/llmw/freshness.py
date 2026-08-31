@@ -77,12 +77,14 @@ def describe(
     modified = as_date(body_changed_at)
 
     if claimed is None:
-        if updated:
-            # Present but not a date we understand — pass it through.
-            return str(updated)
-        if modified is None:
-            return None
-        return f"unknown (body changed {modified.isoformat()})"
+        # Present but not a date we understand — pass it through, since
+        # the agent can read a typo but not a field we swallowed.
+        # Absent entirely: say nothing. "unknown (body changed X)" answers
+        # a question nobody asked and reads like a warning, and an
+        # `llmw archive` tombstone — no `updated`, no content but a
+        # redirect — would carry it on every search. A missing `updated`
+        # is reported by `llmw lint` and by the writer at write time.
+        return str(updated) if updated else None
 
     notes = []
     age_days = (today - claimed).days

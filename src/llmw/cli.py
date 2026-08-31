@@ -313,8 +313,13 @@ def search(
         # without reading the flag. `active` is the overwhelming majority
         # and printing it would only train the reader to skip the field.
         flag = f" [{r.status}]" if r.status and r.status != "active" else ""
+        # The pointer decides the word, not `status`. `--supersedes` always
+        # writes both, but a hand-edited page can carry `superseded_by`
+        # with `status` still `active`, which rendered as
+        # `[active -> other.md]`. A contradiction like that is a content
+        # problem for `llmw lint`, not something to spell out here.
         if r.superseded_by:
-            flag = f" [{r.status or 'superseded'} -> {r.superseded_by}]"
+            flag = f" [superseded -> {r.superseded_by}]"
         console.print(f"{i}. {r.path}{flag}")
         # Pages stamp their era in the title by convention — "(v0.1.18)" —
         # and this surface used to drop it on the floor.

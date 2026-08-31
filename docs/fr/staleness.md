@@ -26,18 +26,25 @@ Les résultats affichent maintenant le titre de la note et quand elle a été mi
    summary: ...
 ```
 
-Si le fichier sur le disque est plus récent que la date que la note indique, vous verrez
+Si `llmw` a vu le corps de la note changer depuis la date que la note indique, vous verrez
 les deux :
 
 ```
-   updated: 2026-07-13 (49d ago, file modified 2026-08-31)
+   updated: 2026-07-13 (49d ago, body changed 2026-08-31)
 ```
 
-Cet écart signifie que quelqu'un a modifié le corps de la note et n'a pas mis à jour sa
+Cet écart signifie que quelqu'un a reécrit ce que la note dit et n'a pas mis à jour sa
 date — donc la note peut décrire quelque chose de plus récent, ou de plus ancien, que ce qu'elle dit.
 Afficher les deux nombres c'est fait exprès : en choisir un transformerait silencieusement « quand quelqu'un
-a touché ce fichier pour la dernière fois » en « quand quelqu'un a vérifié pour la dernière fois que
+a changé ceci pour la dernière fois » en « quand quelqu'un a vérifié pour la dernière fois que
 c'était encore vrai », et ce ne sont pas du tout la même chose.
+
+**Le corps, pas le fichier.** Marquer une note comme remplacée, ajouter une liste `code:`,
+ou corriger une étiquette réécrit le fichier sans changer un mot de ce que la note dit — et on vous dit
+de *ne pas* toucher à la date pour ça. Une version antérieure de cela comparait les timestamps du fichier,
+et une passe de maintenance sur le propre wiki de ce projet a laissé un avertissement permanent « c'est changé »
+sur 21 de ses 31 notes, dont aucune ne l'était réellement. Un avertissement qui est généralement faux,
+c'est un avertissement qu'on arrête de lire.
 
 `llmw read <path> --full` est laissé tranquille — ça imprime la note et rien d'autre,
 parce que ce texte exact est celui qui sera utilisé pour faire des modifications réfléchies.

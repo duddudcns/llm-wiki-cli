@@ -26,18 +26,26 @@ Results now show the note's title and when it was last brought up to date:
    summary: ...
 ```
 
-If the file on disk is newer than the date the note claims, you'll see
-both:
+If `llmw` has seen the note's body change since the date the note claims,
+you'll see both:
 
 ```
-   updated: 2026-07-13 (49d ago, file modified 2026-08-31)
+   updated: 2026-07-13 (49d ago, body changed 2026-08-31)
 ```
 
-That gap means somebody edited the note's body and didn't update its
-date — so the note may describe something newer, or older, than it says.
-Showing both numbers is deliberate: picking one would quietly turn "when
-someone last touched this file" into "when someone last checked this was
-still true", and those are not the same thing.
+That gap means somebody rewrote what the note says and didn't update its
+date — so the note may describe something newer than it claims. Showing
+both numbers is deliberate: picking one would quietly turn "when someone
+last changed this" into "when someone last checked this was still true",
+and those are not the same thing.
+
+**The body, not the file.** Marking a note replaced, adding a `code:`
+list, or fixing a tag rewrites the file without changing a word of what
+the note says — and you're told *not* to touch the date for those. An
+earlier version of this compared file timestamps instead, and one
+housekeeping pass across this project's own wiki left a permanent "this
+changed" warning on 21 of its 31 notes, none of which had. A warning that
+is usually wrong is one you stop reading.
 
 `llmw read <path> --full` is left alone — it prints the note and nothing
 else, because that exact text is what gets used to make careful edits.
