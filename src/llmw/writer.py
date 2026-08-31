@@ -101,6 +101,12 @@ def _notice_unbumped_updated(
         before_fm.get("updated") or before_fm.get("last_updated")
     ):
         return
+    # A page restated today has nothing to restate. Found on this
+    # notice's first real use, editing a page written earlier the same
+    # session: a notice that fires when no action is available is the
+    # kind that teaches the reader to ignore it.
+    if str(claimed)[:10] == datetime.date.today().isoformat():
+        return
     on_notice(
         f"{rel_path}: body changed, 'updated: {claimed}' not bumped — restate it "
         f"if this page now describes current code"

@@ -22,6 +22,7 @@ Notices go to stderr so they never enter a stream something parses.
 
 from __future__ import annotations
 
+import datetime
 import os
 import subprocess
 import sys
@@ -113,8 +114,10 @@ def test_restating_the_claim_in_the_same_write_is_silent(tmp_path: Path) -> None
         f"--- a/{PAGE}\n+++ b/{PAGE}\n"
         "@@ -5,3 +5,3 @@\n"
         " created: 2026-06-01\n"
+        # A past date, not today's: otherwise this would also pass under
+        # the restated-today rule and stop testing the bump itself.
         "-updated: 2026-06-01\n"
-        "+updated: 2026-08-31\n"
+        "+updated: 2026-07-15\n"
         " summary: Who counts retries.\n"
         "@@ -10,3 +10,3 @@\n"
         " # Retry budget\n \n"
@@ -126,6 +129,25 @@ def test_restating_the_claim_in_the_same_write_is_silent(tmp_path: Path) -> None
 
     assert result.returncode == 0, result.stderr
     assert result.stderr == ""
+
+
+def test_an_edit_to_a_page_restated_today_is_silent(tmp_path: Path) -> None:
+    # Found on the notice's first real use: editing a page written earlier
+    # the same day fired "not bumped" at a claim that was already current.
+    # There is nothing to restate, and a notice that fires when no action
+    # is available is the kind that teaches the reader to ignore it.
+    today = datetime.date.today().isoformat()
+    _seeded(tmp_path, COMPLETE.replace("updated: 2026-06-01", f"updated: {today}"))
+
+    result = run(
+        tmp_path, "edit", PAGE,
+        "--old", "The uploader owns the retry budget.",
+        "--new", "The client owns the retry budget again.",
+        "--reason", "reverse the decision",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "not bumped" not in result.stderr
 
 
 def test_an_edit_that_only_touches_frontmatter_is_silent(tmp_path: Path) -> None:
