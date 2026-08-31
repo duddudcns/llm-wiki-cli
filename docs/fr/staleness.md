@@ -49,6 +49,8 @@ c'est un avertissement qu'on arrête de lire.
 `llmw read <path> --full` est laissé tranquille — ça imprime la note et rien d'autre,
 parce que ce texte exact est celui qui sera utilisé pour faire des modifications réfléchies.
 
+**Exécutez `llmw rebuild` une fois après la mise à jour.** Les notes indexées par une version antérieure n'ont pas d'enregistrement de leur corps. Ainsi, la première modification passe inaperçue et seule la deuxième est détectée. Une seule reconstruction comble cela pour toutes les notes à la fois.
+
 ## 2. Remplacer une vieille décision la marque en une seule étape
 
 Quand une nouvelle note renverse une ancienne, écrivez-la avec `--supersedes` :

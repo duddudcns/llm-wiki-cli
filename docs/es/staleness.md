@@ -54,6 +54,8 @@ dejas de leer.
 `llmw read <path> --full` se deja solo — imprime la nota y nada más,
 porque ese texto exacto es lo que se usa para hacer ediciones cuidadosas.
 
+**Ejecuta `llmw rebuild` una vez después de actualizar.** Las notas indexadas por una versión anterior no tienen registro de su cuerpo, así que la primera edición pasa desapercibida y solo la segunda se detecta. Un rebuild llena esto para todas las notas de una vez.
+
 ## 2. Reemplazar una decisión vieja la marca, en un paso
 
 Cuando una nota nueva reemplaza una más antigua, escríbela con `--supersedes`:

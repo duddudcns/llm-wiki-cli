@@ -50,6 +50,11 @@ is usually wrong is one you stop reading.
 `llmw read <path> --full` is left alone — it prints the note and nothing
 else, because that exact text is what gets used to make careful edits.
 
+**Run `llmw rebuild` once after upgrading.** Notes indexed by an older
+version have no record of their body yet, so the very first edit to one
+passes unnoticed and only the second is picked up. One rebuild fills that
+in for every note at once.
+
 ## 2. Replacing an old decision marks it, in one step
 
 When a new note overturns an older one, write it with `--supersedes`:
