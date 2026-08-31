@@ -205,3 +205,28 @@ def test_read_full_output_stays_byte_exact(tmp_path: Path) -> None:
     assert result.stdout == page.read_text(encoding="utf-8") + "\n"
     assert "file modified" not in result.stdout
     assert "d ago" not in result.stdout
+
+
+def test_mcp_search_and_read_carry_the_freshness_fields(tmp_path: Path) -> None:
+    # The Codex skill tells an agent working through MCP to check
+    # `updated` before trusting a page's file/function detail, and Claude's
+    # PreToolUse matcher lists `mcp__llm-wiki__llmw_search`, so this is a
+    # live read surface here too. The guidance is only true while
+    # `llmw_search`/`llmw_read` return `as_dict()` verbatim
+    # (`mcp_server.py:53`, `:59`) — the day either hand-builds a payload,
+    # the instruction points at a field the host never sees and nothing
+    # else would notice.
+    from llmw import mcp_server
+
+    updated = _days_ago(49)
+    _project(tmp_path, title="Retry budget", status="active", updated=updated)
+
+    found = mcp_server.llmw_search("retry budget", root=str(tmp_path))
+    assert found["results"][0]["updated"] == updated
+    assert found["results"][0]["mtime"] > 0
+
+    page_payload = mcp_server.llmw_read(
+        "wiki/decisions/retry-budget.md", root=str(tmp_path)
+    )
+    assert page_payload["updated"] == updated
+    assert page_payload["mtime"] > 0

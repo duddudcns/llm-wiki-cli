@@ -43,6 +43,20 @@ def test_a_file_touched_the_same_day_is_not_divergence() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("mtime_day", "expected_note"),
+    [(1, False), (2, True)],
+)
+def test_divergence_needs_more_than_a_day_of_gap(
+    mtime_day: int, expected_note: bool
+) -> None:
+    # The boundary itself: `updated` has day resolution and a page is
+    # written to disk moments after it is set, so one day of slack is
+    # noise. Two days means somebody came back and changed the body.
+    result = describe("2026-08-01", _mtime(2026, 8, 1 + mtime_day), today=TODAY)
+    assert ("file modified" in result) is expected_note
+
+
 def test_a_file_older_than_its_claim_is_not_divergence() -> None:
     # Backdated only in the harmless direction — a `git checkout` resets
     # mtimes without touching content.
