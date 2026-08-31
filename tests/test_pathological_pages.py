@@ -21,6 +21,7 @@ exactly the population that has no other safety net.
 from __future__ import annotations
 
 import sqlite3
+import datetime
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,20 @@ PATHOLOGICAL: dict[str, str] = {
     ),
 }
 
+# Which shapes must reach the index and which must be reported as errors.
+# `pages_indexed > 0` would pass while twenty of them silently fell out —
+# and "the page is silently absent from the index" is exactly the defect
+# this file exists to catch. Pinning the split turns any future "that
+# shape quietly stopped indexing" into a named failure.
+EXPECTED_ERRORED = {
+    "unterminated_quote",
+    "fence_inside_broken_frontmatter",
+    "tilde_fence_inside_broken",
+    "frontmatter_is_a_list",
+    "frontmatter_is_a_scalar",
+}
+EXPECTED_INDEXED = set(PATHOLOGICAL) - EXPECTED_ERRORED
+
 REPLACEMENT = (
     "---\ntitle: Replacement\ntype: decision\nstatus: active\n"
     "created: 2026-08-31\nupdated: 2026-08-31\nsummary: s.\n---\n\n# R\n\nBody.\n"
@@ -122,19 +137,37 @@ def test_indexing_the_whole_corpus_reports_errors_without_aborting(
     # One unreadable page must not stop the rest from being indexed; a
     # rebuild that aborts leaves the wiki invisible until someone repairs
     # a file they have not been told about.
-    stats = rebuild(_paths(loaded))
+    paths = _paths(loaded)
+    stats = rebuild(paths)
 
     assert stats.files_scanned >= len(PATHOLOGICAL)
-    assert stats.pages_indexed > 0
     # Anything that failed says which file and why, rather than vanishing.
     for path, message in stats.errors:
         assert path and message
+
+    conn = sqlite3.connect(paths.index_db)
+    try:
+        indexed = {
+            Path(row[0]).stem
+            for row in conn.execute("SELECT path FROM pages")
+        }
+    finally:
+        conn.close()
+    assert EXPECTED_INDEXED <= indexed, EXPECTED_INDEXED - indexed
+    assert not (EXPECTED_ERRORED & indexed), EXPECTED_ERRORED & indexed
 
 
 def test_search_answers_over_the_whole_corpus(loaded: Path) -> None:
     response = search(_paths(loaded), "body", limit=50)
 
-    assert response.results
+    # Named pages, not just "some results": asserting the list is
+    # non-empty passes while any particular shape has quietly stopped
+    # being findable. These three all literally contain "Body." and their
+    # frontmatter parses, so each must come back.
+    found = {Path(r.path).stem for r in response.results}
+    assert {"crlf", "bom", "compact_date"} <= found, found
+    # And one that must not: its body is Korean and mentions no such word.
+    assert "unicode_and_emoji" not in found
     for result in response.results:
         # Rendering must not depend on any field being present.
         assert result.path
@@ -170,6 +203,17 @@ def test_freshness_renders_for_every_page_without_raising(loaded: Path) -> None:
         line = describe(row["updated_at"], row["body_changed_at"])
         assert line is None or isinstance(line, str)
 
+    # Not a tautology: at least one shape has to actually render, or the
+    # loop above is satisfied by a `describe` that answers None to
+    # everything — which is what a dead feature looks like.
+    rendered = [
+        describe(row["updated_at"], row["body_changed_at"]) for row in rows
+    ]
+    assert any(line for line in rendered), "no page rendered a freshness line"
+    assert describe("2026-01-01", None, today=datetime.date(2026, 8, 31)) == (
+        "2026-01-01 (242d ago)"
+    )
+
 
 def test_lint_reports_rather_than_raises(loaded: Path) -> None:
     report = run_lint(_paths(loaded))
@@ -177,7 +221,8 @@ def test_lint_reports_rather_than_raises(loaded: Path) -> None:
     # The corpus is deliberately broken, so lint must find things — and
     # must survive finding them.
     assert not report.is_clean()
-    assert isinstance(report.as_dict(), dict)
+    flagged = {Path(entry["path"]).stem for entry in report.invalid_frontmatter}
+    assert EXPECTED_ERRORED <= flagged, EXPECTED_ERRORED - flagged
 
 
 def test_the_stop_hook_answers_over_a_broken_corpus(loaded: Path) -> None:
@@ -204,6 +249,10 @@ def test_the_stop_hook_answers_over_a_broken_corpus(loaded: Path) -> None:
 
     assert result is not None
     assert "record durable knowledge" in result["reason"]
+    # The named-pages half, over a corpus where five shapes fail to
+    # index: `code_is_a_string` declares `code: src/one.py` as a scalar
+    # rather than a list, which the reader must still normalize.
+    assert "code_is_a_string.md" in result["reason"], result["reason"]
 
 
 @pytest.mark.parametrize("name", sorted(PATHOLOGICAL))
@@ -303,3 +352,126 @@ def test_a_code_ref_escaping_the_project_is_never_matched(tmp_path: Path) -> Non
 
     assert refs == ["../../etc/passwd"]
     assert not any(Path(ref).is_absolute() for ref in refs)
+
+
+def test_a_backdated_page_actually_renders_a_divergence_note(tmp_path: Path) -> None:
+    """The read-side divergence surface, in its *firing* state.
+
+    Every corpus test here creates its scaffolding today, and
+    `body_changed_at` starts None on a page seen for the first time, so
+    divergence cannot render in any of them — the whole surface was
+    exercised only while silent. That is exactly how `wiki/log.md` came
+    to carry a permanent note nobody's test could see.
+    """
+    paths = init_project(tmp_path)
+    page = tmp_path / "wiki" / "decisions" / "old.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(
+        "---\ntitle: Old\ntype: decision\nstatus: active\ncreated: 2026-01-01\n"
+        "updated: 2026-01-01\nsummary: s.\n---\n\n# Old\n\nThe uploader owns it.\n",
+        encoding="utf-8",
+    )
+    rebuild(paths)
+
+    from llmw.writer import edit_page
+
+    edit_page(
+        paths, "wiki/decisions/old.md",
+        "The uploader owns it.", "The client owns it again.",
+        reason="reverse it",
+    )
+
+    from llmw.freshness import describe
+
+    conn = sqlite3.connect(paths.index_db)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT updated_at, body_changed_at FROM pages WHERE path = ?",
+            ("wiki/decisions/old.md",),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    today = datetime.date.today().isoformat()
+    assert describe(row["updated_at"], row["body_changed_at"]) == (
+        f"2026-01-01 ({(datetime.date.today() - datetime.date(2026, 1, 1)).days}d ago, "
+        f"body changed {today})"
+    )
+
+
+def test_the_activity_log_never_diverges_from_itself(tmp_path: Path) -> None:
+    """`append_log` writes this page's body on every mutation.
+
+    Its `updated` was written once by `init` and — by the write-side rule
+    — must never be bumped for an ordinary edit, so the read side showed
+    a permanent "body changed" note the agent could not act on: bumping it
+    by hand re-diverges on the next append. For a running log an append
+    *is* the restatement, so the append does the bump.
+    """
+    from llmw.freshness import describe
+    from llmw.writer import write_page
+
+    paths = init_project(tmp_path)
+    log = paths.wiki_log
+    log.write_text(
+        log.read_text(encoding="utf-8").replace(
+            f"updated: {datetime.date.today().isoformat()}", "updated: 2026-01-01"
+        ),
+        encoding="utf-8",
+    )
+    rebuild(paths)
+
+    write_page(
+        paths, "wiki/decisions/anything.md", REPLACEMENT, reason="one ordinary write"
+    )
+    rebuild(paths)
+
+    conn = sqlite3.connect(paths.index_db)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT updated_at, body_changed_at FROM pages WHERE path LIKE '%log.md'"
+        ).fetchone()
+    finally:
+        conn.close()
+
+    line = describe(row["updated_at"], row["body_changed_at"])
+    assert line is None or "body changed" not in line, line
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [("supersede", "archive"), ("archive", "supersede")],
+)
+def test_one_lifecycle_operation_after_another_leaves_a_parseable_page(
+    first: str, second: str, tmp_path: Path
+) -> None:
+    # Single shape x single operation is covered above; operation *after*
+    # operation is not, and each one rewrites the same frontmatter keys
+    # the other set.
+    from llmw.archive import archive_page
+    from llmw.writer import write_page
+
+    paths = init_project(tmp_path)
+    _seed(tmp_path, "target", PATHOLOGICAL["unterminated_quote"])
+    rel = "wiki/decisions/target.md"
+
+    def supersede(path: str) -> str:
+        write_page(
+            paths, f"wiki/decisions/new-{first}{second}.md", REPLACEMENT,
+            reason="replace", supersedes=path,
+        )
+        return path
+
+    def archive(path: str) -> str:
+        return paths.rel(archive_page(paths, path, reason="retire"))
+
+    current = rel
+    for step in (first, second):
+        current = {"supersede": supersede, "archive": archive}[step](current)
+
+    data, _ = split_frontmatter(
+        (paths.root / current).read_text(encoding="utf-8")
+    )  # must not raise
+    assert data.get("status") in {"superseded", "archived"}

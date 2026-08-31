@@ -630,6 +630,7 @@ def write(
         FileExistsConflictError,
         InvalidFrontmatterError,
         SupersedeTargetError,
+        ConfigError,
         LockedError,
     ) as exc:
         _err(exc)
@@ -658,6 +659,7 @@ def patch(
         FileNotFoundForPatchError,
         PatchApplyError,
         InvalidFrontmatterError,
+        ConfigError,
         LockedError,
     ) as exc:
         _err(exc)
@@ -691,6 +693,7 @@ def edit(
         OldStringNotFoundError,
         OldStringNotUniqueError,
         InvalidFrontmatterError,
+        ConfigError,
         LockedError,
     ) as exc:
         _err(exc)

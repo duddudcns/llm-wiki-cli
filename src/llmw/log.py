@@ -42,6 +42,26 @@ def _seed_frontmatter(now: datetime.datetime) -> str:
     )
 
 
+def _stamp_log_updated(text: str, now: datetime.datetime) -> str:
+    """Move the log's own `updated` to today.
+
+    Every mutation appends to this page's body, so the read-side
+    freshness display saw its body change daily while its `updated` stayed
+    at whatever `init` wrote — a permanent "body changed" note the agent
+    could not act on, since bumping it by hand re-diverges on the next
+    append. For a running log an append *is* the restatement, which is
+    why this belongs here rather than as a special case in `freshness` or
+    the indexer. The same reasoning does not extend to a decision page:
+    there, an edit is not a re-verification.
+    """
+    from llmw.frontmatter import set_fields
+
+    try:
+        return set_fields(text, {"updated": now.date().isoformat()})
+    except Exception:  # noqa: BLE001 - logging must never fail a mutation
+        return text
+
+
 def _append_markdown(
     paths: ProjectPaths,
     now: datetime.datetime,
@@ -64,6 +84,8 @@ def _append_markdown(
     entry = [f"- `{action}`: {path or ''}", f"  - reason: {reason}"]
     if detail:
         entry.append(f"  - detail: {detail}")
+
+    text = _stamp_log_updated(text, now)
 
     parts = [text] if text else []
     if needs_heading:
