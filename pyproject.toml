@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=5.0",
 ]
 
 [project.scripts]
@@ -30,3 +31,21 @@ packages = ["src/llmw"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["llmw"]
+# Much of the suite runs the real CLI in a subprocess, and each of those
+# writes its own data file. Without this they collide and only the last
+# one survives; `tests/conftest.py` supplies the absolute path they all
+# write to, since most of them run with `cwd` set to a temp directory.
+parallel = true
+
+[tool.coverage.report]
+exclude_also = [
+    # Hooks and lifecycle writes swallow failures on purpose so they can
+    # never break the tool call or mutation they were asked about. Those
+    # branches are unreachable from a test that is not mocking the
+    # failure, and counting them as gaps hides the real ones.
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

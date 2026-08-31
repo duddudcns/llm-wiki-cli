@@ -7,6 +7,20 @@ Voir la section « Travailler sur le code de `llmw` lui-même » de
 de développement ; lancez `pytest` depuis là pour exécuter la suite de
 tests.
 
+## Mesurer la couverture de test
+
+Lancez `pytest --cov`. Une grande partie de la suite exécute la vraie
+commande dans un processus séparé — c'est ainsi qu'un outil en ligne de
+commande s'utilise réellement, et les problèmes avec les arguments, la
+sortie et les codes de retour ne se manifestent que de cette façon — et la
+couverture ne peut pas suivre un processus séparé toute seule. `tests/conftest.py`
+câble cela, mais uniquement quand vous demandez une couverture, donc une
+exécution ordinaire de `pytest` reste rapide.
+
+Sans ce câblage, le rapport affirme **0%** pour les deux fichiers que la
+suite exerce le plus. Si vous voyez jamais cela, la mesure est cassée, pas
+les tests.
+
 ## Comment fonctionne la compétence Claude Code
 
 `llmw init` écrit quelques fichiers dans `.claude/skills/llm-wiki/` de

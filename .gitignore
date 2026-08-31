@@ -16,3 +16,9 @@ build/
 # committed marketplace.json for this repo, not scaffold output.
 /ai-wiki/
 /.claude/
+
+# Coverage data, including the per-subprocess files `parallel = true`
+# produces (see tests/conftest.py).
+.coverage
+.coverage.*
+htmlcov/

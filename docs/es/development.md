@@ -6,6 +6,20 @@ Mira la sección "Trabajar en el código de `llmw` mismo" de
 [installation.md](installation.md) para preparar un entorno de
 desarrollo; desde ahí, corre `pytest` para ejecutar las pruebas.
 
+## Medir la cobertura de pruebas
+
+Corre `pytest --cov`. Gran parte de la suite ejecuta el comando real en un
+proceso separado — es así como una herramienta de línea de comandos se usa
+de verdad, y los problemas con argumentos, salida, y códigos de salida
+solo aparecen de ese modo — pero la cobertura no puede seguir un proceso
+separado por su cuenta. `tests/conftest.py` lo configura, pero solo cuando
+pides cobertura, así que una ejecución de `pytest` ordinaria se mantiene
+rápida.
+
+Sin esa configuración, el reporte afirma **0%** para los dos archivos que
+la suite ejerce más. Si alguna vez ves eso, la medición está rota, no las
+pruebas.
+
 ## Cómo funciona la skill de Claude Code
 
 `llmw init` escribe algunos archivos en `.claude/skills/llm-wiki/` dentro

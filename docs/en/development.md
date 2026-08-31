@@ -6,6 +6,19 @@ See [installation.md](installation.md)'s "Working on `llmw`'s own code"
 section to set up a dev environment; run `pytest` from there to run the
 test suite.
 
+## Measuring test coverage
+
+Run `pytest --cov`. Much of the suite runs the real command in a separate
+process — that is how a command-line tool is actually used, and problems
+with arguments, output, and exit codes only show up that way — and
+coverage cannot follow a separate process on its own. `tests/conftest.py`
+wires that up, but only when you ask for coverage, so an ordinary
+`pytest` run stays fast.
+
+Without that wiring the report claims **0%** for the two files the suite
+exercises most. If you ever see that, the measurement is broken, not the
+tests.
+
 ## How the Claude Code skill works
 
 `llmw init` writes a few files into `.claude/skills/llm-wiki/` in your
