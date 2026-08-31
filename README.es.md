@@ -89,7 +89,7 @@ La mayoría de los comandos aceptan `--json` si quieres la salida en un formato 
 | `llmw backlinks <target>` | Muestra qué otras notas enlazan a esta |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | Sugiere notas relacionadas, usando reglas simples (sin que la IA tenga que adivinar) |
 | `llmw ingest <raw/...>` | Convierte un documento fuente en un borrador de nota listo para que la IA lo complete |
-| `llmw write <path> --reason "..." --stdin [--force]` | Crea una nota completamente nueva |
+| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | Crea una nota completamente nueva; `--supersedes` también marca una nota más vieja como reemplazada por ella — mira [docs/es/staleness.md](docs/es/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Reemplaza un fragmento exacto de texto en una nota que ya existe |
 | `llmw patch <path> --reason "..." --stdin` | Aplica un conjunto de cambios a una nota (primero guarda una copia de seguridad, y se deshace sola si algo sale mal) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Mueve una nota vieja fuera del camino en lugar de borrarla, y deja una nota que señala su nueva ubicación |
@@ -112,6 +112,7 @@ La mayoría de los comandos aceptan `--json` si quieres la salida en un formato 
 | [docs/es/installation.md](docs/es/installation.md) | Instrucciones completas de instalación para Windows, macOS y Linux; cómo actualizarla o quitarla |
 | [docs/es/hooks.md](docs/es/hooks.md) | Cómo el plugin de Claude Code evita que la IA se salte la wiki, y cómo se mantiene actualizado por su cuenta |
 | [docs/es/commands.md](docs/es/commands.md) | Cómo funciona realmente la búsqueda por dentro |
+| [docs/es/staleness.md](docs/es/staleness.md) | Cómo muestran su antigüedad las notas, cómo marcar una como reemplazada, y por qué no solo revisa el código por ti |
 | [docs/es/project-layout.md](docs/es/project-layout.md) | Distintas formas de organizar las carpetas de la wiki, cómo adoptar una wiki que ya armaste, cómo usarla junto con la app de notas Obsidian |
 | [docs/es/development.md](docs/es/development.md) | Cómo preparar un entorno de desarrollo para trabajar en `llmw` mismo |
 

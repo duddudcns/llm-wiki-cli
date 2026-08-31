@@ -89,7 +89,7 @@ Most commands support `--json` if you want the output in a format a program can 
 | `llmw backlinks <target>` | Shows what other notes link to this one |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | Suggests related notes, using simple rules (no AI guessing involved) |
 | `llmw ingest <raw/...>` | Turns a source document into a draft note ready for the AI to fill in |
-| `llmw write <path> --reason "..." --stdin [--force]` | Creates a brand-new note |
+| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | Creates a brand-new note; `--supersedes` also marks an older note as replaced by it — see [docs/en/staleness.md](docs/en/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Replaces one exact piece of text in an existing note |
 | `llmw patch <path> --reason "..." --stdin` | Applies a set of changes to a note (keeps a backup first, undoes itself if something goes wrong) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Moves an old note out of the way instead of deleting it, and leaves a note behind pointing to its new location |
@@ -112,6 +112,7 @@ Most commands support `--json` if you want the output in a format a program can 
 | [docs/en/installation.md](docs/en/installation.md) | Full install instructions for Windows, macOS, and Linux; how to update or remove it |
 | [docs/en/hooks.md](docs/en/hooks.md) | How the Claude Code plugin keeps the AI from bypassing the wiki, and keeps itself up to date automatically |
 | [docs/en/commands.md](docs/en/commands.md) | How search actually works under the hood |
+| [docs/en/staleness.md](docs/en/staleness.md) | How notes show their age, how to mark one replaced, and why it doesn't just check the code for you |
 | [docs/en/project-layout.md](docs/en/project-layout.md) | Different ways to organize the wiki folders, adopting a wiki you already made, using it alongside the note-taking app Obsidian |
 | [docs/en/development.md](docs/en/development.md) | Setting up a dev environment to work on `llmw` itself |
 

@@ -89,7 +89,7 @@ llmw lint --brief
 | `llmw backlinks <target>` | このメモに他のどのメモがリンクしているかを表示する |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | 関連しそうなメモを、シンプルなルールに基づいて提案する(AIによる推測は一切なし) |
 | `llmw ingest <raw/...>` | 元の資料を、AIが書き込める下書きメモに変換する |
-| `llmw write <path> --reason "..." --stdin [--force]` | 新しいメモを作成する |
+| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | 新しいメモを作成する。`--supersedes` を指定すると、古いメモが置き換わったことを記録する — [docs/ja/staleness.md](docs/ja/staleness.md) 参照 |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 既存メモの中の、一致する箇所をひとつ置き換える |
 | `llmw patch <path> --reason "..." --stdin` | メモに一連の変更をまとめて適用する(先にバックアップを取り、途中で失敗したら自動的に元に戻す) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 古いメモを削除せず脇によけて、移動先を示す案内メモを残す |
@@ -112,6 +112,7 @@ llmw lint --brief
 | [docs/ja/installation.md](docs/ja/installation.md) | Windows・macOS・Linux向けの詳しいインストール手順、アップデートや削除の方法 |
 | [docs/ja/hooks.md](docs/ja/hooks.md) | Claude Codeプラグインが、AIにwikiを迂回させないようにする仕組みと、ツール自体を自動で最新に保つ仕組み |
 | [docs/ja/commands.md](docs/ja/commands.md) | 検索が裏側で実際にどう動いているか |
+| [docs/ja/staleness.md](docs/ja/staleness.md) | メモがどのくらい古いか見分ける方法、置き換わったメモを記録する方法、コードをチェックするだけではうまくいかない理由 |
 | [docs/ja/project-layout.md](docs/ja/project-layout.md) | wikiフォルダの整理の仕方いろいろ、すでにあるwikiを取り込む方法、メモアプリObsidianと一緒に使う方法 |
 | [docs/ja/development.md](docs/ja/development.md) | `llmw` 自体を開発するための環境構築 |
 

@@ -89,7 +89,7 @@ llmw lint --brief
 | `llmw backlinks <target>` | 显示有哪些其他笔记链接到了这一篇 |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | 推荐相关笔记,用的是简单规则(不涉及 AI 猜测) |
 | `llmw ingest <raw/...>` | 把一份原始资料变成一篇草稿笔记,方便 AI 接着填写 |
-| `llmw write <path> --reason "..." --stdin [--force]` | 创建一篇全新的笔记 |
+| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | 创建一篇全新的笔记；`--supersedes` 会同时把旧笔记标记成被这篇替换了——详见 [docs/zh-Hans/staleness.md](docs/zh-Hans/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 把一篇现有笔记里的某段文字精确替换掉 |
 | `llmw patch <path> --reason "..." --stdin` | 对一篇笔记应用一组改动(会先备份,出问题时自动撤销) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 把一篇旧笔记挪到一边而不是直接删掉,并留下一个指向新位置的提示 |
@@ -112,6 +112,7 @@ llmw lint --brief
 | [docs/zh-Hans/installation.md](docs/zh-Hans/installation.md) | Windows、macOS、Linux 的完整安装说明;如何更新或卸载 |
 | [docs/zh-Hans/hooks.md](docs/zh-Hans/hooks.md) | Claude Code 插件如何防止 AI 绕开 wiki,以及如何自动保持自身更新 |
 | [docs/zh-Hans/commands.md](docs/zh-Hans/commands.md) | 搜索背后到底是怎么工作的 |
+| [docs/zh-Hans/staleness.md](docs/zh-Hans/staleness.md) | 笔记怎么显示自己的新旧程度、怎么标记一个被替换了的笔记、为什么不干脆直接检查代码 |
 | [docs/zh-Hans/project-layout.md](docs/zh-Hans/project-layout.md) | wiki 文件夹的不同组织方式、如何接手你已有的 wiki、如何搭配笔记软件 Obsidian 使用 |
 | [docs/zh-Hans/development.md](docs/zh-Hans/development.md) | 如何搭建开发环境来参与 `llmw` 本身的开发 |
 

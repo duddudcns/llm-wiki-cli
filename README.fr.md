@@ -89,7 +89,7 @@ La plupart des commandes acceptent `--json` si vous voulez un résultat dans un 
 | `llmw backlinks <target>` | Montre quelles autres notes pointent vers celle-ci |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | Suggère des notes liées, à partir de règles simples (aucune supposition de l'IA) |
 | `llmw ingest <raw/...>` | Transforme un document source en brouillon de note, prêt à être complété par l'IA |
-| `llmw write <path> --reason "..." --stdin [--force]` | Crée une toute nouvelle note |
+| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | Crée une toute nouvelle note ; `--supersedes` marque aussi une note plus vieille comme remplacée — voir [docs/fr/staleness.md](docs/fr/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Remplace un passage exact de texte dans une note existante |
 | `llmw patch <path> --reason "..." --stdin` | Applique un ensemble de modifications à une note (garde d'abord une sauvegarde, et annule tout automatiquement en cas de problème) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Met une vieille note de côté au lieu de la supprimer, et laisse une note à sa place indiquant son nouvel emplacement |
@@ -112,6 +112,7 @@ La plupart des commandes acceptent `--json` si vous voulez un résultat dans un 
 | [docs/fr/installation.md](docs/fr/installation.md) | Instructions d'installation complètes pour Windows, macOS et Linux ; comment mettre à jour ou désinstaller |
 | [docs/fr/hooks.md](docs/fr/hooks.md) | Comment le plugin Claude Code empêche l'IA de contourner le wiki, et se met à jour tout seul |
 | [docs/fr/commands.md](docs/fr/commands.md) | Comment la recherche fonctionne vraiment en coulisse |
+| [docs/fr/staleness.md](docs/fr/staleness.md) | Comment les notes affichent leur âge, comment en marquer une comme remplacée, et pourquoi ça ne se contente pas de vérifier le code pour vous |
 | [docs/fr/project-layout.md](docs/fr/project-layout.md) | Différentes façons d'organiser les dossiers du wiki, comment adopter un wiki déjà créé, comment l'utiliser avec l'application de prise de notes Obsidian |
 | [docs/fr/development.md](docs/fr/development.md) | Mettre en place un environnement de développement pour travailler sur `llmw` lui-même |
 

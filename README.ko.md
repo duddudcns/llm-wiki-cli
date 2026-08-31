@@ -89,7 +89,7 @@ llmw lint --brief
 | `llmw backlinks <target>` | 다른 메모 중 어떤 것이 이 메모로 링크하는지 보여줍니다 |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | 간단한 규칙으로 관련 메모를 추천합니다(AI의 추측은 개입하지 않음) |
 | `llmw ingest <raw/...>` | 원본 문서를 AI가 채워 넣을 초안 메모로 바꿔줍니다 |
-| `llmw write <path> --reason "..." --stdin [--force]` | 완전히 새로운 메모를 만듭니다 |
+| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | 완전히 새로운 메모를 만듭니다. `--supersedes`를 붙이면 더 오래된 메모를 대체된 것으로 표시합니다 — [docs/ko/staleness.md](docs/ko/staleness.md) 참고 |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 기존 메모에서 정확히 일치하는 한 부분만 바꿉니다 |
 | `llmw patch <path> --reason "..." --stdin` | 메모에 여러 변경 사항을 한꺼번에 적용합니다(먼저 백업하고, 문제가 생기면 스스로 되돌립니다) |
 | `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 오래된 메모를 지우는 대신 옆으로 치워두고, 새 위치를 알려주는 메모를 남겨둡니다 |
@@ -112,6 +112,7 @@ llmw lint --brief
 | [docs/ko/installation.md](docs/ko/installation.md) | Windows, macOS, Linux별 전체 설치 방법, 업데이트·제거 방법 |
 | [docs/ko/hooks.md](docs/ko/hooks.md) | Claude Code 플러그인이 AI가 위키를 건너뛰지 못하게 막고, 스스로 최신 상태를 유지하는 방법 |
 | [docs/ko/commands.md](docs/ko/commands.md) | 검색이 내부적으로 실제 어떻게 동작하는지 |
+| [docs/ko/staleness.md](docs/ko/staleness.md) | 메모가 얼마나 오래됐는지 보이기, 대체된 것을 표시하기, 그리고 왜 그냥 코드를 확인하지 않는지에 대해 |
 | [docs/ko/project-layout.md](docs/ko/project-layout.md) | 위키 폴더를 정리하는 여러 방법, 이미 만들어 둔 위키를 그대로 쓰는 방법, 노트 앱 Obsidian과 함께 쓰는 방법 |
 | [docs/ko/development.md](docs/ko/development.md) | `llmw` 자체를 개발하기 위한 환경 설정 |
 
