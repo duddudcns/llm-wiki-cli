@@ -77,13 +77,23 @@ def llmw_write(
     Pass supersedes with the path of an earlier page this one overturns:
     that page is marked status=superseded with a pointer here, in the same
     write, so search stops returning it as the current answer."""
+    # An MCP host has no stderr to show the caller, so the writer's
+    # notices travel in the response instead of being printed.
+    notices: list[str] = []
     written = write_page(
-        _paths(root), path, content, reason, force=force, supersedes=supersedes
+        _paths(root),
+        path,
+        content,
+        reason,
+        force=force,
+        supersedes=supersedes,
+        on_notice=notices.append,
     )
     return {
         "path": str(written),
         "written": True,
         "superseded": supersedes,
+        "notices": notices,
     }
 
 

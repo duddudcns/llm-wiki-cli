@@ -79,6 +79,13 @@ def _err(message: object) -> None:
     err_console.print(f"ERROR: {message}", style="bold red")
 
 
+def _notice(message: str) -> None:
+    """Writer notices go to stderr: stdout is the machine-readable half
+    of every command here, and `read --full` in particular is snapshotted
+    verbatim before a series of `llmw edit --old` calls."""
+    err_console.print(f"note: {message}", style="dim")
+
+
 def _warn(message: object) -> None:
     err_console.print(f"WARN: {message}", style="yellow")
 
@@ -605,7 +612,13 @@ def write(
     content = _read_stdin_content(stdin)
     try:
         fs_path = do_write(
-            paths, path, content, reason=reason, force=force, supersedes=supersedes
+            paths,
+            path,
+            content,
+            reason=reason,
+            force=force,
+            supersedes=supersedes,
+            on_notice=_notice,
         )
     except (
         ReasonRequiredError,
@@ -634,7 +647,7 @@ def patch(
     paths = _require_paths()
     diff_text = _read_stdin_content(stdin)
     try:
-        fs_path = do_patch(paths, path, diff_text, reason=reason)
+        fs_path = do_patch(paths, path, diff_text, reason=reason, on_notice=_notice)
     except (
         ReasonRequiredError,
         PathNotAllowedError,
@@ -664,7 +677,9 @@ def edit(
     (reason log, frontmatter validation, backup)."""
     paths = _require_paths()
     try:
-        fs_path = do_edit(paths, path, old, new, reason=reason, replace_all=all)
+        fs_path = do_edit(
+            paths, path, old, new, reason=reason, replace_all=all, on_notice=_notice
+        )
     except (
         ReasonRequiredError,
         PathNotAllowedError,

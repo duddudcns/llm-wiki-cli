@@ -78,6 +78,26 @@ def split_frontmatter(text: str) -> tuple[dict, str]:
     return data, body
 
 
+# A project can override which frontmatter keys are required via
+# `.llmw/config.toml`'s `[lint] required_frontmatter` (see config.py).
+# "updated" is additionally satisfied by a `last_updated` key, a common
+# synonym in wikis that don't track created/updated separately.
+FIELD_SYNONYMS = {"updated": ("last_updated",)}
+
+
+def has_field(frontmatter: dict, field_name: str) -> bool:
+    if frontmatter.get(field_name):
+        return True
+    return any(frontmatter.get(syn) for syn in FIELD_SYNONYMS.get(field_name, ()))
+
+
+def missing_fields(frontmatter: dict, required: list[str]) -> list[str]:
+    """Which of `required` this frontmatter does not satisfy. Shared by
+    `llmw lint` and the writer's post-write notice, so a page cannot pass
+    one and fail the other."""
+    return [name for name in required if not has_field(frontmatter, name)]
+
+
 def set_fields(text: str, fields: dict) -> str:
     """Return `text` with `fields` set in its frontmatter.
 

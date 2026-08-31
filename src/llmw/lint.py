@@ -8,22 +8,20 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from llmw.config import Config
-from llmw.frontmatter import InvalidFrontmatterError, split_frontmatter
+from llmw.frontmatter import (
+    InvalidFrontmatterError,
+    has_field,
+    missing_fields,
+    split_frontmatter,
+)
 from llmw.indexer import iter_wiki_files, load_project_config
 from llmw.paths import ProjectPaths
 from llmw.queries import IndexNotBuiltError, open_ro
 
-# A project can override which frontmatter keys are required via
-# `.llmw/config.toml`'s `[lint] required_frontmatter` (see config.py).
-# "updated" is additionally satisfied by a `last_updated` key, a common
-# synonym in wikis that don't track created/updated separately.
-_FIELD_SYNONYMS = {"updated": ("last_updated",)}
-
-
-def _has_field(frontmatter: dict, field_name: str) -> bool:
-    if frontmatter.get(field_name):
-        return True
-    return any(frontmatter.get(syn) for syn in _FIELD_SYNONYMS.get(field_name, ()))
+# Field requirements live in llmw.frontmatter so `llmw lint` and the
+# writer's post-write notice cannot disagree about what a complete page
+# is. Which keys are required is per-project — see `[lint]
+# required_frontmatter` in config.py.
 
 
 @dataclass
@@ -110,10 +108,8 @@ def _lint_frontmatter(paths: ProjectPaths, config: Config, report: LintReport) -
         # real content — it deliberately carries none of the required
         # fields, so it shouldn't permanently fail lint the way a genuine
         # incomplete page would.
-        if not _has_field(frontmatter, "moved_to"):
-            missing = [
-                f for f in config.lint_required_frontmatter if not _has_field(frontmatter, f)
-            ]
+        if not has_field(frontmatter, "moved_to"):
+            missing = missing_fields(frontmatter, config.lint_required_frontmatter)
             if missing:
                 report.missing_frontmatter.append({"path": rel_path, "missing": missing})
 
