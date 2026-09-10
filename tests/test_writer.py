@@ -5,7 +5,7 @@ import pytest
 
 from llmw.bootstrap import init_project
 from llmw.config import load_config, save_config
-from llmw.frontmatter import InvalidFrontmatterError
+from llmw.frontmatter import InvalidFrontmatterError, split_frontmatter
 from llmw.indexer import rebuild
 from llmw.lint import run_lint
 from llmw.patching import PatchApplyError, apply_unified_diff
@@ -92,9 +92,16 @@ def test_first_write_under_adopt_seeds_log_frontmatter_without_title_collision(
 def test_write_existing_file_with_force_backs_up_and_overwrites(tmp_path: Path):
     paths = init_project(tmp_path)
     write_page(paths, "wiki/index.md", "overwritten\n", reason="force overwrite", force=True)
-    assert (paths.root / "wiki/index.md").read_text(encoding="utf-8") == "overwritten\n"
+    assert split_frontmatter((paths.root / "wiki/index.md").read_text(encoding="utf-8"))[1] == "overwritten\n"
     backups = list(paths.backups_dir.rglob("index.md"))
     assert len(backups) == 1
+
+
+def seed_legacy_page(paths, rel_path, content, reason):
+    target = paths.root / rel_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8", newline="\n")
+    return target
 
 
 def test_patch_requires_existing_file(tmp_path: Path):
@@ -106,7 +113,7 @@ def test_patch_requires_existing_file(tmp_path: Path):
 
 def test_patch_applies_and_backs_up(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
 
     diff = "@@ -1,3 +1,3 @@\n line1\n-line2\n+line2 changed\n line3\n"
     patch_page(paths, "wiki/concepts/a.md", diff, reason="update line2")
@@ -118,7 +125,7 @@ def test_patch_applies_and_backs_up(tmp_path: Path):
 
 def test_patch_context_mismatch_leaves_file_untouched(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
 
     bad_diff = "@@ -1,3 +1,3 @@\n line1\n-WRONG CONTEXT\n+line2 changed\n line3\n"
     with pytest.raises(PatchApplyError):
@@ -184,7 +191,7 @@ def test_write_rejects_invalid_frontmatter_and_creates_no_file(tmp_path: Path):
 
 def test_patch_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(
+    seed_legacy_page(
         paths,
         "wiki/concepts/a.md",
         "---\ntitle: A\n---\nbody line\n",
@@ -209,7 +216,7 @@ def test_patch_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_p
 
 def test_edit_replaces_unique_occurrence_and_logs(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nold text here\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nold text here\n", reason="seed")
     rebuild(paths)
 
     edit_page(paths, "wiki/concepts/a.md", "old text", "new text", reason="fix wording")
@@ -223,7 +230,7 @@ def test_edit_replaces_unique_occurrence_and_logs(tmp_path: Path):
 
 def test_edit_old_string_not_found_leaves_file_untouched(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
 
     with pytest.raises(OldStringNotFoundError):
         edit_page(paths, "wiki/concepts/a.md", "nonexistent", "x", reason="attempt")
@@ -235,7 +242,7 @@ def test_edit_old_string_not_found_leaves_file_untouched(tmp_path: Path):
 
 def test_edit_ambiguous_old_string_requires_all(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nfoo foo foo\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nfoo foo foo\n", reason="seed")
 
     with pytest.raises(OldStringNotUniqueError):
         edit_page(paths, "wiki/concepts/a.md", "foo", "bar", reason="attempt")
@@ -253,7 +260,7 @@ def test_edit_refuses_raw_path(tmp_path: Path):
 
 def test_edit_requires_reason(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
     with pytest.raises(ReasonRequiredError):
         edit_page(paths, "wiki/concepts/a.md", "body", "new body", reason="")
 
@@ -266,7 +273,7 @@ def test_edit_requires_existing_file(tmp_path: Path):
 
 def test_edit_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_path: Path):
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
+    seed_legacy_page(paths, "wiki/concepts/a.md", "---\ntitle: A\n---\nbody\n", reason="seed")
 
     with pytest.raises(InvalidFrontmatterError):
         edit_page(paths, "wiki/concepts/a.md", "title: A", 'title: "unterminated', reason="break it")
@@ -277,9 +284,16 @@ def test_edit_rejects_result_with_invalid_frontmatter_and_leaves_original(tmp_pa
 
 
 def test_write_and_patch_never_introduce_crlf(tmp_path: Path):
+    from difflib import unified_diff
+
     paths = init_project(tmp_path)
-    write_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
-    diff = "@@ -1,3 +1,3 @@\n line1\n-line2\n+line2 changed\n line3\n"
+    page = write_page(paths, "wiki/concepts/a.md", "line1\nline2\nline3\n", reason="seed")
+    assert b"\r\n" not in page.read_bytes()
+    original = page.read_text(encoding="utf-8")
+    diff = "".join(unified_diff(
+        original.splitlines(keepends=True),
+        original.replace("line2", "line2 changed").splitlines(keepends=True),
+    ))
     patch_page(paths, "wiki/concepts/a.md", diff, reason="edit")
 
     raw = (paths.root / "wiki/concepts/a.md").read_bytes()

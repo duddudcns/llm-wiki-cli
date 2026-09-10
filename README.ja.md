@@ -84,15 +84,15 @@ llmw lint --brief
 | `llmw rebuild` | 検索インデックスを最初から丸ごと作り直す |
 | `llmw index [--changed\|--all]` | 検索インデックスを更新する(デフォルトでは変更分だけ) |
 | `llmw search "<query>" [--limit N] [--type T] [--strict]` | 全メモを検索する(検索の仕組みは [docs/ja/commands.md](docs/ja/commands.md) 参照) |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | メモを開く。短縮版はタイトル・要約・リンクを表示する |
+| `llmw read <path\|title\|alias\|slug> [--full\|--brief]` | メモを開く。短縮版はタイトル・要約・リンクを表示する |
 | `llmw links <target>` | このメモがどこにリンクしているかを表示する |
 | `llmw backlinks <target>` | このメモに他のどのメモがリンクしているかを表示する |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | 関連しそうなメモを、シンプルなルールに基づいて提案する(AIによる推測は一切なし) |
 | `llmw ingest <raw/...>` | 元の資料を、AIが書き込める下書きメモに変換する |
-| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | 新しいメモを作成する。`--supersedes` を指定すると、古いメモが置き換わったことを記録する — [docs/ja/staleness.md](docs/ja/staleness.md) 参照 |
+| `llmw write <path> --reason "..." [--stdin] [--force] [--supersedes <path>]` | 新しいメモを作成する。`--supersedes` を指定すると、古いメモが置き換わったことを記録する — [docs/ja/staleness.md](docs/ja/staleness.md) 参照 |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 既存メモの中の、一致する箇所をひとつ置き換える |
 | `llmw patch <path> --reason "..." --stdin` | メモに一連の変更をまとめて適用する(先にバックアップを取り、途中で失敗したら自動的に元に戻す) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 古いメモを削除せず脇によけて、移動先を示す案内メモを残す |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | メモをアーカイブへ移動して元のファイルを削除する。`--tombstone` で移動先の案内を残せる |
 | `llmw lint [--brief\|--json]` | 問題(リンク切れ、情報の不足、タイトルの重複など)をチェックする。ただし自動修正はしない |
 | `llmw health [--brief]` | 裏側の仕組みがきちんと設定されているか確認する |
 | `llmw graph build` / `llmw graph export --format json\|html` | メモ同士のつながりを図にして作成・書き出しする |

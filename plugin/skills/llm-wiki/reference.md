@@ -26,7 +26,8 @@ output; pass `--full` for more detail.
   `--json` output is `{"mode": "strict"|"relaxed"|"any", "dropped_tokens":
   [...], "results": [...]}`. Pass `--strict` to disable the fallback tiers.
 - `llmw read <path-or-title> [--brief|--full] [--json]` — look up a page
-  by path, title, or alias. `--brief` (default) shows title, type,
+  by path, title, alias, or filename/slug. Ambiguous filenames list exact
+  paths to choose from. `--brief` (default) shows title, type,
   summary, key points, links, backlink count.
 - `llmw links <path-or-title> [--json]` — outgoing links, with broken
   status.
@@ -36,8 +37,11 @@ output; pass `--full` for more detail.
 - `llmw ingest <file>` — register a `raw/` source (`.md`/`.txt` only in
   this MVP) as a `wiki/sources/<slug>.md` draft. Does not summarize;
   leaves a placeholder for the agent to fill in.
-- `llmw write <path> --reason "<reason>" --stdin [--force]` — create a
-  new wiki page from stdin. Fails if the file exists unless `--force`.
+- `llmw write <path> --reason "<reason>" [--stdin] [--force]` — create a
+  new wiki page from stdin (pipes are detected automatically). Appends `.md`
+  if the path has no extension; rejects other extensions. Fills missing
+  title/type/status and created on new pages; stamps updated on every write.
+  Fails if the file exists unless `--force`.
 - `llmw edit <path> --old "<text>" --new "<text>" --reason "<reason>"
   [--all]` — exact-string replace in an existing page, the same old/new
   semantics as a native Edit tool. Fails if `--old` isn't found, or
@@ -48,12 +52,14 @@ output; pass `--full` for more detail.
   failure. Use for structural, multi-line changes.
 - `llmw archive <path> --reason "<reason>" [--tombstone/--no-tombstone]`
   — move a page to `wiki/archived/YYYY/MM/`, stamp archive frontmatter,
-  leave a tombstone stub at the original path (default; `--no-tombstone`
-  skips it), and log the change.
+  remove the original, and log the change. `--tombstone` (or the project
+  setting `archive_tombstone = true`) leaves a redirect stub instead.
+  Archived pages and redirect stubs cannot be archived again.
 - `llmw lint [--brief] [--json]` — broken links, orphans, duplicate
   titles/aliases, missing/invalid frontmatter, missing summary/type,
   isolated pages, dangling raw references, active pages linking into
-  `archived/`. Does not auto-fix.
+  `archived/`. Missing summary is advisory and alone does not cause a
+  nonzero exit. Does not auto-fix.
 - `llmw health [--brief]` — system-level checks (config, index db,
   schema version, directory existence, lock state).
 - `llmw graph build` — regenerate `.llmw/graph.json`.

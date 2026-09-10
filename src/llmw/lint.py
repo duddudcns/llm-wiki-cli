@@ -54,7 +54,7 @@ class LintReport:
         }
 
     def is_clean(self) -> bool:
-        return all(v == 0 for v in self.counts().values())
+        return all(v == 0 for k, v in self.counts().items() if k != "pages_without_summary")
 
     def as_dict(self) -> dict:
         return {

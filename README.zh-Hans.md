@@ -84,15 +84,15 @@ llmw lint --brief
 | `llmw rebuild` | 把整个搜索索引从头重新建一遍 |
 | `llmw index [--changed\|--all]` | 更新搜索索引(默认只更新有变化的部分) |
 | `llmw search "<query>" [--limit N] [--type T] [--strict]` | 搜索所有笔记——搜索具体是怎么工作的,参见 [docs/zh-Hans/commands.md](docs/zh-Hans/commands.md) |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | 打开一篇笔记;简短版会显示标题、摘要和链接 |
+| `llmw read <path\|title\|alias\|slug> [--full\|--brief]` | 打开一篇笔记;简短版会显示标题、摘要和链接 |
 | `llmw links <target>` | 显示某篇笔记链接到了哪些其他笔记 |
 | `llmw backlinks <target>` | 显示有哪些其他笔记链接到了这一篇 |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | 推荐相关笔记,用的是简单规则(不涉及 AI 猜测) |
 | `llmw ingest <raw/...>` | 把一份原始资料变成一篇草稿笔记,方便 AI 接着填写 |
-| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | 创建一篇全新的笔记；`--supersedes` 会同时把旧笔记标记成被这篇替换了——详见 [docs/zh-Hans/staleness.md](docs/zh-Hans/staleness.md) |
+| `llmw write <path> --reason "..." [--stdin] [--force] [--supersedes <path>]` | 创建一篇全新的笔记；`--supersedes` 会同时把旧笔记标记成被这篇替换了——详见 [docs/zh-Hans/staleness.md](docs/zh-Hans/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 把一篇现有笔记里的某段文字精确替换掉 |
 | `llmw patch <path> --reason "..." --stdin` | 对一篇笔记应用一组改动(会先备份,出问题时自动撤销) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 把一篇旧笔记挪到一边而不是直接删掉,并留下一个指向新位置的提示 |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 将笔记移入归档并移除原文件；使用 `--tombstone` 可保留指向新位置的提示 |
 | `llmw lint [--brief\|--json]` | 检查各种问题——失效链接、缺信息、标题重复——但从不自动修复 |
 | `llmw health [--brief]` | 检查后台的各项设置是否正常 |
 | `llmw graph build` / `llmw graph export --format json\|html` | 生成或导出一张笔记之间链接关系的可视化地图 |

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 
 from llmw.frontmatter import InvalidFrontmatterError, body_after_block
 from llmw.parser import extract_key_points, mask_non_prose, parse_page
 from llmw.paths import ProjectPaths
 from llmw.queries import (
     backlinks,
-    find_page_row,
     open_ro,
     outgoing_links,
     page_columns,
@@ -68,15 +68,33 @@ class ReadResult:
         return d
 
 
+def _unique_match(target: str, matches: list[str]) -> str | None:
+    matches = sorted(set(matches))
+    if len(matches) == 1:
+        return matches[0]
+    if matches:
+        raise PageNotFoundError(
+            f'Ambiguous page: "{target}". Read one of these exact paths:\n'
+            + "\n".join(f'  llmw read "{p}"' for p in matches)
+        )
+    return None
+
+
 def _resolve_path(paths: ProjectPaths, target: str) -> str | None:
     """Resolve `target` to a project-relative wiki path using the DB if
     available, falling back to a direct on-disk path check."""
     conn = open_ro(paths)
     if conn is not None:
         try:
-            row = find_page_row(conn, target)
-            if row is not None:
-                return row["path"]
+            normalized = target.replace("\\", "/").removeprefix("./")
+            for sql, value in (
+                ("SELECT path FROM pages WHERE path = ?", normalized),
+                ("SELECT path FROM pages WHERE lower(title) = ?", target.lower()),
+                ("SELECT p.path FROM pages p JOIN aliases a ON a.page_id = p.id WHERE lower(a.alias) = ?", target.lower()),
+            ):
+                matched = _unique_match(target, [r["path"] for r in conn.execute(sql, (value,))])
+                if matched is not None:
+                    return matched
         finally:
             conn.close()
 
@@ -90,6 +108,19 @@ def _resolve_path(paths: ProjectPaths, target: str) -> str | None:
             # (e.g. target="../secret.md") — not a wiki page, so this is
             # "not found", not a crash.
             return None
+    # Explicit paths must not fall through to fuzzy filename matching.
+    if normalized and "/" not in normalized and normalized not in {".", ".."}:
+        name = normalized if normalized.endswith(".md") else normalized + ".md"
+        direct = paths.wiki / name
+        if direct.is_file() and paths.is_inside_wiki(direct):
+            return paths.rel(direct)
+        candidates = sorted(
+            paths.rel(page) for page in paths.wiki.rglob("*.md")
+            if page.is_file() and paths.is_inside_wiki(page)
+        )
+        exact = [p for p in candidates if PurePosixPath(p).name.casefold() == name.casefold()]
+        matches = exact or [p for p in candidates if normalized.casefold() in PurePosixPath(p).name.casefold()]
+        return _unique_match(target, matches)
     return None
 
 

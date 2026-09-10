@@ -44,11 +44,11 @@ def test_archive_moves_file_and_stamps_frontmatter(tmp_path: Path):
     assert fm["status"] == "archived"
 
 
-def test_archive_leaves_tombstone_by_default(tmp_path: Path):
+def test_archive_leaves_tombstone_when_requested(tmp_path: Path):
     paths = init_project(tmp_path)
     write_page(paths, "wiki/concepts/old.md", "---\ntitle: Old\n---\nbody\n", reason="seed")
 
-    archive_page(paths, "wiki/concepts/old.md", reason="cleanup")
+    archive_page(paths, "wiki/concepts/old.md", reason="cleanup", tombstone=True)
 
     original_path = paths.root / "wiki/concepts/old.md"
     assert original_path.is_file()
@@ -80,7 +80,7 @@ def test_archive_default_tombstone_does_not_fail_lint(tmp_path: Path):
         reason="seed",
     )
 
-    archive_page(paths, "wiki/concepts/old.md", reason="cleanup")
+    archive_page(paths, "wiki/concepts/old.md", reason="cleanup", tombstone=True)
 
     report = run_lint(paths)
     assert report.missing_frontmatter == []
@@ -108,7 +108,7 @@ def test_archive_rolls_back_copy_when_original_side_mutation_fails(tmp_path: Pat
     monkeypatch.setattr(PathType, "write_text", failing_write_text)
 
     with pytest.raises(OSError):
-        archive_page(paths, "wiki/concepts/old.md", reason="cleanup")
+        archive_page(paths, "wiki/concepts/old.md", reason="cleanup", tombstone=True)
 
     archived_dir = paths.root / "wiki" / "archived"
     leftover_copies = list(archived_dir.rglob("old.md")) if archived_dir.is_dir() else []
@@ -134,7 +134,7 @@ def test_archive_tombstone_is_valid_yaml_for_odd_filename(tmp_path: Path):
     paths = init_project(tmp_path)
     write_page(paths, "wiki/concepts/[weird] name.md", "---\ntitle: Old\n---\nbody\n", reason="seed")
 
-    archive_page(paths, "wiki/concepts/[weird] name.md", reason="cleanup")
+    archive_page(paths, "wiki/concepts/[weird] name.md", reason="cleanup", tombstone=True)
 
     original_path = paths.root / "wiki/concepts/[weird] name.md"
     fm = yaml.safe_load(original_path.read_text(encoding="utf-8").split("---")[1])

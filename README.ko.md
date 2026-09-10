@@ -84,15 +84,15 @@ llmw lint --brief
 | `llmw rebuild` | 검색 인덱스를 처음부터 전부 다시 만듭니다 |
 | `llmw index [--changed\|--all]` | 검색 인덱스를 갱신합니다(기본은 바뀐 부분만) |
 | `llmw search "<query>" [--limit N] [--type T] [--strict]` | 모든 메모를 검색합니다 — 검색이 어떻게 동작하는지는 [docs/ko/commands.md](docs/ko/commands.md) 참고 |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | 메모를 엽니다. 짧은 버전은 제목, 요약, 링크만 보여줍니다 |
+| `llmw read <path\|title\|alias\|slug> [--full\|--brief]` | 메모를 엽니다. 짧은 버전은 제목, 요약, 링크만 보여줍니다 |
 | `llmw links <target>` | 이 메모가 어디로 링크하는지 보여줍니다 |
 | `llmw backlinks <target>` | 다른 메모 중 어떤 것이 이 메모로 링크하는지 보여줍니다 |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | 간단한 규칙으로 관련 메모를 추천합니다(AI의 추측은 개입하지 않음) |
 | `llmw ingest <raw/...>` | 원본 문서를 AI가 채워 넣을 초안 메모로 바꿔줍니다 |
-| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | 완전히 새로운 메모를 만듭니다. `--supersedes`를 붙이면 더 오래된 메모를 대체된 것으로 표시합니다 — [docs/ko/staleness.md](docs/ko/staleness.md) 참고 |
+| `llmw write <path> --reason "..." [--stdin] [--force] [--supersedes <path>]` | 완전히 새로운 메모를 만듭니다. `--supersedes`를 붙이면 더 오래된 메모를 대체된 것으로 표시합니다 — [docs/ko/staleness.md](docs/ko/staleness.md) 참고 |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | 기존 메모에서 정확히 일치하는 한 부분만 바꿉니다 |
 | `llmw patch <path> --reason "..." --stdin` | 메모에 여러 변경 사항을 한꺼번에 적용합니다(먼저 백업하고, 문제가 생기면 스스로 되돌립니다) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 오래된 메모를 지우는 대신 옆으로 치워두고, 새 위치를 알려주는 메모를 남겨둡니다 |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | 메모를 아카이브로 이동하고 원본을 제거합니다. `--tombstone`을 지정하면 이동 안내문을 남깁니다 |
 | `llmw lint [--brief\|--json]` | 끊긴 링크, 빠진 정보, 중복된 제목 같은 문제를 찾아줍니다(자동으로 고쳐주진 않습니다) |
 | `llmw health [--brief]` | 뒤에서 돌아가는 부분들이 다 제대로 설정됐는지 확인합니다 |
 | `llmw graph build` / `llmw graph export --format json\|html` | 메모들이 서로 어떻게 링크되는지 보여주는 지도를 만들거나 내보냅니다 |

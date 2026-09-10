@@ -84,15 +84,15 @@ La mayoría de los comandos aceptan `--json` si quieres la salida en un formato 
 | `llmw rebuild` | Reconstruye desde cero todo el índice de búsqueda |
 | `llmw index [--changed\|--all]` | Actualiza el índice de búsqueda (por defecto, solo lo que cambió) |
 | `llmw search "<query>" [--limit N] [--type T] [--strict]` | Busca en todas las notas — mira [docs/es/commands.md](docs/es/commands.md) para saber cómo funciona la búsqueda |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | Abre una nota; la versión corta muestra el título, el resumen y los enlaces |
+| `llmw read <path\|title\|alias\|slug> [--full\|--brief]` | Abre una nota; la versión corta muestra el título, el resumen y los enlaces |
 | `llmw links <target>` | Muestra a qué enlaza una nota |
 | `llmw backlinks <target>` | Muestra qué otras notas enlazan a esta |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | Sugiere notas relacionadas, usando reglas simples (sin que la IA tenga que adivinar) |
 | `llmw ingest <raw/...>` | Convierte un documento fuente en un borrador de nota listo para que la IA lo complete |
-| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | Crea una nota completamente nueva; `--supersedes` también marca una nota más vieja como reemplazada por ella — mira [docs/es/staleness.md](docs/es/staleness.md) |
+| `llmw write <path> --reason "..." [--stdin] [--force] [--supersedes <path>]` | Crea una nota completamente nueva; `--supersedes` también marca una nota más vieja como reemplazada por ella — mira [docs/es/staleness.md](docs/es/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Reemplaza un fragmento exacto de texto en una nota que ya existe |
 | `llmw patch <path> --reason "..." --stdin` | Aplica un conjunto de cambios a una nota (primero guarda una copia de seguridad, y se deshace sola si algo sale mal) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Mueve una nota vieja fuera del camino en lugar de borrarla, y deja una nota que señala su nueva ubicación |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Mueve la nota al archivo y elimina el original; `--tombstone` permite dejar una referencia a la nueva ubicación |
 | `llmw lint [--brief\|--json]` | Busca problemas — enlaces rotos, información que falta, títulos duplicados — pero nunca los corrige por su cuenta |
 | `llmw health [--brief]` | Comprueba que todo lo que trabaja detrás de escena esté bien configurado |
 | `llmw graph build` / `llmw graph export --format json\|html` | Crea o exporta un mapa visual de cómo se enlazan las notas entre sí |

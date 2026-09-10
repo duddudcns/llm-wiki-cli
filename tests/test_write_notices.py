@@ -59,11 +59,13 @@ def run(cwd: Path, *args: str, stdin: str | None = None) -> subprocess.Completed
 
 def _seeded(tmp_path: Path, content: str = COMPLETE) -> Path:
     run(tmp_path, "init")
-    run(tmp_path, "write", PAGE, "--reason", "seed", "--stdin", stdin=content)
+    # Seed an older page directly: write now stamps today automatically.
+    (tmp_path / PAGE).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / PAGE).write_text(content, encoding="utf-8")
     return tmp_path / PAGE
 
 
-def test_write_names_the_frontmatter_keys_it_is_missing(tmp_path: Path) -> None:
+def test_write_fills_the_standard_frontmatter_keys(tmp_path: Path) -> None:
     run(tmp_path, "init")
 
     result = run(
@@ -73,8 +75,11 @@ def test_write_names_the_frontmatter_keys_it_is_missing(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert (tmp_path / PAGE).exists(), "the page is still written; this is a notice"
+    assert result.stderr == ""
+    from llmw.frontmatter import split_frontmatter
+    fm, _ = split_frontmatter((tmp_path / PAGE).read_text(encoding="utf-8"))
     for key in ("type", "status", "created", "updated"):
-        assert key in result.stderr
+        assert fm[key]
     assert result.stderr.count("\n") <= 2, "one line, not a wall of text"
 
 
@@ -202,4 +207,7 @@ def test_mcp_returns_the_notices_instead_of_printing_them(tmp_path: Path) -> Non
     )
 
     assert result["written"] is True
+    assert result["notices"] == []
+    (tmp_path / PAGE).write_text(COMPLETE, encoding="utf-8")
+    result = mcp_server.llmw_edit(PAGE, "The uploader", "The client", reason="edit", root=str(tmp_path))
     assert any("updated" in notice for notice in result["notices"])

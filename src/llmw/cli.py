@@ -7,6 +7,12 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from typer.core import TyperCommand
+
+try:
+    from typer._click.exceptions import UsageError
+except ImportError:  # Typer versions before Click was vendored
+    from click import UsageError
 from rich.console import Console
 
 import sys
@@ -348,7 +354,7 @@ def read(
     full: bool = typer.Option(False, "--full/--brief"),
     json: bool = typer.Option(False, "--json"),
 ) -> None:
-    """Read a wiki page by path, title, or alias (brief by default)."""
+    """Read a wiki page by path, title, alias, or filename/slug (brief by default)."""
     paths = _require_paths()
     try:
         result = read_page(paths, target, full=full)
@@ -520,13 +526,14 @@ def lint(
     for name, count in counts.items():
         if count == 0:
             continue
-        console.print(f"{name} ({count})", style="bold")
+        label = f"{name} (advisory)" if name == "pages_without_summary" else name
+        console.print(f"{label} ({count})", style="bold")
         items = getattr(report, name)
         entries = items.items() if isinstance(items, dict) else enumerate(items)
         for _, value in list(entries)[:10]:
             console.print(f"  - {value}")
     if report.is_clean():
-        console.print("No issues found.")
+        console.print("No blocking issues found." if report.pages_without_summary else "No issues found.")
     raise typer.Exit(code=0 if report.is_clean() else 1)
 
 
@@ -592,18 +599,32 @@ def graph_export(
         raise typer.Exit(code=1)
 
 
-def _read_stdin_content(stdin: bool) -> str:
-    if not stdin:
+WRITE_EXAMPLE = 'cat file.md | llmw write --reason "save page" --stdin "wiki/my-page.md"'
+
+
+class WriteCommand(TyperCommand):
+    def parse_args(self, ctx, args):
+        try:
+            return super().parse_args(ctx, args)
+        except UsageError:
+            err_console.print(f"Example: {WRITE_EXAMPLE}", soft_wrap=True)
+            raise
+
+
+def _read_stdin_content(stdin: bool, *, auto: bool = False) -> str:
+    if not stdin and not (auto and not sys.stdin.isatty()):
         _err("Provide content via `--stdin` (pipe it in).")
+        if auto:
+            err_console.print(f"Example: {WRITE_EXAMPLE}", soft_wrap=True)
         raise typer.Exit(code=1)
     return sys.stdin.read()
 
 
-@app.command()
+@app.command(cls=WriteCommand)
 def write(
     path: str = typer.Argument(...),
     reason: str = typer.Option(..., "--reason"),
-    stdin: bool = typer.Option(False, "--stdin", help="Read new page content from stdin."),
+    stdin: bool = typer.Option(False, "--stdin", help="Read page content from stdin (pipes are detected automatically)."),
     force: bool = typer.Option(False, "--force", help="Overwrite an existing page."),
     supersedes: Optional[str] = typer.Option(
         None,
@@ -612,6 +633,9 @@ def write(
     ),
 ) -> None:
     """Create a new wiki page from stdin, or fully replace one with --force.
+    Pipes are detected automatically. Extensionless paths gain .md.
+    Missing title/type/status and new-page created are filled; updated is
+    stamped today on every write.
     For an existing page, prefer `edit` (small exact-text change) or
     `patch` (structural diff) over --force unless most of the page is
     actually changing.
@@ -620,7 +644,7 @@ def write(
     replaced page is marked `status: superseded` with a pointer here, in
     the same write, so search stops returning it as current."""
     paths = _require_paths()
-    content = _read_stdin_content(stdin)
+    content = _read_stdin_content(stdin, auto=True)
     try:
         fs_path = do_write(
             paths,
@@ -641,6 +665,7 @@ def write(
         LockedError,
     ) as exc:
         _err(exc)
+        err_console.print(f"Example: {WRITE_EXAMPLE}", soft_wrap=True)
         raise typer.Exit(code=1) from exc
     clear_dirty_for_env_session(paths)
     console.print(f"wrote {paths.rel(fs_path)}")
@@ -714,7 +739,7 @@ def archive(
     path: str = typer.Argument(...),
     reason: str = typer.Option(..., "--reason"),
     tombstone: Optional[bool] = typer.Option(
-        None, "--tombstone/--no-tombstone", help="Leave a stub at the original path (default: on)."
+        None, "--tombstone/--no-tombstone", help="Leave a stub at the original path (default: off; configurable)."
     ),
 ) -> None:
     """Move a page to wiki/archived/YYYY/MM/, stamp archive frontmatter, log the change."""

@@ -84,15 +84,15 @@ Most commands support `--json` if you want the output in a format a program can 
 | `llmw rebuild` | Rebuilds the entire search index from scratch |
 | `llmw index [--changed\|--all]` | Updates the search index (just what changed, by default) |
 | `llmw search "<query>" [--limit N] [--type T] [--strict]` | Searches all notes — see [docs/en/commands.md](docs/en/commands.md) for how the search works |
-| `llmw read <path\|title\|alias> [--full\|--brief]` | Opens a note; the short version shows the title, summary, and links |
+| `llmw read <path\|title\|alias\|slug> [--full\|--brief]` | Opens a note; the short version shows the title, summary, and links |
 | `llmw links <target>` | Shows what a note links out to |
 | `llmw backlinks <target>` | Shows what other notes link to this one |
 | `llmw related <target> [--limit N] [--by links,tags,terms]` | Suggests related notes, using simple rules (no AI guessing involved) |
 | `llmw ingest <raw/...>` | Turns a source document into a draft note ready for the AI to fill in |
-| `llmw write <path> --reason "..." --stdin [--force] [--supersedes <path>]` | Creates a brand-new note; `--supersedes` also marks an older note as replaced by it — see [docs/en/staleness.md](docs/en/staleness.md) |
+| `llmw write <path> --reason "..." [--stdin] [--force] [--supersedes <path>]` | Creates a brand-new note; `--supersedes` also marks an older note as replaced by it — see [docs/en/staleness.md](docs/en/staleness.md) |
 | `llmw edit <path> --old "..." --new "..." --reason "..." [--all]` | Replaces one exact piece of text in an existing note |
 | `llmw patch <path> --reason "..." --stdin` | Applies a set of changes to a note (keeps a backup first, undoes itself if something goes wrong) |
-| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Moves an old note out of the way instead of deleting it, and leaves a note behind pointing to its new location |
+| `llmw archive <path> --reason "..." [--tombstone\|--no-tombstone]` | Moves an old note to the archive and removes the original; `--tombstone` optionally leaves a redirect |
 | `llmw lint [--brief\|--json]` | Checks for problems — broken links, missing information, duplicate titles — but never fixes them automatically |
 | `llmw health [--brief]` | Checks that everything behind the scenes is set up correctly |
 | `llmw graph build` / `llmw graph export --format json\|html` | Builds or exports a visual map of how notes link to each other |

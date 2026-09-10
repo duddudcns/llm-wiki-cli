@@ -70,17 +70,29 @@ def archive_page(
         tombstone = (
             load_config(paths.config_path).archive_tombstone
             if paths.config_path.exists()
-            else True
+            else False
         )
 
     now = datetime.datetime.now()
     dest_dir = paths.wiki_archived / f"{now.year:04d}" / f"{now.month:02d}"
 
     with acquire_lock(paths, "write"):
+        if not fs_path.is_file():
+            raise PageNotFoundForArchiveError(f"{rel_path} does not exist.")
+        original_text = fs_path.read_text(encoding="utf-8")
+        try:
+            frontmatter, _ = split_frontmatter(original_text)
+        except InvalidFrontmatterError:
+            frontmatter = {}
+        if (
+            frontmatter.get("status") == "archived"
+            or frontmatter.get("archived") is True
+            or frontmatter.get("moved_to")
+        ):
+            raise PathNotAllowedError(f"{rel_path} is already archived.")
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path = _unique_destination(dest_dir, fs_path.name)
 
-        original_text = fs_path.read_text(encoding="utf-8")
         stamped = _stamp_archive_frontmatter(
             original_text, reason, now.isoformat(timespec="seconds")
         )

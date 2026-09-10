@@ -25,7 +25,7 @@ from llmw.locks import acquire_lock
 from llmw.log import append_log
 from llmw.patching import apply_unified_diff
 from llmw.paths import ProjectPaths
-from llmw.safety import require_reason, resolve_wiki_target
+from llmw.safety import PathNotAllowedError, require_reason, resolve_wiki_target
 
 
 class FileExistsConflictError(RuntimeError):
@@ -187,6 +187,10 @@ def write_page(
     """
     require_reason(reason)
     fs_path = resolve_wiki_target(paths, rel_path)
+    if not fs_path.suffix and fs_path != paths.wiki.resolve():
+        fs_path = resolve_wiki_target(paths, paths.rel(fs_path) + ".md")
+    if fs_path.suffix != ".md":
+        raise PathNotAllowedError("Page path must end with .md")
     split_frontmatter(content)  # raises InvalidFrontmatterError before touching disk
 
     superseded_fs: Path | None = None
@@ -215,6 +219,22 @@ def write_page(
         if fs_path.exists() and force:
             replaced_bytes = fs_path.read_text(encoding="utf-8")
             _backup(paths, fs_path)
+
+        frontmatter, _ = split_frontmatter(content)
+        today = datetime.date.today().isoformat()
+        defaults = {"title": fs_path.stem, "type": "note", "status": "active"}
+        if replaced_bytes is None:
+            defaults["created"] = today
+        else:
+            try:
+                previous, _ = split_frontmatter(replaced_bytes)
+            except InvalidFrontmatterError:
+                previous = {}
+            if previous.get("created"):
+                defaults["created"] = previous["created"]
+        fields = {key: value for key, value in defaults.items() if not frontmatter.get(key)}
+        fields["updated"] = today
+        content = set_fields(content, fields)
 
         fs_path.parent.mkdir(parents=True, exist_ok=True)
         fs_path.write_text(content, encoding="utf-8", newline="\n")

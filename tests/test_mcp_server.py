@@ -89,11 +89,7 @@ def test_mcp_edit_patch_archive_round_trip(tmp_path: Path) -> None:
                         "diff": (
                             "--- a/wiki/notes/scratch.md\n"
                             "+++ b/wiki/notes/scratch.md\n"
-                            "@@ -1,5 +1,6 @@\n"
-                            " ---\n"
-                            " title: Scratch\n"
-                            " ---\n"
-                            " \n"
+                            "@@ -9,1 +9,2 @@\n"
                             "-Edited body.\n"
                             "+Edited body.\n"
                             "+Patched line.\n"

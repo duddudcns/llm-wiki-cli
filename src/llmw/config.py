@@ -36,7 +36,7 @@ class Config:
     created: str = ""
     default_search_limit: int = 5
     default_related_limit: int = 10
-    archive_tombstone: bool = True
+    archive_tombstone: bool = False
     # Frontmatter keys `llmw lint` treats as required. Override this for
     # wikis with a different schema (e.g. only `type`/`status`, or a
     # `last_updated` field instead of separate `created`/`updated`).
@@ -175,7 +175,7 @@ def load_config(config_path: Path) -> Config:
         extra_root_pages=list(paths.get("extra_root_pages", [])),
         default_search_limit=defaults.get("search_limit", 5),
         default_related_limit=defaults.get("related_limit", 10),
-        archive_tombstone=defaults.get("archive_tombstone", True),
+        archive_tombstone=defaults.get("archive_tombstone", False),
         lint_required_frontmatter=list(
             lint.get("required_frontmatter", DEFAULT_LINT_REQUIRED_FRONTMATTER)
         ),

@@ -55,7 +55,7 @@ def llmw_search(query: str, root: str | None = None, limit: int = 5) -> dict[str
 
 @mcp.tool()
 def llmw_read(target: str, root: str | None = None, full: bool = False) -> dict[str, Any]:
-    """Read a wiki page by path, title, or alias."""
+    """Read a wiki page by path, title, alias, or filename/slug."""
     return read_page(_paths(root), target, full=full).as_dict()
 
 
@@ -69,6 +69,8 @@ def llmw_write(
     supersedes: str | None = None,
 ) -> dict[str, Any]:
     """Create a wiki page, or fully replace an existing one with force=true.
+    Extensionless paths gain .md. Missing title/type/status and new-page
+    created are filled; updated is stamped today on every write.
     For an existing page, prefer llmw_edit (small exact-text change) or
     llmw_patch (structural diff) over force=true unless most of the page
     is actually changing — this call requires resending the full content
@@ -135,7 +137,7 @@ def llmw_archive(
 ) -> dict[str, Any]:
     """Move a page to wiki/archived/YYYY/MM/, stamp archive frontmatter, and
     log the change. There is no delete — this is the sanctioned way to
-    retire a page. tombstone (default: project config, else True) leaves a
+    retire a page. tombstone (default: project config, else False) leaves a
     stub with `moved_to:` at the original path."""
     dest = archive_page(_paths(root), path, reason, tombstone=tombstone)
     return {"path": str(dest), "archived": True}
