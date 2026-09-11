@@ -44,6 +44,11 @@ class ReadResult:
     backlink_paths: list[str]
     full_text: str | None = None
     indexed: bool = True
+    # Length of the page body in characters, always populated. The brief
+    # view shows metadata only, and an agent that sees `summary: None`
+    # with nothing else concludes the page is empty and goes looking for
+    # the file on disk. Reporting the size makes the omission visible.
+    body_chars: int = 0
 
     def as_dict(self) -> dict:
         d = {
@@ -62,6 +67,7 @@ class ReadResult:
             "backlinks_count": self.backlinks_count,
             "backlink_paths": self.backlink_paths,
             "indexed": self.indexed,
+            "body_chars": self.body_chars,
         }
         if self.full_text is not None:
             d["full_text"] = self.full_text
@@ -218,4 +224,5 @@ def read_page(paths: ProjectPaths, target: str, full: bool = False) -> ReadResul
         backlink_paths=backlink_paths,
         full_text=text if full else None,
         indexed=indexed,
+        body_chars=len(page.body),
     )

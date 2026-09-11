@@ -398,6 +398,15 @@ def read(
         console.print(f"backlinks: {result.backlinks_count}")
     else:
         console.print("backlinks: unknown (run `llmw rebuild`)")
+    if result.body_chars:
+        # Without this the brief view looks like the whole page, and a
+        # page whose frontmatter carries no summary reads as empty. Say
+        # the body exists and how to get it, or the reader goes hunting
+        # for the file on disk instead of asking llmw again.
+        console.print(
+            f"body:      {result.body_chars} chars not shown — "
+            f'run `llmw read --full "{target}"`'
+        )
 
 
 @app.command()

@@ -144,3 +144,51 @@ def test_archive_unlink_failure_removes_destination(tmp_path, monkeypatch):
         archive_page(paths, "wiki/old.md", reason="archive")
     assert original.read_bytes() == before
     assert not list(paths.wiki_archived.rglob("*.md"))
+
+
+def test_brief_read_says_the_body_was_not_shown(tmp_path, monkeypatch):
+    # The brief view prints metadata only. A page whose frontmatter has no
+    # summary then looks empty, and an agent that believes it goes hunting
+    # for the file on disk — a `find` over a home directory costs minutes.
+    # Saying the body exists, and how to get it, keeps the reader in llmw.
+    paths = init_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    page = paths.root / "wiki" / "quiet.md"
+    page.write_text(
+        "---\ntitle: Quiet\n---\n\nThe body nobody sees.\n", encoding="utf-8"
+    )
+
+    result = CliRunner().invoke(app, ["read", "wiki/quiet.md"])
+
+    assert result.exit_code == 0
+    assert "summary:   None" in result.output
+    assert "not shown" in result.output
+    assert "--full" in result.output
+
+
+def test_full_read_does_not_repeat_the_hint(tmp_path, monkeypatch):
+    # --full already returns the body; repeating the hint there would put
+    # stray prose inside output that round-trips through `llmw edit --old`.
+    paths = init_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    page = paths.root / "wiki" / "loud.md"
+    page.write_text("---\ntitle: Loud\n---\n\nAll of it.\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["read", "wiki/loud.md", "--full"])
+
+    assert result.exit_code == 0
+    assert "All of it." in result.output
+    assert "not shown" not in result.output
+
+
+def test_empty_page_does_not_claim_a_hidden_body(tmp_path, monkeypatch):
+    # No body means nothing to advertise; the hint would be a lie.
+    paths = init_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    page = paths.root / "wiki" / "blank.md"
+    page.write_text("---\ntitle: Blank\n---\n", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["read", "wiki/blank.md"])
+
+    assert result.exit_code == 0
+    assert "not shown" not in result.output
